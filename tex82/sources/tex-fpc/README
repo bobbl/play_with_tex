@@ -1,0 +1,14 @@
+The files in this directory are from the CTAN package TeX-FPC
+<https://ctan.org/pkg/tex-fpc> written by Wolfgang Helbig.
+License: 2-clause BSD
+
+
+here            original                modifications
+--------        ----------------        ---------------
+tangle.p        tex-fpc/tangle.p        unmodified
+local.mf        tex-fpc/local.mf        unmodified
+inimf.ch        tex-fpc/mf.ch           unmodified (shift right to build INIMF)
+initex.ch       tex-fpc/tex.ch          unmodified (shift left to build INITEX)
+mf.ch           tex-fpc/mf.ch           shift left to build MF
+tex.ch          tex-fpc/tex.ch          shift left to build TEX
+
