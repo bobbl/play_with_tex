@@ -24,17 +24,27 @@ fi
 # check dependencies
 depend() {
 
-    if [ -d sources -a -d sources/dist ]
+    cd sources
+    if [ -d dist ]
     then
-        echo "Found TeX sources"
+        echo "Found Knuth's distribution"
     else
-        echo "Download TeX sources from CTAN"
-        mkdir -p sources
-        cd sources
+        echo "Download Knuth's distribution from CTAN"
         wget https://mirrors.ctan.org/systems/knuth/dist.zip
         unzip dist.zip
-        cd ..
     fi
+
+    # Additional fonts in knuth/local/cm/
+    #if [ -d local ]
+    #then
+    #    echo "Found Knuth's local information"
+    #else
+    #    echo "Download Knuth's local information from CTAN"
+    #    wget https://mirrors.ctan.org/systems/knuth/local.zip
+    #    unzip local.zip
+    #fi
+
+    cd ..
 
     fpc -h > /dev/null
     if [ $? -eq 0 ]
@@ -78,33 +88,24 @@ build() {
     fpc -Fasysutils,baseunix,unix mf.p
 
     # 4. Install .tfm-fonts for plain.tex
-    #./tangle ../sources/dist/mfware/gftopk.web ../sources/tex-fpc/gftopk.ch gftopk.p gftopk.pool
-    #fpc -Fasysutils,baseunix,unix gftopk.p
-
     mkdir -p TeXfonts
     cd TeXfonts
     cp ../../sources/dist/cm/* .
     cp ../../sources/dist/lib/manfnt.mf .
+    #cp ../../sources/local/cm/* . # additional fonts
 
     # FIXME: move plain.base somewhere else by modifying mf.ch
     mkdir -p MFbases
     mv ../plain.base MFbases/
 
-    for f in cmr5  cmr6  cmr7  cmr8  cmr9  cmr10 \
-            cmmi5 cmmi6 cmmi7 cmmi8 cmmi9 cmmi10 \
-            cmsy5 cmsy6 cmsy7 cmsy8 cmsy9 cmsy10 \
-            cmbx5 cmbx6 cmbx7 cmbx8 cmbx9 cmbx10 \
-                              cmtt8 cmtt9 cmtt10 \
-                              cmsl8 cmsl9 cmsl10 \
-                        cmti7 cmti8 cmti9 cmti10 \
-            cmex10 cmss10 cmssq8 cmssi10 cmssqi8 cmsltt10 \
-            cmu10 cmmib10 cmbsy10 cmcsc10 cmssbx10 cmdunh10 \
-            manfnt
+    for mf in *.mf
     do
+        f=$(basename $mf .mf)
         ../mf "\\mode=localfont; batchmode; input $f"\
         && echo $f.tfm installed \
         || echo "Generation of $f.tfm failed"
     done
+
 
     rm *.mf *.log *.*gf
     cd ..
@@ -128,7 +129,7 @@ build() {
 }
 
 
-
+# Build the trip manual with tex
 tripman() {
     mkdir -p build_tripman
     cd build_tripman
