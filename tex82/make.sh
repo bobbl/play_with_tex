@@ -8,6 +8,7 @@ help() {
     echo "  depend      Install dependencies (TeX source code, fpc)"
     echo "  build       Compile TeX"
     echo "  tripman     Test by building the trip manual"
+    echo "  trip        Run trip test"
     echo
     echo "  all         Build tex with fpc"
     echo "  clean       Remove build files"
@@ -18,6 +19,15 @@ then
     help
     exit 1
 fi
+
+
+
+# Check if a program ($1) is installed
+check_installation() {
+    $1 -h > /dev/null \
+        && echo "Found $1" \
+        || echo "Please install $1 (e.g sudo apt install $1)"
+}
 
 
 
@@ -46,14 +56,7 @@ depend() {
 
     cd ..
 
-    fpc -h > /dev/null
-    if [ $? -eq 0 ]
-    then
-        echo "Found fpc"
-    else
-        echo "Please install the Free Pascal Compiler (e.g. sudo apt install fpc)"
-        exit 1
-    fi
+    check_installation fpc
 }
 
 
@@ -153,6 +156,63 @@ tripman() {
 }
 
 
+# Compare two files and print error if not identical
+compare() {
+    d=$(diff $1 $2)
+    if [ ! -z "$d" ]
+    then
+        echo "Differences between $1 and $2"
+        echo "[[[ ----------------------------------"
+        echo "$d"
+        echo "]]] ----------------------------------"
+    fi
+}
+
+
+# Run the trip test for TeX
+trip() {
+    mkdir -p build
+    cd build
+
+    # TODO: build PLtoTF and TFtoPL from .web sources
+
+    # Step 0
+    cp ../sources/dist/tex/trip.tex .
+
+    # TODO: needless as long as PLtoTF and TFtoPL are not build from .web sources
+    : '
+    # Step 1: check PLtoTF and TFtoPL from .web sources
+    cp ../sources/dist/tex/trip.pl .
+    pltotf trip.pl trip.tfm
+    tftopl trip.tfm tmp.pl
+    pldiff=$(diff trip.pl tmp.pl)
+    if [ ! -z "$pldiff" ]
+    then
+        echo "Error in PLtoTF or TFtoPL:"
+        echo "$pldiff"
+    fi
+    '
+
+    # Step 2: build special TeX version
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool
+    fpc -Fasysutils,baseunix,unix triptex.p
+
+    # Step 3: First run of TeX
+    cp ../sources/dist/tex/trip.tfm TeXfonts/
+    printf "\n\\input trip\n" | ./triptex
+    mv trip.log tripin.log
+    compare tripin.log ../sources/dist/tex/tripin.log
+
+    # Step 4: Second run of TeX
+    rm -f 8terminal.tex
+    printf " &trip  trip\n" | ./triptex > trip.fot
+    compare trip.log ../sources/dist/tex/trip.log
+    compare trip.fot ../sources/dist/tex/trip.fot
+    [ -f 8terminal.tex ] || echo "ERROR: 8terminal.tex is missing"
+
+    cd ..
+}
+
 
 
 while [ $# -ne 0 ]
@@ -162,6 +222,7 @@ do
         depend)         depend ;;
         build)          build ;;
         tripman)        tripman ;;
+        trip)           trip ;;
 
         all)
             depend
