@@ -132,6 +132,7 @@ build() {
 }
 
 
+
 # Build the trip manual with tex
 tripman() {
     mkdir -p build_tripman
@@ -156,15 +157,15 @@ tripman() {
 }
 
 
-# Compare two files and print error if not identical
-modify_and_compare() {
-    sed -e '/^This is .*, Version/d' $1 > tmp.a
-}
 
-
-compare() {
+# Relaxed comparison between two files.
+# Some lines in the logs can be different, even if the result is identical.
+# Therefore remove these vague lines prior to the comparison.
+# If the files still differ, print an error.
+relaxed_compare() {
 
     e='/^This is /d
+        / TeX output /d
         s/ (preloaded format=trip [.0-9]*/ (preloaded format=trip/
         s/[0-9]* strings of total length [0-9]*/9999 strings of total length 99999/
         s/[0-9]* strings out of [0-9]*/99 strings out of 9999/
@@ -182,6 +183,7 @@ compare() {
         echo "]]] ----------------------------------"
     fi
 }
+
 
 
 # Run the trip test for TeX
@@ -216,7 +218,7 @@ trip() {
     cp ../sources/dist/tex/trip.tfm TeXfonts/
     printf "\n\\input trip\n" | ./triptex
     mv trip.log tripin.log
-    compare tripin.log ../sources/dist/tex/tripin.log
+    relaxed_compare tripin.log ../sources/dist/tex/tripin.log
 
     # Step 4: Second run of TeX
     rm -f 8terminal.tex
@@ -224,9 +226,14 @@ trip() {
     sed -e 's/^\*\*(trip\.tex ##/\*\* \&trip  trip \
 (trip.tex ##/' trip.prefot > trip.fot
 
-    compare trip.log ../sources/dist/tex/trip.log
-    compare trip.fot ../sources/dist/tex/trip.fot
+    # Step 5: Relaxed comparison of logs
+    relaxed_compare trip.log ../sources/dist/tex/trip.log
+    relaxed_compare trip.fot ../sources/dist/tex/trip.fot
     [ -f 8terminal.tex ] || echo "ERROR: 8terminal.tex is missing"
+
+    # Step 5: Check .dvi output
+    dvitype -output-level=2 -page-start='*.*.*.*.*.*.*.*.*.*' -dpi=72.27 trip.dvi > tmp.typ
+    relaxed_compare tmp.typ ../sources/dist/tex/trip.typ
 
     cd ..
 }
