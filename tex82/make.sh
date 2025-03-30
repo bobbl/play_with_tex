@@ -157,11 +157,26 @@ tripman() {
 
 
 # Compare two files and print error if not identical
+modify_and_compare() {
+    sed -e '/^This is .*, Version/d' $1 > tmp.a
+}
+
+
 compare() {
-    d=$(diff $1 $2)
+
+    e='/^This is /d
+        s/ (preloaded format=trip [.0-9]*/ (preloaded format=trip/
+        s/[0-9]* strings of total length [0-9]*/9999 strings of total length 99999/
+        s/[0-9]* strings out of [0-9]*/99 strings out of 9999/
+        s/[0-9]* string characters out of [0-9]*/999 string characters out of 9999/'
+
+    sed -e "$e" $1 > tmp.a
+    sed -e "$e" $2 > tmp.b
+
+    d=$(diff tmp.a tmp.b)
     if [ ! -z "$d" ]
     then
-        echo "Differences between $1 and $2"
+        echo "ERROR: Differences between $1 and $2"
         echo "[[[ ----------------------------------"
         echo "$d"
         echo "]]] ----------------------------------"
@@ -188,7 +203,7 @@ trip() {
     pldiff=$(diff trip.pl tmp.pl)
     if [ ! -z "$pldiff" ]
     then
-        echo "Error in PLtoTF or TFtoPL:"
+        echo "ERROR in PLtoTF or TFtoPL:"
         echo "$pldiff"
     fi
     '
@@ -205,7 +220,10 @@ trip() {
 
     # Step 4: Second run of TeX
     rm -f 8terminal.tex
-    printf " &trip  trip\n" | ./triptex > trip.fot
+    printf " &trip  trip\n" | ./triptex > trip.prefot
+    sed -e 's/^\*\*(trip\.tex ##/\*\* \&trip  trip \
+(trip.tex ##/' trip.prefot > trip.fot
+
     compare trip.log ../sources/dist/tex/trip.log
     compare trip.fot ../sources/dist/tex/trip.fot
     [ -f 8terminal.tex ] || echo "ERROR: 8terminal.tex is missing"

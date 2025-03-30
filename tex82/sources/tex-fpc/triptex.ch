@@ -136,21 +136,20 @@ I'd rather maintain invariants---not software.
 \fi
 
 [2] Change the banner line
-% Do not change banner for trip
-	@x
-	known as `\TeX' [cf.~Stanford Computer Science report CS1027,
-	November 1984].
-	
-	@d banner=='This is TeX, Version 3.141592653' {printed when \TeX\ starts}
-	@y
-	known as `\TeX' [cf.~Stanford Computer Science report CS1027,
-	November 1984].
-	
-	Even though \namefpc\ does not differ from \TeX\ I proudly change
-	the banner! And take responsibility for any error.
-	
-	@d banner=='This is TeX-FPC, 4th ed.'
-	@z
+@x
+known as `\TeX' [cf.~Stanford Computer Science report CS1027,
+November 1984].
+
+@d banner=='This is TeX, Version 3.141592653' {printed when \TeX\ starts}
+@y
+known as `\TeX' [cf.~Stanford Computer Science report CS1027,
+November 1984].
+
+Even though \namefpc\ does not differ from \TeX\ I proudly change
+the banner! And take responsibility for any error.
+
+@d banner=='This is TeX-FPC, 4th ed.'
+@z
 
 [4] program header
 @x
@@ -812,40 +811,39 @@ macros are simplified in the obvious way when |min_quarterword=0|.
 @z
 
 [241]
-% Do not change date for trip
-	@x
-	@p procedure fix_date_and_time;
-	begin sys_time:=12*60;
-	sys_day:=4; sys_month:=7; sys_year:=1776;  {self-evident truths}
-	time:=sys_time; {minutes since midnight}
-	day:=sys_day; {day of the month}
-	month:=sys_month; {month of the year}
-	year:=sys_year; {Anno Domini}
-	end;
-	@y
-	\marke X The functions |now|,  |decodedate|, and |decodetime| are provided
-	by the unit |sysutils|. The command line option \.{fpc~-Fasysutils~tex.p}
-	links that unit.
-	@^system dependencies@>
-	@^sysutils@>
-	@^FPC Pascal@>
-	When FPC is in ISO mode, it does not accept declaring a |unit| in the source
-	file.
-	@dfpc_now == now
-	@dfpc_decode_date == decodedate
-	@dfpc_decode_time == decodetime
-	@p procedure fix_date_and_time;
-	var yy,mm,dd: word;
-	    hh,ss,ms: word;
-	begin
-	fpc_decode_date(fpc_now,yy,mm,dd); {current date}
-	sys_day := dd; day:=sys_day;
-	sys_month := mm; month:=sys_month;
-	sys_year := yy; year := sys_year;@/
-	fpc_decode_time(fpc_now,hh,mm,ss,ms); {current time}
-	sys_time := hh*60+mm; time := sys_time; {minutes since midnight}
-	end;
-	@z
+@x
+@p procedure fix_date_and_time;
+begin sys_time:=12*60;
+sys_day:=4; sys_month:=7; sys_year:=1776;  {self-evident truths}
+time:=sys_time; {minutes since midnight}
+day:=sys_day; {day of the month}
+month:=sys_month; {month of the year}
+year:=sys_year; {Anno Domini}
+end;
+@y
+\marke X The functions |now|,  |decodedate|, and |decodetime| are provided
+by the unit |sysutils|. The command line option \.{fpc~-Fasysutils~tex.p}
+links that unit.
+@^system dependencies@>
+@^sysutils@>
+@^FPC Pascal@>
+When FPC is in ISO mode, it does not accept declaring a |unit| in the source
+file.
+@dfpc_now == now
+@dfpc_decode_date == decodedate
+@dfpc_decode_time == decodetime
+@p procedure fix_date_and_time;
+var yy,mm,dd: word;
+    hh,ss,ms: word;
+begin
+fpc_decode_date(fpc_now,yy,mm,dd); {current date}
+sys_day := dd; day:=sys_day;
+sys_month := mm; month:=sys_month;
+sys_year := yy; year := sys_year;@/
+fpc_decode_time(fpc_now,hh,mm,ss,ms); {current time}
+sys_time := hh*60+mm; time := sys_time; {minutes since midnight}
+end;
+@z
 
 [360] Don't print empty lines
 	@x chatty
