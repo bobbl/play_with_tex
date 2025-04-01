@@ -82,9 +82,8 @@ build() {
 
     # 2. Make plain.base
     cp ../sources/dist/lib/plain.mf .
-    ./inimf plain input ../sources/tex-fpc/local dump
+    ./inimf plain input ../sources/local dump
     #mv plain.base MFbases/
-
 
     # 3. Make mf
     ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/mf.ch mf.p mf.pool
@@ -108,11 +107,8 @@ build() {
         && echo $f.tfm installed \
         || echo "Generation of $f.tfm failed"
     done
-
-
     rm *.mf *.log *.*gf
     cd ..
-
 
     # 5. Make plain.fmt
     cp ../sources/dist/lib/plain.tex .
@@ -175,8 +171,10 @@ relaxed_compare() {
     sed -e "$e" $2 > tmp.b
 
     d=$(diff tmp.a tmp.b)
-    if [ ! -z "$d" ]
+    if [ -z "$d" ]
     then
+        echo "    +++ $1 IS CORRECT +++"
+    else
         echo "ERROR: Differences between $1 and $2"
         echo "[[[ ----------------------------------"
         echo "$d"
@@ -191,30 +189,19 @@ trip() {
     mkdir -p build
     cd build
 
+    # Step 1: check PLtoTF and TFtoPL and build trip.tfm
     # TODO: build PLtoTF and TFtoPL from .web sources
-
-    # Step 0
-    cp ../sources/dist/tex/trip.tex .
-
-    # TODO: needless as long as PLtoTF and TFtoPL are not build from .web sources
-    : '
-    # Step 1: check PLtoTF and TFtoPL from .web sources
     cp ../sources/dist/tex/trip.pl .
     pltotf trip.pl trip.tfm
     tftopl trip.tfm tmp.pl
-    pldiff=$(diff trip.pl tmp.pl)
-    if [ ! -z "$pldiff" ]
-    then
-        echo "ERROR in PLtoTF or TFtoPL:"
-        echo "$pldiff"
-    fi
-    '
+    relaxed_compare trip.pl tmp.pl
 
     # Step 2: build special TeX version
     ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool
     fpc -Fasysutils,baseunix,unix triptex.p
 
     # Step 3: First run of TeX
+    cp ../sources/dist/tex/trip.tex .
     cp ../sources/dist/tex/trip.tfm TeXfonts/
     printf "\n\\input trip\n" | ./triptex
     mv trip.log tripin.log
@@ -229,9 +216,14 @@ trip() {
     # Step 5: Relaxed comparison of logs
     relaxed_compare trip.log ../sources/dist/tex/trip.log
     relaxed_compare trip.fot ../sources/dist/tex/trip.fot
-    [ -f 8terminal.tex ] || echo "ERROR: 8terminal.tex is missing"
+    [ -f 8terminal.tex ] \
+        && echo "    +++ 8terminal.tex FOUND +++" \
+        || echo "ERROR: 8terminal.tex is missing"
 
     # Step 5: Check .dvi output
+    cp ../sources/dist/tex/trip.tfm .
+        # dvitype expects trip.tfm in current dir, not TeXfonts/
+
     dvitype -output-level=2 -page-start='*.*.*.*.*.*.*.*.*.*' -dpi=72.27 trip.dvi > tmp.typ
     relaxed_compare tmp.typ ../sources/dist/tex/trip.typ
 

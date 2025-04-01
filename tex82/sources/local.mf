@@ -1,0 +1,13 @@
+% Same as dpdfezzz from https://mirrors.ctan.org/fonts/modes/modes.mf
+% But 4000 instead of 8000 dpi because our Metafont does not accept more.
+%
+mode_def dpdf =
+  proofing := 0;
+  fontmaking := 1;
+  tracingtitles := 1;
+  pixels_per_inch := 4000;
+  blacker := 0;
+  fillin := 0;
+  o_correction := 1;
+enddef;
+localfont := dpdf;
