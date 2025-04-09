@@ -5,12 +5,11 @@
 help() {
     echo "Usage: $0 <action> ..."
     echo
-    echo "  depend      Install dependencies (TeX source code, fpc)"
-    echo "  build       Compile TeX"
+    echo "  quick       Compile only TeX"
+    echo "  full        Compile tangle, Metafont, font files and TeX"
     echo "  tripman     Test by building the trip manual"
     echo "  trip        Run trip test"
     echo
-    echo "  all         Build tex with fpc"
     echo "  clean       Remove build files"
 }
 
@@ -22,81 +21,148 @@ fi
 
 
 
-# Check if a program ($1) is installed
+# Check if a program is installed
+# $1 program name
 check_installation() {
     $1 -h > /dev/null \
         && echo "Found $1" \
-        || echo "Please install $1 (e.g sudo apt install $1)"
+        ||  { echo "Please install $1 (e.g sudo apt install $1)" ; exit 100 ; }
 }
 
 
 
-# check dependencies
-depend() {
-
+# Download CTAN package, if not already done
+# $1 package path
+# $1 package name
+check_ctan() {
     cd sources
-    if [ -d dist ]
+    if [ -d "$2" ]
     then
-        echo "Found Knuth's distribution"
+        echo "Found CTAN package '$1$2'"
     else
-        echo "Download Knuth's distribution from CTAN"
-        wget https://mirrors.ctan.org/systems/knuth/dist.zip
-        unzip dist.zip
+        echo "Downloading CTAN package '$1$2'"
+        wget "https://mirrors.ctan.org/$1$2.zip"
+        unzip "$2.zip"
     fi
+    cd ..
+}
 
-    # Additional fonts in knuth/local/cm/
-    #if [ -d local ]
-    #then
-    #    echo "Found Knuth's local information"
-    #else
-    #    echo "Download Knuth's local information from CTAN"
-    #    wget https://mirrors.ctan.org/systems/knuth/local.zip
-    #    unzip local.zip
-    #fi
+
+
+# Run tangle
+# Use freshly build tangle if available, oherwise the system version
+#
+# $1 .web source code
+# $2 .ch change file
+# $3 .p Pascal output
+# $4 .pool string pool output
+do_tangle() {
+    if [ -f tangle ]
+    then
+        ./tangle $1 $2 $3 $4
+    else
+        if tangle $1 $2 tmp.p
+        then
+            mv tmp.p $3
+            mv tmp.pool $4
+        else
+            echon "No tangle found: compile or install it"
+            exit 101
+        fi
+    fi
+}
+
+
+
+build_tex()
+{
+    mkdir -p build
+    cd build
+
+    # compile tex.web to initex
+    mkdir -p TeXformats
+    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/initex.ch \
+        initex.p TeXformats/tex.pool
+    fpc -Fasysutils,baseunix,unix initex.p
+
+    # make plain.fmt
+    cp ../sources/dist/lib/plain.tex .
+    cp ../sources/dist/lib/hyphen.tex .
+    ./initex plain \\dump
+    mv plain.fmt TeXformats/plain.fmt
+
+    # compile tex.web to tex
+    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch \
+        tex.p TeXformats/tex.pool
+    fpc -Fasysutils,baseunix,unix tex.p
 
     cd ..
-
-    check_installation fpc
 }
 
 
 
-# Build TeX with the help of tex-fpc and fpc
+# Use precompiled fonts and tangle to build TeX very quickly
+quick() {
+    check_ctan systems/knuth/ dist
+        # Knuth's distribution
+    check_installation fpc
+        # Free Pascal Compiler
+    check_ctan fonts/cm/ tfm
+        # compiled metric fonts for Computer Modern
+    check_ctan fonts/ manual
+        # compiled metric fonts for extra symbols
+    check_installation tangle
+        # install tangle
+
+    # copy metric font files
+    mkdir -p build/TeXfonts
+    cp sources/tfm/*.tfm build/TeXfonts/
+    cp sources/manual/tfm/*.tfm build/TeXfonts/
+
+    build_tex
+}
+
+
+
+# Build Metafont, metric fonts and TeX with the help of tex-fpc and fpc.
 # Following the steps described by Wolfgang Helbig in tex-fpc/README
-build() {
+full() {
+    check_ctan systems/knuth/ dist
+        # Knuth's distribution
+    #check_ctan systems/knuth/ local
+        # additional fonts in knuth/local/cm/
+    check_installation fpc
+        # Free Pascal Compiler
 
     mkdir -p build
     cd build
 
-    # 0. Compile tangle.p
+    # Step 1: compile tangle.p
     cp ../sources/tex-fpc/tangle.p .
     fpc tangle.p
 
-    # 1. Make inimf and initex
+    # Step 2.1: compile mf.web to inimf
     mkdir -p MFbases
-    mkdir -p TeXformats
-    ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/inimf.ch inimf.p MFbases/mf.pool
+    ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/inimf.ch \
+        inimf.p MFbases/mf.pool
     fpc -Fasysutils,baseunix,unix inimf.p
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/initex.ch initex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix initex.p
 
-    # 2. Make plain.base
+    # Step 2.2: make plain.base
     cp ../sources/dist/lib/plain.mf .
     ./inimf plain input ../sources/local dump
     #mv plain.base MFbases/
 
-    # 3. Make mf
+    # Step 2.3: compile mf.web to mf
     ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/mf.ch mf.p mf.pool
     fpc -Fasysutils,baseunix,unix mf.p
 
-    # 4. Install .tfm-fonts for plain.tex
+    # Step 2.4: install .tfm-fonts for plain.tex
     mkdir -p TeXfonts
     cd TeXfonts
     cp ../../sources/dist/cm/* .
     cp ../../sources/dist/lib/manfnt.mf .
     #cp ../../sources/local/cm/* . # additional fonts
 
-    # FIXME: move plain.base somewhere else by modifying mf.ch
     mkdir -p MFbases
     mv ../plain.base MFbases/
 
@@ -110,21 +176,11 @@ build() {
     rm *.mf *.log *.*gf
     cd ..
 
-    # 5. Make plain.fmt
-    cp ../sources/dist/lib/plain.tex .
-    cp ../sources/dist/lib/hyphen.tex .
-    ./initex plain \\dump
-
-
-    # 6. Make tex
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch tex.p tex.pool.UNUSED
-    fpc -Fasysutils,baseunix,unix tex.p
-
-
-    # post
-    cp plain.fmt TeXformats/plain.fmt
-
     cd ..
+
+    # Step 3: build TeX
+    build_tex
+
 }
 
 
@@ -133,10 +189,9 @@ build() {
 tripman() {
     mkdir -p build_tripman
     cd build_tripman
-    rm -f *
+    rm -rf *
 
-    mkdir -p TeXformats
-    cp  ../build/plain.fmt TeXformats/
+    ln -s ../build/TeXformats
     ln -s ../build/TeXfonts
 
     cp  ../sources/dist/tex/tripman.tex .
@@ -197,7 +252,7 @@ trip() {
     relaxed_compare trip.pl tmp.pl
 
     # Step 2: build special TeX version
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool
+    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool
     fpc -Fasysutils,baseunix,unix triptex.p
 
     # Step 3: First run of TeX
@@ -236,15 +291,10 @@ while [ $# -ne 0 ]
 do
     case $1 in
         help)           help ;;
-        depend)         depend ;;
-        build)          build ;;
+        quick)          quick ;;
+        full)           full ;;
         tripman)        tripman ;;
         trip)           trip ;;
-
-        all)
-            depend
-            build
-            ;;
 
         clean)
             rm -rf build/*
