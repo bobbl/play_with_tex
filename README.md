@@ -87,6 +87,7 @@ from TeX-FPC that can be compiled with FPC:
 
     fpc tangle.p
 
+
 ### Step 2: Metafont
 
 TeX uses fonts in the Metafont format. Therefore Metafont and the fonts are
@@ -111,7 +112,9 @@ To compile the source code, some special parameters are required:
 
 Copy `plain.mf` from Knuth and `local.mf` to the current directory and run INIMF:
 
-    ./inimf plain input 
+    ./inimf plain input
+
+The resulting `plain.base` file must be copied to `MFbases/`.
 
 #### Step 2.3: Compile MF
 
@@ -126,5 +129,17 @@ Run MF on every .mf font file that should be converted to .tfm
 
     ./mf "\\mode=localfont; batchmode; input FONTNAME"
 
-The .mf font files can be found in 
+The .mf font files for the Computer Modern font can be found in the folder
+`cm/` of Knuth's `dist` package. Additionally the font `lib/manfnt.mf` from
+the same package must be installed. 
+The CTAN Package [knuth-local](https://ctan.org/pkg/knuth-local)
+contains additional optional fonts.
+
+Copy the .tfm (*TeX font metric*) files to `TeXfonts/`. The other files can
+be removed.
+
+
+### Step 3: Compile TeX
+
+See steps 3.1 to 3.3 from the quick solution above.
 
