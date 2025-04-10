@@ -26,8 +26,22 @@ quick compilation are executed by running the make script:
     ./make quick
 
 To speed up compilation, it takes the TANGLE program from your favourite TeX or
-Linux distribution. The compiled metric fonts can be downloaded from the
-[CTAN package cm-tfm](https://mirrors.ctan.org/fonts/cm/tfm.zip).
+Linux distribution. The compiled metric fonts can be downloaded from CTAN.
+
+### Step 3.0: Download .tfm font files
+
+Download the CTAN packages [cm-tfm](https://ctan.org/pkg/cm-tfm) and
+[fonts/manual]((https://ctan.org/pkg/manual)
+
+    wget "https://mirrors.ctan.org/fonts/cm/tfm.zip"
+    wget "https://mirrors.ctan.org/fonts/manual.zip"
+
+extract the files
+
+    unzip tfm.zip
+    unzip manual.zip
+
+and copy the .tfm files to a new subdirectory `TeXfonts/`
 
 ### Step 3.1: Compile INITEX from tex.web
 
