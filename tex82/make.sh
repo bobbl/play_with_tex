@@ -74,7 +74,8 @@ do_tangle() {
 
 
 
-build_tex()
+# old version: use two binaries INITEX and TEX
+build_tex_twobinaries()
 {
     mkdir -p build
     cd build
@@ -95,6 +96,29 @@ build_tex()
     do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch \
         tex.p TeXformats/tex.pool
     fpc -Fasysutils,baseunix,unix tex.p
+
+    cd ..
+}
+
+
+
+# new version: use one binary with optional -ini switch
+build_tex()
+{
+    mkdir -p build
+    cd build
+
+    # compile tex.web to tex
+    mkdir -p TeXformats
+    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
+        tex.p TeXformats/tex.pool
+    fpc -Fasysutils,baseunix,unix tex.p
+
+    # make plain.fmt with `tex -ini`
+    cp ../sources/dist/lib/plain.tex .
+    cp ../sources/dist/lib/hyphen.tex .
+    ./tex -ini plain \\dump
+    mv plain.fmt TeXformats/plain.fmt
 
     cd ..
 }
