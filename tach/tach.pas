@@ -706,11 +706,12 @@ panicking:=false;}{:166}{215:}
           TeXVariation := 1;
           writeln('INITEX detected');
         END
-      ELSE IF FirstArg='-trip'THEN
-             BEGIN
-               writeln('TRIPTEX detected');
-               TeXVariation := 2;
-             END
+      ELSE
+        IF FirstArg='-trip'THEN
+          BEGIN
+            writeln('TRIPTEX detected');
+            TeXVariation := 2;
+          END
       ELSE
         BEGIN
           writeln('TEX detected:',FirstArg);
@@ -926,11 +927,12 @@ PROCEDURE printchar(s:ASCIIcode);
 
 LABEL 10;
 BEGIN
-  IF {244:}s=eqtb[5312].int{:244}THEN IF selector<20 THEN
-                                        BEGIN
-                                          println;
-                                          goto 10;
-                                        END;
+  IF {244:}s=eqtb[5312].int{:244}THEN
+    IF selector<20 THEN
+      BEGIN
+        println;
+        goto 10;
+      END;
   CASE selector OF 
     19:
         BEGIN
@@ -962,7 +964,8 @@ BEGIN
           IF termoffset=maxprintline THEN println;
         END;
     16:;
-    20: IF tally<trickcount THEN trickbuf[tally mod errorline] := s;
+    20:
+        IF tally<trickcount THEN trickbuf[tally mod errorline] := s;
     21:
         BEGIN
           IF poolptr<poolsize THEN
@@ -984,7 +987,9 @@ VAR j: poolpointer;
   nl: integer;
 BEGIN
   IF s>=strptr THEN s := 259
-  ELSE IF s<256 THEN IF s<0 THEN s := 259
+  ELSE
+    IF s<256 THEN
+      IF s<0 THEN s := 259
   ELSE
     BEGIN
       IF selector>20 THEN
@@ -992,11 +997,12 @@ BEGIN
           printchar(s);
           goto 10;
         END;
-      IF ({244:}s=eqtb[5312].int{:244})THEN IF selector<20 THEN
-                                              BEGIN
-                                                println;
-                                                goto 10;
-                                              END;
+      IF ({244:}s=eqtb[5312].int{:244})THEN
+        IF selector<20 THEN
+          BEGIN
+            println;
+            goto 10;
+          END;
       nl := eqtb[5312].int;
       eqtb[5312].int := -1;
       j := strstart[s];
@@ -1045,7 +1051,8 @@ PROCEDURE printesc(s:strnumber);
 VAR c: integer;
 BEGIN{243:}
   c := eqtb[5308].int{:243};
-  IF c>=0 THEN IF c<256 THEN print(c);
+  IF c>=0 THEN
+    IF c<256 THEN print(c);
   slowprint(s);
 END;{:63}{64:}
 PROCEDURE printthedigs(k:eightbits);
@@ -1091,23 +1098,28 @@ BEGIN
 END;{:65}{262:}
 PROCEDURE printcs(p:integer);
 BEGIN
-  IF p<514 THEN IF p>=257 THEN IF p=513 THEN
-                                 BEGIN
-                                   printesc(504);
-                                   printesc(505);
-                                   printchar(32);
-                                 END
+  IF p<514 THEN
+    IF p>=257 THEN
+      IF p=513 THEN
+        BEGIN
+          printesc(504);
+          printesc(505);
+          printchar(32);
+        END
   ELSE
     BEGIN
       printesc(p-257);
       IF eqtb[3983+p-257].hh.rh=11 THEN printchar(32);
     END
-  ELSE IF p<1 THEN printesc(506)
+  ELSE
+    IF p<1 THEN printesc(506)
   ELSE print(p-1)
-  ELSE IF p>=2881 THEN
-         printesc(506)
-  ELSE IF (hash[p].rh<0)OR(hash[p].rh>=strptr)THEN printesc(
-                                                            507)
+  ELSE
+    IF p>=2881 THEN
+      printesc(506)
+  ELSE
+    IF (hash[p].rh<0)OR(hash[p].rh>=strptr)THEN printesc(
+                                                         507)
   ELSE
     BEGIN
       printesc(hash[p].rh);
@@ -1117,9 +1129,11 @@ END;
 {:262}{263:}
 PROCEDURE sprintcs(p:halfword);
 BEGIN
-  IF p<514 THEN IF p<257 THEN print(p-1)
-  ELSE IF p<513 THEN printesc(
-                              p-257)
+  IF p<514 THEN
+    IF p<257 THEN print(p-1)
+  ELSE
+    IF p<513 THEN printesc(
+                           p-257)
   ELSE
     BEGIN
       printesc(504);
@@ -1138,7 +1152,8 @@ END;
 PROCEDURE printsize(s:integer);
 BEGIN
   IF s=0 THEN printesc(412)
-  ELSE IF s=16 THEN printesc(413)
+  ELSE
+    IF s=16 THEN printesc(413)
   ELSE
     printesc(414);
 END;{:699}{1355:}
@@ -1147,8 +1162,9 @@ PROCEDURE printwritewhatsit(s:strnumber;
 BEGIN
   printesc(s);
   IF mem[p+1].hh.lh<16 THEN printint(mem[p+1].hh.lh)
-  ELSE IF mem[p+1].hh.lh
-          =16 THEN printchar(42)
+  ELSE
+    IF mem[p+1].hh.lh
+       =16 THEN printchar(42)
   ELSE printchar(45);
 END;
 {:1355}{78:}
@@ -1186,153 +1202,150 @@ BEGIN
   IF history<2 THEN history := 2;
   printchar(46);
   showcontext;
-  IF interaction=3 THEN{83:}WHILE true DO
-                              BEGIN
-                                22: IF interaction<>3 THEN
-                                      goto 10;
-                                clearforerrorprompt;
-                                BEGIN;
-                                  print(264);
-                                  terminput;
-                                END;
-                                IF last=first THEN goto 10;
-                                c := buffer[first];
-                                IF c>=97 THEN c := c-32;
+  IF interaction=3 THEN{83:}
+    WHILE true DO
+      BEGIN
+        22:
+            IF interaction<>3 THEN
+              goto 10;
+        clearforerrorprompt;
+        BEGIN;
+          print(264);
+          terminput;
+        END;
+        IF last=first THEN goto 10;
+        c := buffer[first];
+        IF c>=97 THEN c := c-32;
 {84:}
-                                CASE c OF 
-                                  48,49,50,51,52,53,54,55,56,57: IF deletionsallowed THEN
+        CASE c OF 
+          48,49,50,51,52,53,54,55,56,57:
+                                         IF deletionsallowed THEN
 {88:}
-                                                                   BEGIN
-                                                                     s1 := curtok;
-                                                                     s2 := curcmd;
-                                                                     s3 := curchr;
-                                                                     s4 := alignstate;
-                                                                     alignstate := 1000000;
-                                                                     OKtointerrupt := false;
-                                                                     IF (last>first+1)AND(buffer[
-                                                                        first+1]>=48)AND(buffer[
-                                                                        first+1]<=57)THEN c := 
-                                                                                               c*10+
-                                                                                              buffer
-                                                                                               [
-                                                                                               first
-                                                                                               +1]-
-                                                                                               48*11
-                                                                     ELSE c := c-48;
-                                                                     WHILE c>0 DO
-                                                                       BEGIN
-                                                                         gettoken;
-                                                                         c := c-1;
-                                                                       END;
-                                                                     curtok := s1;
-                                                                     curcmd := s2;
-                                                                     curchr := s3;
-                                                                     alignstate := s4;
-                                                                     OKtointerrupt := true;
-                                                                     BEGIN
-                                                                       helpptr := 2;
-                                                                       helpline[1] := 279;
-                                                                       helpline[0] := 280;
-                                                                     END;
-                                                                     showcontext;
-                                                                     goto 22;
-                                                                   END{:88};
-                                  {68:begin debughelp;goto 22;end;}
-                                  69: IF baseptr>0 THEN IF inputstack[baseptr].namefield>=256 THEN
-                                                          BEGIN
-                                                            printnl(265);
-                                                            slowprint(inputstack[baseptr].namefield)
-                                                            ;
-                                                            print(266);
-                                                            printint(line);
-                                                            interaction := 2;
-                                                            wantedit := true;
-                                                            jumpout;
-                                                          END;
-                                  72:{89:}
-                                      BEGIN
-                                        IF useerrhelp THEN
-                                          BEGIN
-                                            giveerrhelp;
-                                            useerrhelp := false;
-                                          END
-                                        ELSE
-                                          BEGIN
-                                            IF helpptr=0 THEN
-                                              BEGIN
-                                                helpptr := 2;
-                                                helpline[1] := 281;
-                                                helpline[0] := 282;
-                                              END;
-                                            REPEAT
-                                              helpptr := helpptr-1;
-                                              print(helpline[helpptr]);
-                                              println;
-                                            UNTIL helpptr=0;
-                                          END;
-                                        BEGIN
-                                          helpptr := 4;
-                                          helpline[3] := 283;
-                                          helpline[2] := 282;
-                                          helpline[1] := 284;
-                                          helpline[0] := 285;
-                                        END;
-                                        goto 22;
-                                      END{:89};
-                                  73:{87:}
-                                      BEGIN
-                                        beginfilereading;
-                                        IF last>first+1 THEN
-                                          BEGIN
-                                            curinput.locfield := first+1;
-                                            buffer[first] := 32;
-                                          END
-                                        ELSE
-                                          BEGIN
-                                            BEGIN;
-                                              print(278);
-                                              terminput;
-                                            END;
-                                            curinput.locfield := first;
-                                          END;
-                                        first := last;
-                                        curinput.limitfield := last-1;
-                                        goto 10;
-                                      END{:87};
-                                  81,82,83:{86:}
-                                            BEGIN
-                                              errorcount := 0;
-                                              interaction := 0+c-81;
-                                              print(273);
-                                              CASE c OF 
-                                                81: printesc(274);
-                                                82: printesc(275);
-                                                83: printesc(276);
-                                              END;
-                                              print(277);
-                                              println;
-                                              flush(output);
-                                              IF c=81 THEN selector := selector-1;
-                                              goto 10;
-                                            END{:86};
-                                  88:
-                                      BEGIN
-                                        interaction := 2;
-                                        jumpout;
-                                      END;
-                                  ELSE
-                                END;
+                                           BEGIN
+                                             s1 := curtok;
+                                             s2 := curcmd;
+                                             s3 := curchr;
+                                             s4 := alignstate;
+                                             alignstate := 1000000;
+                                             OKtointerrupt := false;
+                                             IF (last>first+1)AND(buffer[first+1]>=48)AND(buffer[
+                                                first+1]<=57)THEN c := 
+                                                                       c*10+buffer[first+1]-48*11
+                                             ELSE c := c-48;
+                                             WHILE c>0 DO
+                                               BEGIN
+                                                 gettoken;
+                                                 c := c-1;
+                                               END;
+                                             curtok := s1;
+                                             curcmd := s2;
+                                             curchr := s3;
+                                             alignstate := s4;
+                                             OKtointerrupt := true;
+                                             BEGIN
+                                               helpptr := 2;
+                                               helpline[1] := 279;
+                                               helpline[0] := 280;
+                                             END;
+                                             showcontext;
+                                             goto 22;
+                                           END{:88};{68:begin debughelp;goto 22;end;}
+          69:
+              IF baseptr>0 THEN
+                IF inputstack[baseptr].namefield>=256 THEN
+                  BEGIN
+                    printnl(265);
+                    slowprint(inputstack[baseptr].namefield);
+                    print(266);
+                    printint(line);
+                    interaction := 2;
+                    wantedit := true;
+                    jumpout;
+                  END;
+          72:{89:}
+              BEGIN
+                IF useerrhelp THEN
+                  BEGIN
+                    giveerrhelp;
+                    useerrhelp := false;
+                  END
+                ELSE
+                  BEGIN
+                    IF helpptr=0 THEN
+                      BEGIN
+                        helpptr := 2;
+                        helpline[1] := 281;
+                        helpline[0] := 282;
+                      END;
+                    REPEAT
+                      helpptr := helpptr-1;
+                      print(helpline[helpptr]);
+                      println;
+                    UNTIL helpptr=0;
+                  END;
+                BEGIN
+                  helpptr := 4;
+                  helpline[3] := 283;
+                  helpline[2] := 282;
+                  helpline[1] := 284;
+                  helpline[0] := 285;
+                END;
+                goto 22;
+              END{:89};
+          73:{87:}
+              BEGIN
+                beginfilereading;
+                IF last>first+1 THEN
+                  BEGIN
+                    curinput.locfield := first+1;
+                    buffer[first] := 32;
+                  END
+                ELSE
+                  BEGIN
+                    BEGIN;
+                      print(278);
+                      terminput;
+                    END;
+                    curinput.locfield := first;
+                  END;
+                first := last;
+                curinput.limitfield := last-1;
+                goto 10;
+              END{:87};
+          81,82,83:{86:}
+                    BEGIN
+                      errorcount := 0;
+                      interaction := 0+c-81;
+                      print(273);
+                      CASE c OF 
+                        81: printesc(274);
+                        82: printesc(275);
+                        83: printesc(276);
+                      END;
+                      print(277);
+                      println;
+                      flush(output);
+                      IF c=81 THEN selector := selector-1;
+                      goto 10;
+                    END{:86};
+          88:
+              BEGIN
+                interaction := 2;
+                jumpout;
+              END;
+          ELSE
+        END;
 {85:}
-                                BEGIN
-                                  print(267);
-                                  printnl(268);
-                                  printnl(269);
-                                  IF baseptr>0 THEN IF inputstack[baseptr].namefield>=256 THEN print
-                                                      (270);
-                                  IF deletionsallowed THEN printnl(271);
-                                  printnl(272);
-                                END{:85}{:84};
-                              END{:83};
+        BEGIN
+          print(267);
+          printnl(268);
+          printnl(269);
+          IF baseptr>0 THEN
+            IF inputstack[baseptr].namefield>=256 THEN print(270);
+          IF deletionsallowed THEN printnl(271);
+          printnl(272);
+        END{:85}{:84};
+      END{:83};
   errorcount := errorcount+1;
   IF errorcount=100 THEN
     BEGIN
@@ -1347,11 +1360,12 @@ BEGIN
       println;
       giveerrhelp;
     END
-  ELSE WHILE helpptr>0 DO
-         BEGIN
-           helpptr := helpptr-1;
-           printnl(helpline[helpptr]);
-         END;
+  ELSE
+    WHILE helpptr>0 DO
+      BEGIN
+        helpptr := helpptr-1;
+        printnl(helpline[helpptr]);
+      END;
   println;
   IF interaction>0 THEN selector := selector+1;
   println{:90};
@@ -1521,12 +1535,13 @@ BEGIN
             BEGIN
               maxbufstack := 
                              last+1;
-              IF maxbufstack=bufsize THEN{35:}IF formatident=0 THEN
-                                                BEGIN
-                                                  writeln(
-                                                          output,'Buffer size exceeded!');
-                                                  goto 9999;
-                                                END
+              IF maxbufstack=bufsize THEN{35:}
+                IF formatident=0 THEN
+                  BEGIN
+                    writeln(
+                            output,'Buffer size exceeded!');
+                    goto 9999;
+                  END
               ELSE
                 BEGIN
                   curinput.locfield := first;
@@ -1561,12 +1576,13 @@ BEGIN
       argc := argc+1;
       WHILE cc<=length(arg) DO
         BEGIN
-          IF last+1>=bufsize THEN{35:}IF formatident
-                                         =0 THEN
-                                        BEGIN
-                                          writeln(output,'Buffer size exceeded!');
-                                          goto 9999;
-                                        END
+          IF last+1>=bufsize THEN{35:}
+            IF formatident
+               =0 THEN
+              BEGIN
+                writeln(output,'Buffer size exceeded!');
+                goto 9999;
+              END
           ELSE
             BEGIN
               curinput.locfield := first;
@@ -1698,11 +1714,12 @@ BEGIN
               strpool[poolptr] := k+64;
               poolptr := poolptr+1;
             END
-          ELSE IF k<128 THEN
-                 BEGIN
-                   strpool[poolptr] := k-64;
-                   poolptr := poolptr+1;
-                 END
+          ELSE
+            IF k<128 THEN
+              BEGIN
+                strpool[poolptr] := k-64;
+                poolptr := poolptr+1;
+              END
           ELSE
             BEGIN
               l := k DIV 16;
@@ -1766,7 +1783,8 @@ BEGIN
                   k := k+1;
                   read(poolfile,n);
                 END;
-              30: IF a<>305924274 THEN
+              30:
+                  IF a<>305924274 THEN
                     BEGIN;
                       writeln(output,'! TeXformats/tex.pool doesn''t match. Not installed?');
                       getstringsstarted := false;
@@ -1987,8 +2005,9 @@ BEGIN
       n := -n;
     END;
   IF n=0 THEN multandadd := y
-  ELSE IF ((x<=(maxanswer-y)DIV n)AND(-x<=(
-          maxanswer+y)DIV n))THEN multandadd := n*x+y
+  ELSE
+    IF ((x<=(maxanswer-y)DIV n)AND(-x<=(
+       maxanswer+y)DIV n))THEN multandadd := n*x+y
   ELSE
     BEGIN
       aritherror := true;
@@ -2063,12 +2082,14 @@ FUNCTION badness(t,s:scaled): halfword;
 VAR r: integer;
 BEGIN
   IF t=0 THEN badness := 0
-  ELSE IF s<=0 THEN badness := 10000
+  ELSE
+    IF s<=0 THEN badness := 10000
   ELSE
     BEGIN
       IF t<=7230584 THEN r := (t*297)DIV s
-      ELSE IF s>=1663497 THEN r := t DIV(s
-                                   DIV 297)
+      ELSE
+        IF s>=1663497 THEN r := t DIV(s
+                                DIV 297)
       ELSE r := t;
       IF r>1290 THEN badness := 10000
       ELSE badness := (r*r*r+131072)DIV 262144;
@@ -2115,34 +2136,35 @@ BEGIN
                ].hh.lh DIV 256;
           c := mem[p].hh.lh MOD 256;
           IF mem[p].hh.lh<0 THEN printesc(555)
-          ELSE{294:}CASE m OF 
-                      1,2,3,4,7,8,10,
-                      11,12: print(c);
-                      6:
-                         BEGIN
-                           print(c);
-                           print(c);
-                         END;
-                      5:
-                         BEGIN
-                           print(matchchr);
-                           IF c<=9 THEN printchar(c+48)
-                           ELSE
-                             BEGIN
-                               printchar(33);
-                               goto 10;
-                             END;
-                         END;
-                      13:
-                          BEGIN
-                            matchchr := c;
-                            print(c);
-                            n := n+1;
-                            printchar(n);
-                            IF n>57 THEN goto 10;
-                          END;
-                      14: print(556);
-                      ELSE printesc(555)
+          ELSE{294:}
+            CASE m OF 
+              1,2,3,4,7,8,10,
+              11,12: print(c);
+              6:
+                 BEGIN
+                   print(c);
+                   print(c);
+                 END;
+              5:
+                 BEGIN
+                   print(matchchr);
+                   IF c<=9 THEN printchar(c+48)
+                   ELSE
+                     BEGIN
+                       printchar(33);
+                       goto 10;
+                     END;
+                 END;
+              13:
+                  BEGIN
+                    matchchr := c;
+                    print(c);
+                    n := n+1;
+                    printchar(n);
+                    IF n>57 THEN goto 10;
+                  END;
+              14: print(556);
+              ELSE printesc(555)
             END{:294};
         END{:293};
       p := mem[p].hh.rh;
@@ -2191,11 +2213,12 @@ VAR p: halfword;
 BEGIN
   p := avail;
   IF p<>0 THEN avail := mem[avail].hh.rh
-  ELSE IF memend<memmax THEN
-         BEGIN
-           memend := memend+1;
-           p := memend;
-         END
+  ELSE
+    IF memend<memmax THEN
+      BEGIN
+        memend := memend+1;
+        p := memend;
+      END
   ELSE
     BEGIN
       himemmin := himemmin-1;
@@ -2255,14 +2278,15 @@ BEGIN
         rover := p;
         goto 40;
       END{:128};
-    IF r=p THEN IF mem[p+1].hh.rh<>p THEN{129:}
-                  BEGIN
-                    rover := mem[p+1].hh.rh;
-                    t := mem[p+1].hh.lh;
-                    mem[rover+1].hh.lh := t;
-                    mem[t+1].hh.rh := rover;
-                    goto 40;
-                  END{:129};
+    IF r=p THEN
+      IF mem[p+1].hh.rh<>p THEN{129:}
+        BEGIN
+          rover := mem[p+1].hh.rh;
+          t := mem[p+1].hh.lh;
+          mem[rover+1].hh.lh := t;
+          mem[t+1].hh.rh := rover;
+          goto 40;
+        END{:129};
     mem[p].hh.lh := q-p{:127};
     p := mem[p+1].hh.rh;
   UNTIL p=rover;
@@ -2271,27 +2295,28 @@ BEGIN
       getnode := 65535;
       goto 10;
     END;
-  IF lomemmax+2<himemmin THEN IF lomemmax+2<=65535 THEN{126:}
-                                BEGIN
-                                  IF 
-                                     himemmin-lomemmax>=1998 THEN t := lomemmax+1000
-                                  ELSE t := lomemmax+1+(
-                                            himemmin-lomemmax)DIV 2;
-                                  p := mem[rover+1].hh.lh;
-                                  q := lomemmax;
-                                  mem[p+1].hh.rh := q;
-                                  mem[rover+1].hh.lh := q;
-                                  IF t>65535 THEN t := 65535;
-                                  mem[q+1].hh.rh := rover;
-                                  mem[q+1].hh.lh := p;
-                                  mem[q].hh.rh := 65535;
-                                  mem[q].hh.lh := t-lomemmax;
-                                  lomemmax := t;
-                                  mem[lomemmax].hh.rh := 0;
-                                  mem[lomemmax].hh.lh := 0;
-                                  rover := q;
-                                  goto 20;
-                                END{:126};
+  IF lomemmax+2<himemmin THEN
+    IF lomemmax+2<=65535 THEN{126:}
+      BEGIN
+        IF 
+           himemmin-lomemmax>=1998 THEN t := lomemmax+1000
+        ELSE t := lomemmax+1+(
+                  himemmin-lomemmax)DIV 2;
+        p := mem[rover+1].hh.lh;
+        q := lomemmax;
+        mem[p+1].hh.rh := q;
+        mem[rover+1].hh.lh := q;
+        IF t>65535 THEN t := 65535;
+        mem[q+1].hh.rh := rover;
+        mem[q+1].hh.lh := p;
+        mem[q].hh.rh := 65535;
+        mem[q].hh.lh := t-lomemmax;
+        lomemmax := t;
+        mem[lomemmax].hh.rh := 0;
+        mem[lomemmax].hh.lh := 0;
+        rover := q;
+        goto 20;
+      END{:126};
   overflow(300,memmax+1-memmin);
   40: mem[r].hh.rh := 0;
   varused := varused+s;
@@ -2565,24 +2590,26 @@ BEGIN
               print(mem[p].hh.b1);
             END;
         END
-      ELSE{175:}CASE mem[p].hh.b0 OF 
-                  0,1,3,8,4,5,13: print(308);
-                  2: printchar(124);
-                  10: IF mem[p+1].hh.lh<>0 THEN printchar(32);
-                  9: printchar(36);
-                  6: shortdisplay(mem[p+1].hh.rh);
-                  7:
-                     BEGIN
-                       shortdisplay(mem[p+1].hh.lh);
-                       shortdisplay(mem[p+1].hh.rh);
-                       n := mem[p].hh.b1;
-                       WHILE n>0 DO
-                         BEGIN
-                           IF mem[p].hh.rh<>0 THEN p := mem[p].hh.rh;
-                           n := n-1;
-                         END;
-                     END;
-                  ELSE
+      ELSE{175:}
+        CASE mem[p].hh.b0 OF 
+          0,1,3,8,4,5,13: print(308);
+          2: printchar(124);
+          10:
+              IF mem[p+1].hh.lh<>0 THEN printchar(32);
+          9: printchar(36);
+          6: shortdisplay(mem[p+1].hh.rh);
+          7:
+             BEGIN
+               shortdisplay(mem[p+1].hh.lh);
+               shortdisplay(mem[p+1].hh.rh);
+               n := mem[p].hh.b1;
+               WHILE n>0 DO
+                 BEGIN
+                   IF mem[p].hh.rh<>0 THEN p := mem[p].hh.rh;
+                   n := n-1;
+                 END;
+             END;
+          ELSE
         END{:175};
       p := mem[p].hh.rh;
     END;
@@ -2619,17 +2646,19 @@ PROCEDURE printglue(d:scaled;order:integer;s:strnumber);
 BEGIN
   printscaled(d);
   IF (order<0)OR(order>3)THEN print(310)
-  ELSE IF order>0 THEN
-         BEGIN
-           print(
-                 311);
-           WHILE order>1 DO
-             BEGIN
-               printchar(108);
-               order := order-1;
-             END;
-         END
-  ELSE IF s<>0 THEN print(s);
+  ELSE
+    IF order>0 THEN
+      BEGIN
+        print(
+              311);
+        WHILE order>1 DO
+          BEGIN
+            printchar(108);
+            order := order-1;
+          END;
+      END
+  ELSE
+    IF s<>0 THEN print(s);
 END;
 {:177}{178:}
 PROCEDURE printspec(p:integer;s:strnumber);
@@ -2693,7 +2722,8 @@ BEGIN
              printfamandchar(p);
            END;
         2: showinfo;
-        3: IF mem[p].hh.lh=0 THEN
+        3:
+           IF mem[p].hh.lh=0 THEN
              BEGIN
                println;
                printcurrentstring;
@@ -2772,345 +2802,352 @@ BEGIN
         END;
 {183:}
       IF (p>=himemmin)THEN printfontandchar(p)
-      ELSE CASE mem[p].hh.b0 OF 
-             0
-             ,1,13:{184:}
+      ELSE
+        CASE mem[p].hh.b0 OF 
+          0
+          ,1,13:{184:}
+                 BEGIN
+                   IF mem[p].hh.b0=0 THEN printesc(104)
+                   ELSE
+                     IF mem[p].hh.
+                        b0=1 THEN printesc(118)
+                   ELSE printesc(318);
+                   print(319);
+                   printscaled(mem[p+3].int);
+                   printchar(43);
+                   printscaled(mem[p+2].int);
+                   print(320);
+                   printscaled(mem[p+1].int);
+                   IF mem[p].hh.b0=13 THEN{185:}
+                     BEGIN
+                       IF mem[p].hh.b1<>0 THEN
+                         BEGIN
+                           print(
+                                 286);
+                           printint(mem[p].hh.b1+1);
+                           print(322);
+                         END;
+                       IF mem[p+6].int<>0 THEN
+                         BEGIN
+                           print(323);
+                           printglue(mem[p+6].int,mem[p+5].hh.b1,0);
+                         END;
+                       IF mem[p+4].int<>0 THEN
+                         BEGIN
+                           print(324);
+                           printglue(mem[p+4].int,mem[p+5].hh.b0,0);
+                         END;
+                     END{:185}
+                   ELSE
+                     BEGIN{186:}
+                       g := mem[p+6].gr;
+                       IF (g<>0.0)AND(mem[p+5].hh.b0<>0)THEN
+                         BEGIN
+                           print(325);
+                           IF mem[p+5].hh.b0=2 THEN print(326);
+                           IF abs(mem[p+6].int)<1048576 THEN print(327)
+                           ELSE
+                             IF abs(g)>20000.0 THEN
+                               BEGIN
+                                 IF g>0.0 THEN printchar(62)
+                                 ELSE print(328);
+                                 printglue(20000*65536,mem[p+5].hh.b1,0);
+                               END
+                           ELSE printglue(round(65536*g),mem[p+5].hh.b1,0);
+                         END{:186};
+                       IF mem[p+4].int<>0 THEN
+                         BEGIN
+                           print(321);
+                           printscaled(mem[p+4].int);
+                         END;
+                     END;
+                   BEGIN
+                     BEGIN
+                       strpool[poolptr] := 46;
+                       poolptr := poolptr+1;
+                     END;
+                     shownodelist(mem[p+5].hh.rh);
+                     poolptr := poolptr-1;
+                   END;
+                 END{:184};
+          2:{187:}
+             BEGIN
+               printesc(329);
+               printruledimen(mem[p+3].int);
+               printchar(43);
+               printruledimen(mem[p+2].int);
+               print(320);
+               printruledimen(mem[p+1].int);
+             END{:187};
+          3:{188:}
+             BEGIN
+               printesc(330);
+               printint(mem[p].hh.b1);
+               print(331);
+               printscaled(mem[p+3].int);
+               print(332);
+               printspec(mem[p+4].hh.rh,0);
+               printchar(44);
+               printscaled(mem[p+2].int);
+               print(333);
+               printint(mem[p+1].int);
+               BEGIN
+                 BEGIN
+                   strpool[poolptr] := 46;
+                   poolptr := poolptr+1;
+                 END;
+                 shownodelist(mem[p+4].hh.lh);
+                 poolptr := poolptr-1;
+               END;
+             END{:188};
+          8:{1356:}
+             CASE mem[p].hh.b1 OF 
+               0:
+                  BEGIN
+                    printwritewhatsit(1286,p);
+                    printchar(61);
+                    printfilename(mem[p+1].hh.rh,mem[p+2].hh.lh,mem[p+2].hh.rh);
+                  END;
+               1:
+                  BEGIN
+                    printwritewhatsit(594,p);
+                    printmark(mem[p+1].hh.rh);
+                  END;
+               2: printwritewhatsit(1287,p);
+               3:
+                  BEGIN
+                    printesc(1288);
+                    printmark(mem[p+1].hh.rh);
+                  END;
+               4:
+                  BEGIN
+                    printesc(1290);
+                    printint(mem[p+1].hh.rh);
+                    print(1293);
+                    printint(mem[p+1].hh.b0);
+                    printchar(44);
+                    printint(mem[p+1].hh.b1);
+                    printchar(41);
+                  END;
+               ELSE print(1294)
+             END{:1356};
+          10:{189:}
+              IF mem[p].hh.b1>=100 THEN{190:}
+                BEGIN
+                  printesc(338);
+                  IF mem[p].hh.b1=101 THEN printchar(99)
+                  ELSE
+                    IF mem[p].hh.b1=102 THEN
+                      printchar(120);
+                  print(339);
+                  printspec(mem[p+1].hh.lh,0);
+                  BEGIN
                     BEGIN
-                      IF mem[p].hh.b0=0 THEN printesc(104)
-                      ELSE IF mem[p].hh.
-                              b0=1 THEN printesc(118)
-                      ELSE printesc(318);
-                      print(319);
-                      printscaled(mem[p+3].int);
-                      printchar(43);
-                      printscaled(mem[p+2].int);
-                      print(320);
-                      printscaled(mem[p+1].int);
-                      IF mem[p].hh.b0=13 THEN{185:}
-                        BEGIN
-                          IF mem[p].hh.b1<>0 THEN
-                            BEGIN
-                              print(
-                                    286);
-                              printint(mem[p].hh.b1+1);
-                              print(322);
-                            END;
-                          IF mem[p+6].int<>0 THEN
-                            BEGIN
-                              print(323);
-                              printglue(mem[p+6].int,mem[p+5].hh.b1,0);
-                            END;
-                          IF mem[p+4].int<>0 THEN
-                            BEGIN
-                              print(324);
-                              printglue(mem[p+4].int,mem[p+5].hh.b0,0);
-                            END;
-                        END{:185}
+                      strpool[poolptr] := 46;
+                      poolptr := poolptr+1;
+                    END;
+                    shownodelist(mem[p+1].hh.rh);
+                    poolptr := poolptr-1;
+                  END;
+                END{:190}
+              ELSE
+                BEGIN
+                  printesc(334);
+                  IF mem[p].hh.b1<>0 THEN
+                    BEGIN
+                      printchar(40);
+                      IF mem[p].hh.b1<98 THEN printskipparam(mem[p].hh.b1-1)
                       ELSE
-                        BEGIN{186:}
-                          g := mem[p+6].gr;
-                          IF (g<>0.0)AND(mem[p+5].hh.b0<>0)THEN
-                            BEGIN
-                              print(325);
-                              IF mem[p+5].hh.b0=2 THEN print(326);
-                              IF abs(mem[p+6].int)<1048576 THEN print(327)
-                              ELSE IF abs(g)>20000.0 THEN
-                                     BEGIN
-                                       IF g>0.0 THEN printchar(62)
-                                       ELSE print(328);
-                                       printglue(20000*65536,mem[p+5].hh.b1,0);
-                                     END
-                              ELSE printglue(round(65536*g),mem[p+5].hh.b1,0);
-                            END{:186};
-                          IF mem[p+4].int<>0 THEN
-                            BEGIN
-                              print(321);
-                              printscaled(mem[p+4].int);
-                            END;
-                        END;
-                      BEGIN
-                        BEGIN
-                          strpool[poolptr] := 46;
-                          poolptr := poolptr+1;
-                        END;
-                        shownodelist(mem[p+5].hh.rh);
-                        poolptr := poolptr-1;
-                      END;
-                    END{:184};
-             2:{187:}
-                BEGIN
-                  printesc(329);
-                  printruledimen(mem[p+3].int);
-                  printchar(43);
-                  printruledimen(mem[p+2].int);
-                  print(320);
-                  printruledimen(mem[p+1].int);
-                END{:187};
-             3:{188:}
-                BEGIN
-                  printesc(330);
-                  printint(mem[p].hh.b1);
-                  print(331);
-                  printscaled(mem[p+3].int);
-                  print(332);
-                  printspec(mem[p+4].hh.rh,0);
-                  printchar(44);
-                  printscaled(mem[p+2].int);
-                  print(333);
-                  printint(mem[p+1].int);
-                  BEGIN
-                    BEGIN
-                      strpool[poolptr] := 46;
-                      poolptr := poolptr+1;
+                        IF mem[p].hh.
+                           b1=98 THEN printesc(335)
+                      ELSE printesc(336);
+                      printchar(41);
                     END;
-                    shownodelist(mem[p+4].hh.lh);
-                    poolptr := poolptr-1;
-                  END;
-                END{:188};
-             8:{1356:}CASE mem[p].hh.b1 OF 
-                        0:
-                           BEGIN
-                             printwritewhatsit(1286,p);
-                             printchar(61);
-                             printfilename(mem[p+1].hh.rh,mem[p+2].hh.lh,mem[p+2].hh.rh);
-                           END;
-                        1:
-                           BEGIN
-                             printwritewhatsit(594,p);
-                             printmark(mem[p+1].hh.rh);
-                           END;
-                        2: printwritewhatsit(1287,p);
-                        3:
-                           BEGIN
-                             printesc(1288);
-                             printmark(mem[p+1].hh.rh);
-                           END;
-                        4:
-                           BEGIN
-                             printesc(1290);
-                             printint(mem[p+1].hh.rh);
-                             print(1293);
-                             printint(mem[p+1].hh.b0);
-                             printchar(44);
-                             printint(mem[p+1].hh.b1);
-                             printchar(41);
-                           END;
-                        ELSE print(1294)
-                END{:1356};
-             10:{189:}IF mem[p].hh.b1>=100 THEN{190:}
-                        BEGIN
-                          printesc(338);
-                          IF mem[p].hh.b1=101 THEN printchar(99)
-                          ELSE IF mem[p].hh.b1=102 THEN
-                                 printchar(120);
-                          print(339);
-                          printspec(mem[p+1].hh.lh,0);
-                          BEGIN
-                            BEGIN
-                              strpool[poolptr] := 46;
-                              poolptr := poolptr+1;
-                            END;
-                            shownodelist(mem[p+1].hh.rh);
-                            poolptr := poolptr-1;
-                          END;
-                        END{:190}
-                 ELSE
-                   BEGIN
-                     printesc(334);
-                     IF mem[p].hh.b1<>0 THEN
-                       BEGIN
-                         printchar(40);
-                         IF mem[p].hh.b1<98 THEN printskipparam(mem[p].hh.b1-1)
-                         ELSE IF mem[p].hh.
-                                 b1=98 THEN printesc(335)
-                         ELSE printesc(336);
-                         printchar(41);
-                       END;
-                     IF mem[p].hh.b1<>98 THEN
-                       BEGIN
-                         printchar(32);
-                         IF mem[p].hh.b1<98 THEN printspec(mem[p+1].hh.lh,0)
-                         ELSE printspec(mem[p
-                                        +1].hh.lh,337);
-                       END;
-                   END{:189};
-             11:{191:}IF mem[p].hh.b1<>99 THEN
-                        BEGIN
-                          printesc(340);
-                          IF mem[p].hh.b1<>0 THEN printchar(32);
-                          printscaled(mem[p+1].int);
-                          IF mem[p].hh.b1=2 THEN print(341);
-                        END
-                 ELSE
-                   BEGIN
-                     printesc(342);
-                     printscaled(mem[p+1].int);
-                     print(337);
-                   END{:191};
-             9:{192:}
-                BEGIN
-                  printesc(343);
-                  IF mem[p].hh.b1=0 THEN print(344)
-                  ELSE print(345);
-                  IF mem[p+1].int<>0 THEN
+                  IF mem[p].hh.b1<>98 THEN
                     BEGIN
-                      print(346);
-                      printscaled(mem[p+1].int);
+                      printchar(32);
+                      IF mem[p].hh.b1<98 THEN printspec(mem[p+1].hh.lh,0)
+                      ELSE printspec(mem[p
+                                     +1].hh.lh,337);
                     END;
-                END{:192};
-             6:{193:}
+                END{:189};
+          11:{191:}
+              IF mem[p].hh.b1<>99 THEN
                 BEGIN
-                  printfontandchar(p+1);
-                  print(347);
-                  IF mem[p].hh.b1>1 THEN printchar(124);
-                  fontinshortdisplay := mem[p+1].hh.b0;
-                  shortdisplay(mem[p+1].hh.rh);
-                  IF odd(mem[p].hh.b1)THEN printchar(124);
-                  printchar(41);
-                END{:193};
-             12:{194:}
+                  printesc(340);
+                  IF mem[p].hh.b1<>0 THEN printchar(32);
+                  printscaled(mem[p+1].int);
+                  IF mem[p].hh.b1=2 THEN print(341);
+                END
+              ELSE
+                BEGIN
+                  printesc(342);
+                  printscaled(mem[p+1].int);
+                  print(337);
+                END{:191};
+          9:{192:}
+             BEGIN
+               printesc(343);
+               IF mem[p].hh.b1=0 THEN print(344)
+               ELSE print(345);
+               IF mem[p+1].int<>0 THEN
                  BEGIN
-                   printesc(348);
-                   printint(mem[p+1].int);
-                 END{:194};
-             7:{195:}
-                BEGIN
-                  printesc(349);
-                  IF mem[p].hh.b1>0 THEN
-                    BEGIN
-                      print(350);
-                      printint(mem[p].hh.b1);
-                    END;
-                  BEGIN
-                    BEGIN
-                      strpool[poolptr] := 46;
-                      poolptr := poolptr+1;
-                    END;
-                    shownodelist(mem[p+1].hh.lh);
-                    poolptr := poolptr-1;
-                  END;
-                  BEGIN
-                    strpool[poolptr] := 124;
-                    poolptr := poolptr+1;
-                  END;
-                  shownodelist(mem[p+1].hh.rh);
-                  poolptr := poolptr-1;
-                END{:195};
-             4:{196:}
-                BEGIN
-                  printesc(351);
-                  printmark(mem[p+1].int);
-                END{:196};
-             5:{197:}
-                BEGIN
-                  printesc(352);
-                  BEGIN
-                    BEGIN
-                      strpool[poolptr] := 46;
-                      poolptr := poolptr+1;
-                    END;
-                    shownodelist(mem[p+1].int);
-                    poolptr := poolptr-1;
-                  END;
-                END{:197};{690:}
-             14: printstyle(mem[p].hh.b1);
-             15:{695:}
+                   print(346);
+                   printscaled(mem[p+1].int);
+                 END;
+             END{:192};
+          6:{193:}
+             BEGIN
+               printfontandchar(p+1);
+               print(347);
+               IF mem[p].hh.b1>1 THEN printchar(124);
+               fontinshortdisplay := mem[p+1].hh.b0;
+               shortdisplay(mem[p+1].hh.rh);
+               IF odd(mem[p].hh.b1)THEN printchar(124);
+               printchar(41);
+             END{:193};
+          12:{194:}
+              BEGIN
+                printesc(348);
+                printint(mem[p+1].int);
+              END{:194};
+          7:{195:}
+             BEGIN
+               printesc(349);
+               IF mem[p].hh.b1>0 THEN
                  BEGIN
-                   printesc(525);
-                   BEGIN
-                     strpool[poolptr] := 68;
-                     poolptr := poolptr+1;
-                   END;
-                   shownodelist(mem[p+1].hh.lh);
-                   poolptr := poolptr-1;
-                   BEGIN
-                     strpool[poolptr] := 84;
-                     poolptr := poolptr+1;
-                   END;
-                   shownodelist(mem[p+1].hh.rh);
-                   poolptr := poolptr-1;
-                   BEGIN
-                     strpool[poolptr] := 83;
-                     poolptr := poolptr+1;
-                   END;
-                   shownodelist(mem[p+2].hh.lh);
-                   poolptr := poolptr-1;
-                   BEGIN
-                     strpool[poolptr] := 115;
-                     poolptr := poolptr+1;
-                   END;
-                   shownodelist(mem[p+2].hh.rh);
-                   poolptr := poolptr-1;
-                 END{:695};
-             16,17,18,19,20,21,22,23,24,27,26,29,28,30,31:{696:}
-                                                           BEGIN
-                                                             CASE mem[p].hh.
-                                                                  b0 OF 
-                                                               16: printesc(867);
-                                                               17: printesc(868);
-                                                               18: printesc(869);
-                                                               19: printesc(870);
-                                                               20: printesc(871);
-                                                               21: printesc(872);
-                                                               22: printesc(873);
-                                                               23: printesc(874);
-                                                               27: printesc(875);
-                                                               26: printesc(876);
-                                                               29: printesc(539);
-                                                               24:
-                                                                   BEGIN
-                                                                     printesc(533);
-                                                                     printdelimiter(p+4);
-                                                                   END;
-                                                               28:
-                                                                   BEGIN
-                                                                     printesc(508);
-                                                                     printfamandchar(p+4);
-                                                                   END;
-                                                               30:
-                                                                   BEGIN
-                                                                     printesc(877);
-                                                                     printdelimiter(p+1);
-                                                                   END;
-                                                               31:
-                                                                   BEGIN
-                                                                     printesc(878);
-                                                                     printdelimiter(p+1);
-                                                                   END;
-                                                             END;
-                                                             IF mem[p].hh.b1<>0 THEN IF mem[p].hh.b1
-                                                                                        =1 THEN
-                                                                                       printesc(879)
-                                                             ELSE
-                                                               printesc(880);
-                                                             IF mem[p].hh.b0<30 THEN
-                                                               printsubsidiarydata(p+1,46);
-                                                             printsubsidiarydata(p+2,94);
-                                                             printsubsidiarydata(p+3,95);
-                                                           END{:696};
-             25:{697:}
+                   print(350);
+                   printint(mem[p].hh.b1);
+                 END;
+               BEGIN
                  BEGIN
-                   printesc(881);
-                   IF mem[p+1].int=1073741824 THEN print(882)
-                   ELSE printscaled(mem[p+1].int)
-                   ;
-                   IF (mem[p+4].qqqq.b0<>0)OR(mem[p+4].qqqq.b1<>0)OR(mem[p+4].qqqq.b2<>0)OR(
-                      mem[p+4].qqqq.b3<>0)THEN
-                     BEGIN
-                       print(883);
-                       printdelimiter(p+4);
-                     END;
-                   IF (mem[p+5].qqqq.b0<>0)OR(mem[p+5].qqqq.b1<>0)OR(mem[p+5].qqqq.b2<>0)OR(
-                      mem[p+5].qqqq.b3<>0)THEN
-                     BEGIN
-                       print(884);
-                       printdelimiter(p+5);
-                     END;
-                   printsubsidiarydata(p+2,92);
-                   printsubsidiarydata(p+3,47);
-                 END{:697};
+                   strpool[poolptr] := 46;
+                   poolptr := poolptr+1;
+                 END;
+                 shownodelist(mem[p+1].hh.lh);
+                 poolptr := poolptr-1;
+               END;
+               BEGIN
+                 strpool[poolptr] := 124;
+                 poolptr := poolptr+1;
+               END;
+               shownodelist(mem[p+1].hh.rh);
+               poolptr := poolptr-1;
+             END{:195};
+          4:{196:}
+             BEGIN
+               printesc(351);
+               printmark(mem[p+1].int);
+             END{:196};
+          5:{197:}
+             BEGIN
+               printesc(352);
+               BEGIN
+                 BEGIN
+                   strpool[poolptr] := 46;
+                   poolptr := poolptr+1;
+                 END;
+                 shownodelist(mem[p+1].int);
+                 poolptr := poolptr-1;
+               END;
+             END{:197};{690:}
+          14: printstyle(mem[p].hh.b1);
+          15:{695:}
+              BEGIN
+                printesc(525);
+                BEGIN
+                  strpool[poolptr] := 68;
+                  poolptr := poolptr+1;
+                END;
+                shownodelist(mem[p+1].hh.lh);
+                poolptr := poolptr-1;
+                BEGIN
+                  strpool[poolptr] := 84;
+                  poolptr := poolptr+1;
+                END;
+                shownodelist(mem[p+1].hh.rh);
+                poolptr := poolptr-1;
+                BEGIN
+                  strpool[poolptr] := 83;
+                  poolptr := poolptr+1;
+                END;
+                shownodelist(mem[p+2].hh.lh);
+                poolptr := poolptr-1;
+                BEGIN
+                  strpool[poolptr] := 115;
+                  poolptr := poolptr+1;
+                END;
+                shownodelist(mem[p+2].hh.rh);
+                poolptr := poolptr-1;
+              END{:695};
+          16,17,18,19,20,21,22,23,24,27,26,29,28,30,31:{696:}
+                                                        BEGIN
+                                                          CASE mem[p].hh.
+                                                               b0 OF 
+                                                            16: printesc(867);
+                                                            17: printesc(868);
+                                                            18: printesc(869);
+                                                            19: printesc(870);
+                                                            20: printesc(871);
+                                                            21: printesc(872);
+                                                            22: printesc(873);
+                                                            23: printesc(874);
+                                                            27: printesc(875);
+                                                            26: printesc(876);
+                                                            29: printesc(539);
+                                                            24:
+                                                                BEGIN
+                                                                  printesc(533);
+                                                                  printdelimiter(p+4);
+                                                                END;
+                                                            28:
+                                                                BEGIN
+                                                                  printesc(508);
+                                                                  printfamandchar(p+4);
+                                                                END;
+                                                            30:
+                                                                BEGIN
+                                                                  printesc(877);
+                                                                  printdelimiter(p+1);
+                                                                END;
+                                                            31:
+                                                                BEGIN
+                                                                  printesc(878);
+                                                                  printdelimiter(p+1);
+                                                                END;
+                                                          END;
+                                                          IF mem[p].hh.b1<>0 THEN
+                                                            IF mem[p].hh.b1=1 THEN printesc(879)
+                                                          ELSE
+                                                            printesc(880);
+                                                          IF mem[p].hh.b0<30 THEN
+                                                            printsubsidiarydata(p+1,46);
+                                                          printsubsidiarydata(p+2,94);
+                                                          printsubsidiarydata(p+3,95);
+                                                        END{:696};
+          25:{697:}
+              BEGIN
+                printesc(881);
+                IF mem[p+1].int=1073741824 THEN print(882)
+                ELSE printscaled(mem[p+1].int)
+                ;
+                IF (mem[p+4].qqqq.b0<>0)OR(mem[p+4].qqqq.b1<>0)OR(mem[p+4].qqqq.b2<>0)OR(
+                   mem[p+4].qqqq.b3<>0)THEN
+                  BEGIN
+                    print(883);
+                    printdelimiter(p+4);
+                  END;
+                IF (mem[p+5].qqqq.b0<>0)OR(mem[p+5].qqqq.b1<>0)OR(mem[p+5].qqqq.b2<>0)OR(
+                   mem[p+5].qqqq.b3<>0)THEN
+                  BEGIN
+                    print(884);
+                    printdelimiter(p+5);
+                  END;
+                printsubsidiarydata(p+2,92);
+                printsubsidiarydata(p+3,47);
+              END{:697};
 {:690}
-             ELSE print(317)
+          ELSE print(317)
         END{:183};
       p := mem[p].hh.rh;
     END;
@@ -3235,8 +3272,9 @@ BEGIN
                                                                                               3].hh.
                                                                                               lh);
                                                       IF mem[p].hh.b0=24 THEN freenode(p,5)
-                                                      ELSE IF mem[p].hh.b0=28 THEN
-                                                             freenode(p,5)
+                                                      ELSE
+                                                        IF mem[p].hh.b0=28 THEN
+                                                          freenode(p,5)
                                                       ELSE freenode(p,4);
                                                       goto 30;
                                                     END;
@@ -3275,83 +3313,85 @@ BEGIN
     BEGIN{205:}
       words := 1;
       IF (p>=himemmin)THEN r := getavail
-      ELSE{206:}CASE mem[p].hh.b0 OF 
-                  0,1,13:
-                          BEGIN
-                            r := getnode(7);
-                            mem[r+6] := mem[p+6];
-                            mem[r+5] := mem[p+5];
-                            mem[r+5].hh.rh := copynodelist(mem[p+5].hh.rh);
-                            words := 5;
-                          END;
-                  2:
-                     BEGIN
-                       r := getnode(4);
-                       words := 4;
-                     END;
-                  3:
-                     BEGIN
-                       r := getnode(5);
-                       mem[r+4] := mem[p+4];
-                       mem[mem[p+4].hh.rh].hh.rh := mem[mem[p+4].hh.rh].hh.rh+1;
-                       mem[r+4].hh.lh := copynodelist(mem[p+4].hh.lh);
-                       words := 4;
-                     END;
-                  8:{1357:}CASE mem[p].hh.b1 OF 
-                             0:
-                                BEGIN
-                                  r := getnode(3);
-                                  words := 3;
-                                END;
-                             1,3:
-                                  BEGIN
-                                    r := getnode(2);
-                                    mem[mem[p+1].hh.rh].hh.lh := mem[mem[p+1].hh.rh].hh.lh+1;
-                                    words := 2;
-                                  END;
-                             2,4:
-                                  BEGIN
-                                    r := getnode(2);
-                                    words := 2;
-                                  END;
-                             ELSE confusion(1295)
-                     END{:1357};
-                  10:
-                      BEGIN
-                        r := getnode(2);
-                        mem[mem[p+1].hh.lh].hh.rh := mem[mem[p+1].hh.lh].hh.rh+1;
-                        mem[r+1].hh.lh := mem[p+1].hh.lh;
-                        mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
-                      END;
-                  11,9,12:
-                           BEGIN
-                             r := getnode(2);
-                             words := 2;
-                           END;
-                  6:
-                     BEGIN
-                       r := getnode(2);
-                       mem[r+1] := mem[p+1];
-                       mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
-                     END;
-                  7:
-                     BEGIN
-                       r := getnode(2);
-                       mem[r+1].hh.lh := copynodelist(mem[p+1].hh.lh);
-                       mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
-                     END;
-                  4:
-                     BEGIN
-                       r := getnode(2);
-                       mem[mem[p+1].int].hh.lh := mem[mem[p+1].int].hh.lh+1;
-                       words := 2;
-                     END;
-                  5:
-                     BEGIN
-                       r := getnode(2);
-                       mem[r+1].int := copynodelist(mem[p+1].int);
-                     END;
-                  ELSE confusion(354)
+      ELSE{206:}
+        CASE mem[p].hh.b0 OF 
+          0,1,13:
+                  BEGIN
+                    r := getnode(7);
+                    mem[r+6] := mem[p+6];
+                    mem[r+5] := mem[p+5];
+                    mem[r+5].hh.rh := copynodelist(mem[p+5].hh.rh);
+                    words := 5;
+                  END;
+          2:
+             BEGIN
+               r := getnode(4);
+               words := 4;
+             END;
+          3:
+             BEGIN
+               r := getnode(5);
+               mem[r+4] := mem[p+4];
+               mem[mem[p+4].hh.rh].hh.rh := mem[mem[p+4].hh.rh].hh.rh+1;
+               mem[r+4].hh.lh := copynodelist(mem[p+4].hh.lh);
+               words := 4;
+             END;
+          8:{1357:}
+             CASE mem[p].hh.b1 OF 
+               0:
+                  BEGIN
+                    r := getnode(3);
+                    words := 3;
+                  END;
+               1,3:
+                    BEGIN
+                      r := getnode(2);
+                      mem[mem[p+1].hh.rh].hh.lh := mem[mem[p+1].hh.rh].hh.lh+1;
+                      words := 2;
+                    END;
+               2,4:
+                    BEGIN
+                      r := getnode(2);
+                      words := 2;
+                    END;
+               ELSE confusion(1295)
+             END{:1357};
+          10:
+              BEGIN
+                r := getnode(2);
+                mem[mem[p+1].hh.lh].hh.rh := mem[mem[p+1].hh.lh].hh.rh+1;
+                mem[r+1].hh.lh := mem[p+1].hh.lh;
+                mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
+              END;
+          11,9,12:
+                   BEGIN
+                     r := getnode(2);
+                     words := 2;
+                   END;
+          6:
+             BEGIN
+               r := getnode(2);
+               mem[r+1] := mem[p+1];
+               mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
+             END;
+          7:
+             BEGIN
+               r := getnode(2);
+               mem[r+1].hh.lh := copynodelist(mem[p+1].hh.lh);
+               mem[r+1].hh.rh := copynodelist(mem[p+1].hh.rh);
+             END;
+          4:
+             BEGIN
+               r := getnode(2);
+               mem[mem[p+1].int].hh.lh := mem[mem[p+1].int].hh.lh+1;
+               words := 2;
+             END;
+          5:
+             BEGIN
+               r := getnode(2);
+               mem[r+1].int := copynodelist(mem[p+1].int);
+             END;
+          ELSE confusion(354)
         END{:206};
       WHILE words>0 DO
         BEGIN
@@ -3373,16 +3413,19 @@ BEGIN
 END;{:204}{211:}
 PROCEDURE printmode(m:integer);
 BEGIN
-  IF m>0 THEN CASE m DIV(101) OF 
-                0: print(355);
-                1: print(356);
-                2: print(357);
+  IF m>0 THEN
+    CASE m DIV(101) OF 
+      0: print(355);
+      1: print(356);
+      2: print(357);
     END
-  ELSE IF m=0 THEN print(358)
-  ELSE CASE (-m)DIV(101) OF 
-         0: print(359);
-         1: print(360);
-         2: print(343);
+  ELSE
+    IF m=0 THEN print(358)
+  ELSE
+    CASE (-m)DIV(101) OF 
+      0: print(359);
+      1: print(360);
+      2: print(343);
     END;
   print(361);
 END;
@@ -3432,16 +3475,17 @@ BEGIN
       printmode(m);
       print(364);
       printint(abs(nest[p].mlfield));
-      IF m=102 THEN IF nest[p].pgfield<>8585216 THEN
-                      BEGIN
-                        print(365);
-                        printint(nest[p].pgfield MOD 65536);
-                        print(366);
-                        printint(nest[p].pgfield DIV 4194304);
-                        printchar(44);
-                        printint((nest[p].pgfield DIV 65536)mod 64);
-                        printchar(41);
-                      END;
+      IF m=102 THEN
+        IF nest[p].pgfield<>8585216 THEN
+          BEGIN
+            print(365);
+            printint(nest[p].pgfield MOD 65536);
+            print(366);
+            printint(nest[p].pgfield DIV 4194304);
+            printchar(44);
+            printint((nest[p].pgfield DIV 65536)mod 64);
+            printchar(41);
+          END;
       IF nest[p].mlfield<0 THEN print(367);
       IF p=0 THEN
         BEGIN{986:}
@@ -3506,13 +3550,15 @@ BEGIN
            BEGIN
              printnl(373);
              printint(a.hh.lh);
-             IF m>0 THEN IF a.hh.rh>0 THEN
-                           BEGIN
-                             print(374);
-                             printint(a.hh.rh);
-                           END;
+             IF m>0 THEN
+               IF a.hh.rh>0 THEN
+                 BEGIN
+                   print(374);
+                   printint(a.hh.rh);
+                 END;
            END;
-        2: IF a.int<>0 THEN
+        2:
+           IF a.int<>0 THEN
              BEGIN
                print(375);
                showbox(a.int);
@@ -3693,44 +3739,50 @@ BEGIN
           print(chrcode);
         END;
 {227:}
-    75,76: IF chrcode<2900 THEN printskipparam(chrcode-2882)
-           ELSE IF 
-                   chrcode<3156 THEN
-                  BEGIN
-                    printesc(395);
-                    printint(chrcode-2900);
-                  END
+    75,76:
+           IF chrcode<2900 THEN printskipparam(chrcode-2882)
+           ELSE
+             IF 
+                chrcode<3156 THEN
+               BEGIN
+                 printesc(395);
+                 printint(chrcode-2900);
+               END
            ELSE
              BEGIN
                printesc(396);
                printint(chrcode-3156);
              END;
 {:227}{231:}
-    72: IF chrcode>=3422 THEN
+    72:
+        IF chrcode>=3422 THEN
           BEGIN
             printesc(407);
             printint(chrcode-3422);
           END
-        ELSE CASE chrcode OF 
-               3413: printesc(398);
-               3414: printesc(399);
-               3415: printesc(400);
-               3416: printesc(401);
-               3417: printesc(402);
-               3418: printesc(403);
-               3419: printesc(404);
-               3420: printesc(405);
-               ELSE printesc(406)
+        ELSE
+          CASE chrcode OF 
+            3413: printesc(398);
+            3414: printesc(399);
+            3415: printesc(400);
+            3416: printesc(401);
+            3417: printesc(402);
+            3418: printesc(403);
+            3419: printesc(404);
+            3420: printesc(405);
+            ELSE printesc(406)
           END;
 {:231}{239:}
-    73: IF chrcode<5318 THEN printparam(chrcode-5263)
+    73:
+        IF chrcode<5318 THEN printparam(chrcode-5263)
         ELSE
           BEGIN
             printesc(476);
             printint(chrcode-5318);
           END;
 {:239}{249:}
-    74: IF chrcode<5851 THEN printlengthparam(chrcode-5830)
+    74:
+        IF chrcode<5851 THEN printlengthparam(chrcode-5830)
         ELSE
           BEGIN
             printesc(500);
@@ -3783,10 +3835,12 @@ BEGIN
 {:266}{335:}
     13: printesc(597);
 {:335}{377:}
-    104: IF chrcode=0 THEN printesc(629)
+    104:
+         IF chrcode=0 THEN printesc(629)
          ELSE printesc(630);
 {:377}{385:}
-    110: CASE chrcode OF 
+    110:
+         CASE chrcode OF 
            1: printesc(632);
            2: printesc(633);
            3: printesc(634);
@@ -3794,20 +3848,28 @@ BEGIN
            ELSE printesc(631)
          END;
 {:385}{412:}
-    89: IF chrcode=0 THEN printesc(476)
-        ELSE IF chrcode=1 THEN
-               printesc(500)
-        ELSE IF chrcode=2 THEN printesc(395)
+    89:
+        IF chrcode=0 THEN printesc(476)
+        ELSE
+          IF chrcode=1 THEN
+            printesc(500)
+        ELSE
+          IF chrcode=2 THEN printesc(395)
         ELSE printesc(396);
 {:412}{417:}
-    79: IF chrcode=1 THEN printesc(669)
+    79:
+        IF chrcode=1 THEN printesc(669)
         ELSE printesc(668);
-    82: IF chrcode=0 THEN printesc(670)
+    82:
+        IF chrcode=0 THEN printesc(670)
         ELSE printesc(671);
-    83: IF chrcode=1 THEN printesc(672)
-        ELSE IF chrcode=3 THEN printesc(673)
+    83:
+        IF chrcode=1 THEN printesc(672)
+        ELSE
+          IF chrcode=3 THEN printesc(673)
         ELSE printesc(674);
-    70: CASE chrcode OF 
+    70:
+        CASE chrcode OF 
           0: printesc(675);
           1: printesc(676);
           2: printesc(677);
@@ -3815,7 +3877,8 @@ BEGIN
           ELSE printesc(679)
         END;
 {:417}{469:}
-    108: CASE chrcode OF 
+    108:
+         CASE chrcode OF 
            0: printesc(735);
            1: printesc(736);
            2: printesc(737);
@@ -3824,7 +3887,8 @@ BEGIN
            ELSE printesc(740)
          END;
 {:469}{488:}
-    105: CASE chrcode OF 
+    105:
+         CASE chrcode OF 
            1: printesc(758);
            2: printesc(759);
            3: printesc(760);
@@ -3844,21 +3908,26 @@ BEGIN
            ELSE printesc(757)
          END;
 {:488}{492:}
-    106: IF chrcode=2 THEN printesc(774)
-         ELSE IF chrcode=4 THEN
-                printesc(775)
+    106:
+         IF chrcode=2 THEN printesc(774)
+         ELSE
+           IF chrcode=4 THEN
+             printesc(775)
          ELSE printesc(776);
 {:492}{781:}
-    4: IF chrcode=256 THEN printesc(899)
+    4:
+       IF chrcode=256 THEN printesc(899)
        ELSE
          BEGIN
            print(903);
            print(chrcode);
          END;
-    5: IF chrcode=257 THEN printesc(900)
+    5:
+       IF chrcode=257 THEN printesc(900)
        ELSE printesc(901);
 {:781}{984:}
-    81: CASE chrcode OF 
+    81:
+        CASE chrcode OF 
           0: printesc(971);
           1: printesc(972);
           2: printesc(973);
@@ -3869,17 +3938,20 @@ BEGIN
           ELSE printesc(978)
         END;
 {:984}{1053:}
-    14: IF chrcode=1 THEN printesc(1027)
+    14:
+        IF chrcode=1 THEN printesc(1027)
         ELSE printesc(1026);
 {:1053}{1059:}
-    26: CASE chrcode OF 
+    26:
+        CASE chrcode OF 
           4: printesc(1028);
           0: printesc(1029);
           1: printesc(1030);
           2: printesc(1031);
           ELSE printesc(1032)
         END;
-    27: CASE chrcode OF 
+    27:
+        CASE chrcode OF 
           4: printesc(1033);
           0: printesc(1034);
           1: printesc(1035);
@@ -3890,11 +3962,14 @@ BEGIN
     29: printesc(340);
     30: printesc(342);
 {:1059}{1072:}
-    21: IF chrcode=1 THEN printesc(1055)
+    21:
+        IF chrcode=1 THEN printesc(1055)
         ELSE printesc(1056);
-    22: IF chrcode=1 THEN printesc(1057)
+    22:
+        IF chrcode=1 THEN printesc(1057)
         ELSE printesc(1058);
-    20: CASE chrcode OF 
+    20:
+        CASE chrcode OF 
           0: printesc(409);
           1: printesc(1059);
           2: printesc(1060);
@@ -3903,31 +3978,42 @@ BEGIN
           5: printesc(968);
           ELSE printesc(1062)
         END;
-    31: IF chrcode=100 THEN printesc(1064)
-        ELSE IF chrcode=101 THEN printesc(
-                                          1065)
-        ELSE IF chrcode=102 THEN printesc(1066)
+    31:
+        IF chrcode=100 THEN printesc(1064)
+        ELSE
+          IF chrcode=101 THEN printesc(
+                                       1065)
+        ELSE
+          IF chrcode=102 THEN printesc(1066)
         ELSE printesc(1063);
 {:1072}{1089:}
-    43: IF chrcode=0 THEN printesc(1082)
+    43:
+        IF chrcode=0 THEN printesc(1082)
         ELSE printesc(1081);
 {:1089}{1108:}
-    25: IF chrcode=10 THEN printesc(1093)
-        ELSE IF chrcode=11
-               THEN printesc(1092)
+    25:
+        IF chrcode=10 THEN printesc(1093)
+        ELSE
+          IF chrcode=11
+            THEN printesc(1092)
         ELSE printesc(1091);
-    23: IF chrcode=1 THEN printesc(1095)
+    23:
+        IF chrcode=1 THEN printesc(1095)
         ELSE printesc(1094);
-    24: IF chrcode=1 THEN printesc(1097)
+    24:
+        IF chrcode=1 THEN printesc(1097)
         ELSE printesc(1096);
 {:1108}{1115:}
-    47: IF chrcode=1 THEN printesc(45)
+    47:
+        IF chrcode=1 THEN printesc(45)
         ELSE printesc(349);
 {:1115}{1143:}
-    48: IF chrcode=1 THEN printesc(1129)
+    48:
+        IF chrcode=1 THEN printesc(1129)
         ELSE printesc(1128);
 {:1143}{1157:}
-    50: CASE chrcode OF 
+    50:
+        CASE chrcode OF 
           16: printesc(867);
           17: printesc(868);
           18: printesc(869);
@@ -3939,12 +4025,15 @@ BEGIN
           26: printesc(876);
           ELSE printesc(875)
         END;
-    51: IF chrcode=1 THEN printesc(879)
-        ELSE IF chrcode=2 THEN printesc(880)
+    51:
+        IF chrcode=1 THEN printesc(879)
+        ELSE
+          IF chrcode=2 THEN printesc(880)
         ELSE printesc(1130);{:1157}{1170:}
     53: printstyle(chrcode);
 {:1170}{1179:}
-    52: CASE chrcode OF 
+    52:
+        CASE chrcode OF 
           1: printesc(1149);
           2: printesc(1150);
           3: printesc(1151);
@@ -3953,22 +4042,30 @@ BEGIN
           ELSE printesc(1148)
         END;
 {:1179}{1189:}
-    49: IF chrcode=30 THEN printesc(877)
+    49:
+        IF chrcode=30 THEN printesc(877)
         ELSE printesc(878);
 {:1189}{1209:}
-    93: IF chrcode=1 THEN printesc(1172)
-        ELSE IF chrcode=2 THEN
-               printesc(1173)
+    93:
+        IF chrcode=1 THEN printesc(1172)
+        ELSE
+          IF chrcode=2 THEN
+            printesc(1173)
         ELSE printesc(1174);
-    97: IF chrcode=0 THEN printesc(1175)
-        ELSE IF chrcode=1 THEN printesc(1176)
-        ELSE IF chrcode=2 THEN printesc(1177)
+    97:
+        IF chrcode=0 THEN printesc(1175)
+        ELSE
+          IF chrcode=1 THEN printesc(1176)
+        ELSE
+          IF chrcode=2 THEN printesc(1177)
         ELSE printesc(1178);
 {:1209}{1220:}
-    94: IF chrcode<>0 THEN printesc(1193)
+    94:
+        IF chrcode<>0 THEN printesc(1193)
         ELSE printesc(1192);
 {:1220}{1223:}
-    95: CASE chrcode OF 
+    95:
+        CASE chrcode OF 
           0: printesc(1194);
           1: printesc(1195);
           2: printesc(1196);
@@ -3988,21 +4085,28 @@ BEGIN
           printhex(chrcode);
         END;
 {:1223}{1231:}
-    85: IF chrcode=3983 THEN printesc(415)
-        ELSE IF chrcode=5007
-               THEN printesc(419)
-        ELSE IF chrcode=4239 THEN printesc(416)
-        ELSE IF chrcode
-                =4495 THEN printesc(417)
-        ELSE IF chrcode=4751 THEN printesc(418)
+    85:
+        IF chrcode=3983 THEN printesc(415)
+        ELSE
+          IF chrcode=5007
+            THEN printesc(419)
+        ELSE
+          IF chrcode=4239 THEN printesc(416)
+        ELSE
+          IF chrcode
+             =4495 THEN printesc(417)
+        ELSE
+          IF chrcode=4751 THEN printesc(418)
         ELSE
           printesc(477);
     86: printsize(chrcode-3935);
 {:1231}{1251:}
-    99: IF chrcode=1 THEN printesc(954)
+    99:
+        IF chrcode=1 THEN printesc(954)
         ELSE printesc(942);
 {:1251}{1255:}
-    78: IF chrcode=0 THEN printesc(1218)
+    78:
+        IF chrcode=0 THEN printesc(1218)
         ELSE printesc(1219);
 {:1255}{1261:}
     87:
@@ -4017,23 +4121,28 @@ BEGIN
             END;
         END;
 {:1261}{1263:}
-    100: CASE chrcode OF 
+    100:
+         CASE chrcode OF 
            0: printesc(274);
            1: printesc(275);
            2: printesc(276);
            ELSE printesc(1228)
          END;
 {:1263}{1273:}
-    60: IF chrcode=0 THEN printesc(1230)
+    60:
+        IF chrcode=0 THEN printesc(1230)
         ELSE printesc(1229);
 {:1273}{1278:}
-    58: IF chrcode=0 THEN printesc(1231)
+    58:
+        IF chrcode=0 THEN printesc(1231)
         ELSE printesc(1232);
 {:1278}{1287:}
-    57: IF chrcode=4239 THEN printesc(1238)
+    57:
+        IF chrcode=4239 THEN printesc(1238)
         ELSE printesc(1239);
 {:1287}{1292:}
-    19: CASE chrcode OF 
+    19:
+        CASE chrcode OF 
           1: printesc(1241);
           2: printesc(1242);
           3: printesc(1243);
@@ -4050,7 +4159,8 @@ BEGIN
          END;
     115: printesc(1254);
 {:1295}{1346:}
-    59: CASE chrcode OF 
+    59:
+        CASE chrcode OF 
           0: printesc(1286);
           1: printesc(594);
           2: printesc(1287);
@@ -4066,34 +4176,38 @@ END;
 PROCEDURE showeqtb(n:halfword);
 BEGIN
   IF n<1 THEN printchar(63)
-  ELSE IF n<2882 THEN{223:}
-         BEGIN
-           sprintcs(n
-           );
-           printchar(61);
-           printcmdchr(eqtb[n].hh.b0,eqtb[n].hh.rh);
-           IF eqtb[n].hh.b0>=111 THEN
-             BEGIN
-               printchar(58);
-               showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
-             END;
-         END{:223}
-  ELSE IF n<3412 THEN{229:}IF n<2900 THEN
-                             BEGIN
-                               printskipparam(n
-                                              -2882);
-                               printchar(61);
-                               IF n<2897 THEN printspec(eqtb[n].hh.rh,397)
-                               ELSE printspec(eqtb[n].hh.rh,
-                                              337);
-                             END
-  ELSE IF n<3156 THEN
-         BEGIN
-           printesc(395);
-           printint(n-2900);
-           printchar(61);
-           printspec(eqtb[n].hh.rh,397);
-         END
+  ELSE
+    IF n<2882 THEN{223:}
+      BEGIN
+        sprintcs(n
+        );
+        printchar(61);
+        printcmdchr(eqtb[n].hh.b0,eqtb[n].hh.rh);
+        IF eqtb[n].hh.b0>=111 THEN
+          BEGIN
+            printchar(58);
+            showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
+          END;
+      END{:223}
+  ELSE
+    IF n<3412 THEN{229:}
+      IF n<2900 THEN
+        BEGIN
+          printskipparam(n
+                         -2882);
+          printchar(61);
+          IF n<2897 THEN printspec(eqtb[n].hh.rh,397)
+          ELSE printspec(eqtb[n].hh.rh,
+                         337);
+        END
+  ELSE
+    IF n<3156 THEN
+      BEGIN
+        printesc(395);
+        printint(n-2900);
+        printchar(61);
+        printspec(eqtb[n].hh.rh,397);
+      END
   ELSE
     BEGIN
       printesc(396);
@@ -4101,88 +4215,99 @@ BEGIN
       printchar(61);
       printspec(eqtb[n].hh.rh,337);
     END{:229}
-  ELSE IF n<5263 THEN{233:}IF n=3412 THEN
-                             BEGIN
-                               printesc(408);
-                               printchar(61);
-                               IF eqtb[3412].hh.rh=0 THEN printchar(48)
-                               ELSE printint(mem[eqtb[3412].hh.
-                                             rh].hh.lh);
-                             END
-  ELSE IF n<3422 THEN
-         BEGIN
-           printcmdchr(72,n);
-           printchar(61);
-           IF eqtb[n].hh.rh<>0 THEN showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
-         END
-  ELSE IF n<3678 THEN
-         BEGIN
-           printesc(407);
-           printint(n-3422);
-           printchar(61);
-           IF eqtb[n].hh.rh<>0 THEN showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
-         END
-  ELSE IF n<3934 THEN
-         BEGIN
-           printesc(409);
-           printint(n-3678);
-           printchar(61);
-           IF eqtb[n].hh.rh=0 THEN print(410)
-           ELSE
-             BEGIN
-               depththreshold := 0;
-               breadthmax := 1;
-               shownodelist(eqtb[n].hh.rh);
-             END;
-         END
-  ELSE IF n<3983 THEN{234:}
-         BEGIN
-           IF n=3934 THEN print(411)
-           ELSE IF n<
-                   3951 THEN
-                  BEGIN
-                    printesc(412);
-                    printint(n-3935);
-                  END
-           ELSE IF n<3967 THEN
-                  BEGIN
-                    printesc(413);
-                    printint(n-3951);
-                  END
-           ELSE
-             BEGIN
-               printesc(414);
-               printint(n-3967);
-             END;
-           printchar(61);
-           printesc(hash[2624+eqtb[n].hh.rh].rh);
-         END{:234}
-  ELSE{235:}IF n<5007 THEN
-              BEGIN
-                IF n<4239 THEN
-                  BEGIN
-                    printesc(
-                             415);
-                    printint(n-3983);
-                  END
-                ELSE IF n<4495 THEN
-                       BEGIN
-                         printesc(416);
-                         printint(n-4239);
-                       END
-                ELSE IF n<4751 THEN
-                       BEGIN
-                         printesc(417);
-                         printint(n-4495);
-                       END
-                ELSE
-                  BEGIN
-                    printesc(418);
-                    printint(n-4751);
-                  END;
-                printchar(61);
-                printint(eqtb[n].hh.rh);
-              END
+  ELSE
+    IF n<5263 THEN{233:}
+      IF n=3412 THEN
+        BEGIN
+          printesc(408);
+          printchar(61);
+          IF eqtb[3412].hh.rh=0 THEN printchar(48)
+          ELSE printint(mem[eqtb[3412].hh.
+                        rh].hh.lh);
+        END
+  ELSE
+    IF n<3422 THEN
+      BEGIN
+        printcmdchr(72,n);
+        printchar(61);
+        IF eqtb[n].hh.rh<>0 THEN showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
+      END
+  ELSE
+    IF n<3678 THEN
+      BEGIN
+        printesc(407);
+        printint(n-3422);
+        printchar(61);
+        IF eqtb[n].hh.rh<>0 THEN showtokenlist(mem[eqtb[n].hh.rh].hh.rh,0,32);
+      END
+  ELSE
+    IF n<3934 THEN
+      BEGIN
+        printesc(409);
+        printint(n-3678);
+        printchar(61);
+        IF eqtb[n].hh.rh=0 THEN print(410)
+        ELSE
+          BEGIN
+            depththreshold := 0;
+            breadthmax := 1;
+            shownodelist(eqtb[n].hh.rh);
+          END;
+      END
+  ELSE
+    IF n<3983 THEN{234:}
+      BEGIN
+        IF n=3934 THEN print(411)
+        ELSE
+          IF n<
+             3951 THEN
+            BEGIN
+              printesc(412);
+              printint(n-3935);
+            END
+        ELSE
+          IF n<3967 THEN
+            BEGIN
+              printesc(413);
+              printint(n-3951);
+            END
+        ELSE
+          BEGIN
+            printesc(414);
+            printint(n-3967);
+          END;
+        printchar(61);
+        printesc(hash[2624+eqtb[n].hh.rh].rh);
+      END{:234}
+  ELSE{235:}
+    IF n<5007 THEN
+      BEGIN
+        IF n<4239 THEN
+          BEGIN
+            printesc(
+                     415);
+            printint(n-3983);
+          END
+        ELSE
+          IF n<4495 THEN
+            BEGIN
+              printesc(416);
+              printint(n-4239);
+            END
+        ELSE
+          IF n<4751 THEN
+            BEGIN
+              printesc(417);
+              printint(n-4495);
+            END
+        ELSE
+          BEGIN
+            printesc(418);
+            printint(n-4751);
+          END;
+        printchar(61);
+        printint(eqtb[n].hh.rh);
+      END
   ELSE
     BEGIN
       printesc(419);
@@ -4190,36 +4315,39 @@ BEGIN
       printchar(61);
       printint(eqtb[n].hh.rh);
     END{:235}{:233}
-  ELSE IF n<5830 THEN{242:}
-         BEGIN
-           IF n<5318 THEN printparam(
-                                     n-5263)
-           ELSE IF n<5574 THEN
-                  BEGIN
-                    printesc(476);
-                    printint(n-5318);
-                  END
-           ELSE
-             BEGIN
-               printesc(477);
-               printint(n-5574);
-             END;
-           printchar(61);
-           printint(eqtb[n].int);
-         END{:242}
-  ELSE IF n<=6106 THEN{251:}
-         BEGIN
-           IF n<5851 THEN printlengthparam
-             (n-5830)
-           ELSE
-             BEGIN
-               printesc(500);
-               printint(n-5851);
-             END;
-           printchar(61);
-           printscaled(eqtb[n].int);
-           print(397);
-         END{:251}
+  ELSE
+    IF n<5830 THEN{242:}
+      BEGIN
+        IF n<5318 THEN printparam(
+                                  n-5263)
+        ELSE
+          IF n<5574 THEN
+            BEGIN
+              printesc(476);
+              printint(n-5318);
+            END
+        ELSE
+          BEGIN
+            printesc(477);
+            printint(n-5574);
+          END;
+        printchar(61);
+        printint(eqtb[n].int);
+      END{:242}
+  ELSE
+    IF n<=6106 THEN{251:}
+      BEGIN
+        IF n<5851 THEN printlengthparam
+          (n-5830)
+        ELSE
+          BEGIN
+            printesc(500);
+            printint(n-5851);
+          END;
+        printchar(61);
+        printscaled(eqtb[n].int);
+        print(397);
+      END{:251}
   ELSE printchar(63);
 END;
 {:252}{259:}
@@ -4242,8 +4370,10 @@ BEGIN{261:}
   p := h+514;
   WHILE true DO
     BEGIN
-      IF hash[p].rh>0 THEN IF (strstart[hash[p].rh+1]-
-                              strstart[hash[p].rh])=l THEN IF streqbuf(hash[p].rh,j)THEN goto 40;
+      IF hash[p].rh>0 THEN
+        IF (strstart[hash[p].rh+1]-
+           strstart[hash[p].rh])=l THEN
+          IF streqbuf(hash[p].rh,j)THEN goto 40;
       IF hash[p].lh=0 THEN
         BEGIN
           IF nonewcontrolsequence THEN p := 2881
@@ -4367,8 +4497,9 @@ PROCEDURE eqdefine(p:halfword;
                    t:quarterword;e:halfword);
 BEGIN
   IF eqtb[p].hh.b1=curlevel THEN eqdestroy(eqtb[p])
-  ELSE IF curlevel>
-          1 THEN eqsave(p,eqtb[p].hh.b1);
+  ELSE
+    IF curlevel>
+       1 THEN eqsave(p,eqtb[p].hh.b1);
   eqtb[p].hh.b1 := curlevel;
   eqtb[p].hh.b0 := t;
   eqtb[p].hh.rh := e;
@@ -4459,24 +4590,26 @@ BEGIN
                 END
               ELSE savestack[saveptr] := eqtb[2881];
 {283:}
-              IF p<5263 THEN IF eqtb[p].hh.b1=1 THEN
-                               BEGIN
-                                 eqdestroy(savestack[
-                                           saveptr]);
-                                 IF eqtb[5300].int>0 THEN restoretrace(p,544);
-                               END
+              IF p<5263 THEN
+                IF eqtb[p].hh.b1=1 THEN
+                  BEGIN
+                    eqdestroy(savestack[
+                              saveptr]);
+                    IF eqtb[5300].int>0 THEN restoretrace(p,544);
+                  END
               ELSE
                 BEGIN
                   eqdestroy(eqtb[p]);
                   eqtb[p] := savestack[saveptr];
                   IF eqtb[5300].int>0 THEN restoretrace(p,545);
                 END
-              ELSE IF xeqlevel[p]<>1 THEN
-                     BEGIN
-                       eqtb[p] := savestack[saveptr];
-                       xeqlevel[p] := l;
-                       IF eqtb[5300].int>0 THEN restoretrace(p,545);
-                     END
+              ELSE
+                IF xeqlevel[p]<>1 THEN
+                  BEGIN
+                    eqtb[p] := savestack[saveptr];
+                    xeqlevel[p] := l;
+                    IF eqtb[5300].int>0 THEN restoretrace(p,545);
+                  END
               ELSE
                 BEGIN
                   IF eqtb[5300].int>0 THEN restoretrace(p,544);
@@ -4542,12 +4675,13 @@ BEGIN
       println;
       tokenshow(curchr);
     END
-  ELSE IF curcmd=110 THEN
-         BEGIN
-           printchar(58);
-           println;
-           tokenshow(curmark[curchr]);
-         END;
+  ELSE
+    IF curcmd=110 THEN
+      BEGIN
+        printchar(58);
+        println;
+        tokenshow(curmark[curchr]);
+      END;
 END;{:296}{299:}
 PROCEDURE showcurcmdchr;
 BEGIN
@@ -4587,8 +4721,9 @@ BEGIN
   WHILE true DO
     BEGIN
       curinput := inputstack[baseptr];
-      IF (curinput.statefield<>0)THEN IF (curinput.namefield>17)OR(baseptr=0)
-                                        THEN bottomline := true;
+      IF (curinput.statefield<>0)THEN
+        IF (curinput.namefield>17)OR(baseptr=0)
+          THEN bottomline := true;
       IF (baseptr=inputptr)OR bottomline OR(nn<eqtb[5317].int)THEN{312:}
         BEGIN
           IF (baseptr=inputptr)OR(curinput.statefield<>0)OR(curinput.indexfield<>3)
@@ -4599,7 +4734,8 @@ BEGIN
               IF curinput.statefield<>0 THEN
                 BEGIN{313:}
                   IF curinput.namefield<=17 THEN
-                    IF (curinput.namefield=0)THEN IF baseptr=0 THEN printnl(574)
+                    IF (curinput.namefield=0)THEN
+                      IF baseptr=0 THEN printnl(574)
                   ELSE printnl(
                                575)
                   ELSE
@@ -4642,7 +4778,8 @@ BEGIN
                   CASE curinput.indexfield OF 
                     0: printnl(578);
                     1,2: printnl(579);
-                    3: IF curinput.locfield=0 THEN printnl(580)
+                    3:
+                       IF curinput.locfield=0 THEN printnl(580)
                        ELSE printnl(581);
                     4: printnl(582);
                     5:
@@ -4710,11 +4847,12 @@ BEGIN
               nn := nn+1;
             END;
         END{:312}
-      ELSE IF nn=eqtb[5317].int THEN
-             BEGIN
-               printnl(277);
-               nn := nn+1;
-             END;
+      ELSE
+        IF nn=eqtb[5317].int THEN
+          BEGIN
+            printnl(277);
+            nn := nn+1;
+          END;
       IF bottomline THEN goto 30;
       baseptr := baseptr-1;
     END;
@@ -4771,15 +4909,18 @@ BEGIN
         BEGIN
           deletetokenref(curinput.
                          startfield);
-          IF curinput.indexfield=5 THEN WHILE paramptr>curinput.limitfield DO
-                                          BEGIN
-                                            paramptr := paramptr-1;
-                                            flushlist(paramstack[paramptr]);
-                                          END;
+          IF curinput.indexfield=5 THEN
+            WHILE paramptr>curinput.limitfield DO
+              BEGIN
+                paramptr := paramptr-1;
+                flushlist(paramstack[paramptr]);
+              END;
         END;
     END
-  ELSE IF curinput.indexfield=1 THEN IF alignstate>500000 THEN
-                                       alignstate := 0
+  ELSE
+    IF curinput.indexfield=1 THEN
+      IF alignstate>500000 THEN
+        alignstate := 0
   ELSE fatalerror(595);
   BEGIN
     inputptr := inputptr-1;
@@ -4799,7 +4940,8 @@ BEGIN
     endtokenlist;
   p := getavail;
   mem[p].hh.lh := curtok;
-  IF curtok<768 THEN IF curtok<512 THEN alignstate := alignstate-1
+  IF curtok<768 THEN
+    IF curtok<512 THEN alignstate := alignstate-1
   ELSE
     alignstate := alignstate+1;
   BEGIN
@@ -4990,7 +5132,8 @@ BEGIN
   20: curcs := 0;
   IF curinput.statefield<>0 THEN{343:}
     BEGIN
-      25: IF curinput.locfield<=
+      25:
+          IF curinput.locfield<=
              curinput.limitfield THEN
             BEGIN
               curchr := buffer[curinput.locfield];
@@ -5011,8 +5154,9 @@ BEGIN
                                cat := eqtb[3983+curchr].hh.rh;
                                k := k+1;
                                IF cat=11 THEN curinput.statefield := 17
-                               ELSE IF cat=10 THEN curinput.
-                                      statefield := 17
+                               ELSE
+                                 IF cat=10 THEN curinput.
+                                   statefield := 17
                                ELSE curinput.statefield := 1;
                                IF (cat=11)AND(k<=curinput.limitfield)THEN{356:}
                                  BEGIN
@@ -5024,140 +5168,44 @@ BEGIN
                                    UNTIL (cat<>11)OR(k>curinput.limitfield);
 {355:}
                                    BEGIN
-                                     IF buffer[k]=curchr THEN IF cat=7 THEN IF k<curinput.
-                                                                               limitfield THEN
-                                                                              BEGIN
-                                                                                c := buffer[k+1];
-                                                                                IF c<128 THEN
-                                                                                  BEGIN
-                                                                                    d := 2;
-                                                                                    IF (((c>=48)AND(
-                                                                                       c<=57))OR((c
-                                                                                       >=97)AND(c<=
-                                                                                       102)))THEN IF
-                                                                                                   k
-                                                                                                   +
-                                                                                                   2
-                                                                                                  <=
-                                                                                            curinput
-                                                                                                   .
-
-                                                                                          limitfield
-                                                                                                THEN
-
-                                                                                               BEGIN
-
-                                                                                                  cc
-                                                                                                  :=
-                                                                                              buffer
-                                                                                                   [
-                                                                                                   k
-                                                                                                   +
-                                                                                                   2
-                                                                                                   ]
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                   (
-                                                                                                   (
-                                                                                                   (
-                                                                                                  cc
-                                                                                                  >=
-                                                                                                  48
-                                                                                                   )
-                                                                                                 AND
-                                                                                                   (
-                                                                                                  cc
-                                                                                                  <=
-                                                                                                  57
-                                                                                                   )
-                                                                                                   )
-                                                                                                  OR
-                                                                                                   (
-                                                                                                   (
-                                                                                                  cc
-                                                                                                  >=
-                                                                                                  97
-                                                                                                   )
-                                                                                                 AND
-                                                                                                   (
-                                                                                                  cc
-                                                                                                  <=
-                                                                                                 102
-                                                                                                   )
-                                                                                                   )
-                                                                                                   )
-                                                                                                THEN
-                                                                                                   d
-                                                                                                  :=
-                                                                                                   d
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                    ;
-                                                                                    IF d>2 THEN
-                                                                                      BEGIN
-                                                                                        IF c<=57
-                                                                                          THEN
-                                                                                          curchr := 
-                                                                                                   c
-                                                                                                   -
-                                                                                                  48
-                                                                                        ELSE curchr 
-                                                                                          := c-87;
-                                                                                        IF cc<=57
-                                                                                          THEN
-                                                                                          curchr := 
-                                                                                                  16
-                                                                                                   *
-                                                                                              curchr
-                                                                                                   +
-                                                                                                  cc
-                                                                                                   -
-                                                                                                  48
-                                                                                        ELSE curchr 
-                                                                                          := 16*
-                                                                                             curchr+
-                                                                                             cc-87;
-                                                                                        buffer[k-1] 
-                                                                                        := curchr;
-                                                                                      END
-                                                                                    ELSE IF c<64
-                                                                                           THEN
-                                                                                           buffer[k-
-                                                                                           1] := c+
-                                                                                                 64
-                                                                                    ELSE buffer[k-1]
-                                                                                      := c-64;
-                                                                                    curinput.
-                                                                                    limitfield := 
-                                                                                            curinput
-                                                                                                  .
-                                                                                          limitfield
-                                                                                                  -d
-                                                                                    ;
-                                                                                    first := first-d
-                                                                                    ;
-                                                                                    WHILE k<=
-                                                                                          curinput.
-                                                                                          limitfield
-                                                                                      DO
-                                                                                      BEGIN
-                                                                                        buffer[k] :=
-                                                                                              buffer
-                                                                                                   [
-                                                                                                   k
-                                                                                                   +
-                                                                                                   d
-                                                                                                   ]
-                                                                                        ;
-                                                                                        k := k+1;
-                                                                                      END;
-                                                                                    goto 26;
-                                                                                  END;
-                                                                              END;
+                                     IF buffer[k]=curchr THEN
+                                       IF cat=7 THEN
+                                         IF k<curinput.
+                                            limitfield THEN
+                                           BEGIN
+                                             c := buffer[k+1];
+                                             IF c<128 THEN
+                                               BEGIN
+                                                 d := 2;
+                                                 IF (((c>=48)AND(c<=57))OR((c>=97)AND(c<=102)))THEN
+                                                   IF k+2<=curinput.
+                                                      limitfield THEN
+                                                     BEGIN
+                                                       cc := buffer[k+2];
+                                                       IF (((cc>=48)AND(cc<=57))OR((cc>=97)AND(cc<=
+                                                          102)))THEN d := d+1;
+                                                     END;
+                                                 IF d>2 THEN
+                                                   BEGIN
+                                                     IF c<=57 THEN curchr := c-48
+                                                     ELSE curchr := c-87;
+                                                     IF cc<=57 THEN curchr := 16*curchr+cc-48
+                                                     ELSE curchr := 16*curchr+cc-87;
+                                                     buffer[k-1] := curchr;
+                                                   END
+                                                 ELSE
+                                                   IF c<64 THEN buffer[k-1] := c+64
+                                                 ELSE buffer[k-1] := c-64;
+                                                 curinput.limitfield := curinput.limitfield-d;
+                                                 first := first-d;
+                                                 WHILE k<=curinput.limitfield DO
+                                                   BEGIN
+                                                     buffer[k] := buffer[k+d];
+                                                     k := k+1;
+                                                   END;
+                                                 goto 26;
+                                               END;
+                                           END;
                                    END{:355};
                                    IF cat<>11 THEN k := k-1;
                                    IF k>curinput.locfield+1 THEN
@@ -5170,112 +5218,44 @@ BEGIN
                                  END{:356}
                                ELSE{355:}
                                  BEGIN
-                                   IF buffer[k]=curchr THEN IF cat=7 THEN IF k<
-                                                                             curinput.limitfield
-                                                                            THEN
-                                                                            BEGIN
-                                                                              c := buffer[k+1];
-                                                                              IF c<128 THEN
-                                                                                BEGIN
-                                                                                  d := 2;
-                                                                                  IF (((c>=48)AND(c
-                                                                                     <=57))OR((c>=97
-                                                                                     )AND(c<=102)))
-                                                                                    THEN IF k+2<=
-                                                                                            curinput
-                                                                                            .
-
-                                                                                          limitfield
-                                                                                           THEN
-                                                                                           BEGIN
-                                                                                             cc := 
-                                                                                              buffer
-                                                                                                   [
-                                                                                                   k
-                                                                                                   +
-                                                                                                   2
-                                                                                                   ]
-                                                                                             ;
-                                                                                             IF (((
-                                                                                                cc>=
-                                                                                                48)
-                                                                                                AND(
-                                                                                                cc<=
-                                                                                                57))
-                                                                                                OR((
-                                                                                                cc>=
-                                                                                                97)
-                                                                                                AND(
-                                                                                                cc<=
-                                                                                                102)
-                                                                                                ))
-                                                                                               THEN
-                                                                                               d := 
-                                                                                                   d
-                                                                                                   +
-                                                                                                   1
-                                                                                             ;
-                                                                                           END;
-                                                                                  IF d>2 THEN
-                                                                                    BEGIN
-                                                                                      IF c<=57 THEN
-                                                                                        curchr := c-
-                                                                                                  48
-                                                                                      ELSE curchr :=
-                                                                                                   c
-                                                                                                   -
-                                                                                                  87
-                                                                                      ;
-                                                                                      IF cc<=57 THEN
-                                                                                        curchr := 16
-                                                                                                  *
-                                                                                              curchr
-                                                                                                  +
-                                                                                                  cc
-                                                                                                  -
-                                                                                                  48
-                                                                                      ELSE curchr :=
-                                                                                                  16
-                                                                                                   *
-                                                                                              curchr
-                                                                                                   +
-                                                                                                  cc
-                                                                                                   -
-                                                                                                  87
-                                                                                      ;
-                                                                                      buffer[k-1] :=
-                                                                                              curchr
-                                                                                      ;
-                                                                                    END
-                                                                                  ELSE IF c<64 THEN
-                                                                                         buffer[k-1]
-                                                                                         := c+64
-                                                                                  ELSE buffer[k-1] 
-                                                                                    := c-64;
-                                                                                  curinput.
-                                                                                  limitfield := 
-                                                                                            curinput
-                                                                                                .
-                                                                                          limitfield
-                                                                                                -d;
-                                                                                  first := first-d;
-                                                                                  WHILE k<=curinput.
-                                                                                        limitfield 
-                                                                                    DO
-                                                                                    BEGIN
-                                                                                      buffer[k] := 
-                                                                                              buffer
-                                                                                                   [
-                                                                                                   k
-                                                                                                   +
-                                                                                                   d
-                                                                                                   ]
-                                                                                      ;
-                                                                                      k := k+1;
-                                                                                    END;
-                                                                                  goto 26;
-                                                                                END;
-                                                                            END;
+                                   IF buffer[k]=curchr THEN
+                                     IF cat=7 THEN
+                                       IF k<
+                                          curinput.limitfield THEN
+                                         BEGIN
+                                           c := buffer[k+1];
+                                           IF c<128 THEN
+                                             BEGIN
+                                               d := 2;
+                                               IF (((c>=48)AND(c<=57))OR((c>=97)AND(c<=102)))THEN
+                                                 IF k+2<=curinput.
+                                                    limitfield THEN
+                                                   BEGIN
+                                                     cc := buffer[k+2];
+                                                     IF (((cc>=48)AND(cc<=57))OR((cc>=97)AND(cc<=102
+                                                        )))THEN d := d+1;
+                                                   END;
+                                               IF d>2 THEN
+                                                 BEGIN
+                                                   IF c<=57 THEN curchr := c-48
+                                                   ELSE curchr := c-87;
+                                                   IF cc<=57 THEN curchr := 16*curchr+cc-48
+                                                   ELSE curchr := 16*curchr+cc-87;
+                                                   buffer[k-1] := curchr;
+                                                 END
+                                               ELSE
+                                                 IF c<64 THEN buffer[k-1] := c+64
+                                               ELSE buffer[k-1] := c-64;
+                                               curinput.limitfield := curinput.limitfield-d;
+                                               first := first-d;
+                                               WHILE k<=curinput.limitfield DO
+                                                 BEGIN
+                                                   buffer[k] := buffer[k+d];
+                                                   k := k+1;
+                                                 END;
+                                               goto 26;
+                                             END;
+                                         END;
                                  END{:355};
                                curcs := 257+buffer[curinput.locfield];
                                curinput.locfield := curinput.locfield+1;
@@ -5294,73 +5274,35 @@ BEGIN
                           END{:353};
                 8,24,40:{352:}
                          BEGIN
-                           IF curchr=buffer[curinput.locfield]THEN IF curinput.
-                                                                      locfield<curinput.limitfield
-                                                                     THEN
-                                                                     BEGIN
-                                                                       c := buffer[curinput.locfield
-                                                                            +1];
-                                                                       IF c<128 THEN
-                                                                         BEGIN
-                                                                           curinput.locfield := 
-                                                                                            curinput
-                                                                                                .
-                                                                                            locfield
-                                                                                                +2;
-                                                                           IF (((c>=48)AND(c<=57))OR
-                                                                              ((c>=97)AND(c<=102)))
-                                                                             THEN IF curinput.
-                                                                                     locfield<=
-                                                                                     curinput.
-                                                                                     limitfield THEN
-                                                                                    BEGIN
-                                                                                      cc := buffer[
-                                                                                            curinput
-                                                                                            .
-                                                                                            locfield
-                                                                                            ];
-                                                                                      IF (((cc>=48)
-                                                                                         AND(cc<=57)
-                                                                                         )OR((cc>=97
-                                                                                         )AND(cc<=
-                                                                                         102)))THEN
-                                                                                        BEGIN
-                                                                                          curinput.
-                                                                                          locfield 
-                                                                                          := 
-                                                                                            curinput
-                                                                                             .
-                                                                                            locfield
-                                                                                             +1;
-                                                                                          IF c<=57
-                                                                                            THEN
-                                                                                            curchr 
-                                                                                            := c-48
-                                                                                          ELSE
-                                                                                            curchr 
-                                                                                            := c-87;
-                                                                                          IF cc<=57
-                                                                                            THEN
-                                                                                            curchr 
-                                                                                            := 16*
-                                                                                              curchr
-                                                                                               +cc-
-                                                                                               48
-                                                                                          ELSE
-                                                                                            curchr 
-                                                                                            := 16*
-                                                                                              curchr
-                                                                                               +cc-
-                                                                                               87;
-                                                                                          goto 21;
-                                                                                        END;
-                                                                                    END;
-                                                                           IF c<64 THEN curchr := c+
-                                                                                                  64
-                                                                           ELSE curchr := c-64;
-                                                                           goto 21;
-                                                                         END;
-                                                                     END;
+                           IF curchr=buffer[curinput.locfield]THEN
+                             IF curinput.
+                                locfield<curinput.limitfield THEN
+                               BEGIN
+                                 c := buffer[curinput.locfield+1];
+                                 IF c<128 THEN
+                                   BEGIN
+                                     curinput.locfield := curinput.locfield+2;
+                                     IF (((c>=48)AND(c<=57))OR((c>=97)AND(c<=102)))THEN
+                                       IF curinput.locfield<=
+                                          curinput.limitfield THEN
+                                         BEGIN
+                                           cc := buffer[curinput.locfield];
+                                           IF (((cc>=48)AND(cc<=57))OR((cc>=97)AND(cc<=102)))THEN
+                                             BEGIN
+                                               curinput.
+                                               locfield := curinput.locfield+1;
+                                               IF c<=57 THEN curchr := c-48
+                                               ELSE curchr := c-87;
+                                               IF cc<=57 THEN curchr := 16*curchr+cc-48
+                                               ELSE curchr := 16*curchr+cc-87;
+                                               goto 21;
+                                             END;
+                                         END;
+                                     IF c<64 THEN curchr := c+64
+                                     ELSE curchr := c-64;
+                                     goto 21;
+                                   END;
+                               END;
                            curinput.statefield := 1;
                          END{:352};
                 16,32,48:{346:}
@@ -5498,65 +5440,69 @@ BEGIN
               goto 25;
             END;
     END{:343}
-  ELSE{357:}IF curinput.locfield<>0 THEN
-              BEGIN
-                t := mem[curinput.
-                     locfield].hh.lh;
-                curinput.locfield := mem[curinput.locfield].hh.rh;
-                IF t>=4095 THEN
-                  BEGIN
-                    curcs := t-4095;
-                    curcmd := eqtb[curcs].hh.b0;
-                    curchr := eqtb[curcs].hh.rh;
-                    IF curcmd>=113 THEN IF curcmd=116 THEN{358:}
-                                          BEGIN
-                                            curcs := mem[curinput.
-                                                     locfield].hh.lh-4095;
-                                            curinput.locfield := 0;
-                                            curcmd := eqtb[curcs].hh.b0;
-                                            curchr := eqtb[curcs].hh.rh;
-                                            IF curcmd>100 THEN
-                                              BEGIN
-                                                curcmd := 0;
-                                                curchr := 257;
-                                              END;
-                                          END{:358}
-                    ELSE checkoutervalidity;
-                  END
-                ELSE
-                  BEGIN
-                    curcmd := t DIV 256;
-                    curchr := t MOD 256;
-                    CASE curcmd OF 
-                      1: alignstate := alignstate+1;
-                      2: alignstate := alignstate-1;
-                      5:{359:}
-                         BEGIN
-                           begintokenlist(paramstack[curinput.limitfield+curchr-1],0)
-                           ;
-                           goto 20;
-                         END{:359};
-                      ELSE
+  ELSE{357:}
+    IF curinput.locfield<>0 THEN
+      BEGIN
+        t := mem[curinput.
+             locfield].hh.lh;
+        curinput.locfield := mem[curinput.locfield].hh.rh;
+        IF t>=4095 THEN
+          BEGIN
+            curcs := t-4095;
+            curcmd := eqtb[curcs].hh.b0;
+            curchr := eqtb[curcs].hh.rh;
+            IF curcmd>=113 THEN
+              IF curcmd=116 THEN{358:}
+                BEGIN
+                  curcs := mem[curinput.
+                           locfield].hh.lh-4095;
+                  curinput.locfield := 0;
+                  curcmd := eqtb[curcs].hh.b0;
+                  curchr := eqtb[curcs].hh.rh;
+                  IF curcmd>100 THEN
+                    BEGIN
+                      curcmd := 0;
+                      curchr := 257;
                     END;
-                  END;
-              END
+                END{:358}
+            ELSE checkoutervalidity;
+          END
+        ELSE
+          BEGIN
+            curcmd := t DIV 256;
+            curchr := t MOD 256;
+            CASE curcmd OF 
+              1: alignstate := alignstate+1;
+              2: alignstate := alignstate-1;
+              5:{359:}
+                 BEGIN
+                   begintokenlist(paramstack[curinput.limitfield+curchr-1],0)
+                   ;
+                   goto 20;
+                 END{:359};
+              ELSE
+            END;
+          END;
+      END
   ELSE
     BEGIN
       endtokenlist;
       goto 20;
     END{:357};
 {342:}
-  IF curcmd<=5 THEN IF curcmd>=4 THEN IF alignstate=0 THEN{789:}
-                                        BEGIN
-                                          IF (scannerstatus=4)OR(curalign=0)THEN fatalerror(595);
-                                          curcmd := mem[curalign+5].hh.lh;
-                                          mem[curalign+5].hh.lh := curchr;
-                                          IF curcmd=63 THEN begintokenlist(29990,2)
-                                          ELSE begintokenlist(mem[
-                                                              curalign+2].int,2);
-                                          alignstate := 1000000;
-                                          goto 20;
-                                        END{:789}{:342};
+  IF curcmd<=5 THEN
+    IF curcmd>=4 THEN
+      IF alignstate=0 THEN{789:}
+        BEGIN
+          IF (scannerstatus=4)OR(curalign=0)THEN fatalerror(595);
+          curcmd := mem[curalign+5].hh.lh;
+          mem[curalign+5].hh.lh := curchr;
+          IF curcmd=63 THEN begintokenlist(29990,2)
+          ELSE begintokenlist(mem[
+                              curalign+2].int,2);
+          alignstate := 1000000;
+          goto 20;
+        END{:789}{:342};
   10:
 END;
 {:341}{363:}
@@ -5565,27 +5511,26 @@ PROCEDURE firmuptheline;
 VAR k: 0..bufsize;
 BEGIN
   curinput.limitfield := last;
-  IF eqtb[5291].int>0 THEN IF interaction>1 THEN
-                             BEGIN;
-                               println;
-                               IF curinput.startfield<curinput.limitfield THEN FOR k:=curinput.
-                                                                                   startfield TO
-                                                                                   curinput.
-                                                                                   limitfield-1 DO
-                                                                                 print(buffer[k]);
-                               first := curinput.limitfield;
-                               BEGIN;
-                                 print(618);
-                                 terminput;
-                               END;
-                               IF last>first THEN
-                                 BEGIN
-                                   FOR k:=first TO last-1 DO
-                                     buffer[k+curinput.
-                                     startfield-first] := buffer[k];
-                                   curinput.limitfield := curinput.startfield+last-first;
-                                 END;
-                             END;
+  IF eqtb[5291].int>0 THEN
+    IF interaction>1 THEN
+      BEGIN;
+        println;
+        IF curinput.startfield<curinput.limitfield THEN FOR k:=curinput.
+                                                            startfield TO curinput.limitfield-1 DO
+                                                          print(buffer[k]);
+        first := curinput.limitfield;
+        BEGIN;
+          print(618);
+          terminput;
+        END;
+        IF last>first THEN
+          BEGIN
+            FOR k:=first TO last-1 DO
+              buffer[k+curinput.
+              startfield-first] := buffer[k];
+            curinput.limitfield := curinput.startfield+last-first;
+          END;
+      END;
 END;
 {:363}{365:}
 PROCEDURE gettoken;
@@ -5662,25 +5607,26 @@ BEGIN
             ELSE goto 22;
           END{:394};
 {397:}
-        IF s<>r THEN IF s=0 THEN{398:}
-                       BEGIN
-                         BEGIN
-                           IF interaction=3 THEN;
-                           printnl(262);
-                           print(650);
-                         END;
-                         sprintcs(warningindex);
-                         print(651);
-                         BEGIN
-                           helpptr := 4;
-                           helpline[3] := 652;
-                           helpline[2] := 653;
-                           helpline[1] := 654;
-                           helpline[0] := 655;
-                         END;
-                         error;
-                         goto 10;
-                       END{:398}
+        IF s<>r THEN
+          IF s=0 THEN{398:}
+            BEGIN
+              BEGIN
+                IF interaction=3 THEN;
+                printnl(262);
+                print(650);
+              END;
+              sprintcs(warningindex);
+              print(651);
+              BEGIN
+                helpptr := 4;
+                helpline[3] := 652;
+                helpline[2] := 653;
+                helpline[1] := 654;
+                helpline[0] := 655;
+              END;
+              error;
+              goto 10;
+            END{:398}
         ELSE
           BEGIN
             t := s;
@@ -5696,7 +5642,8 @@ BEGIN
               v := s;
               WHILE true DO
                 BEGIN
-                  IF u=r THEN IF curtok<>mem[v].hh.lh THEN goto 30
+                  IF u=r THEN
+                    IF curtok<>mem[v].hh.lh THEN goto 30
                   ELSE
                     BEGIN
                       r := mem[v].hh.rh;
@@ -5710,96 +5657,100 @@ BEGIN
             UNTIL t=r;
             r := s;
           END{:397};
-        IF curtok=partoken THEN IF longstate<>112 THEN{396:}
-                                  BEGIN
-                                    IF longstate=
-                                       111 THEN
-                                      BEGIN
-                                        runaway;
-                                        BEGIN
-                                          IF interaction=3 THEN;
-                                          printnl(262);
-                                          print(645);
-                                        END;
-                                        sprintcs(warningindex);
-                                        print(646);
-                                        BEGIN
-                                          helpptr := 3;
-                                          helpline[2] := 647;
-                                          helpline[1] := 648;
-                                          helpline[0] := 649;
-                                        END;
-                                        backerror;
-                                      END;
-                                    pstack[n] := mem[29997].hh.rh;
-                                    alignstate := alignstate-unbalance;
-                                    FOR m:=0 TO n DO
-                                      flushlist(pstack[m]);
-                                    goto 10;
-                                  END{:396};
-        IF curtok<768 THEN IF curtok<512 THEN{399:}
-                             BEGIN
-                               unbalance := 1;
-                               WHILE true DO
-                                 BEGIN
-                                   BEGIN
-                                     BEGIN
-                                       q := avail;
-                                       IF q=0 THEN q := getavail
-                                       ELSE
-                                         BEGIN
-                                           avail := mem[q].hh.rh;
-                                           mem[q].hh.rh := 0;
-                                           dynused := dynused+1;
-                                         END;
-                                     END;
-                                     mem[p].hh.rh := q;
-                                     mem[q].hh.lh := curtok;
-                                     p := q;
-                                   END;
-                                   gettoken;
-                                   IF curtok=partoken THEN IF longstate<>112 THEN{396:}
-                                                             BEGIN
-                                                               IF longstate=
-                                                                  111 THEN
-                                                                 BEGIN
-                                                                   runaway;
-                                                                   BEGIN
-                                                                     IF interaction=3 THEN;
-                                                                     printnl(262);
-                                                                     print(645);
-                                                                   END;
-                                                                   sprintcs(warningindex);
-                                                                   print(646);
-                                                                   BEGIN
-                                                                     helpptr := 3;
-                                                                     helpline[2] := 647;
-                                                                     helpline[1] := 648;
-                                                                     helpline[0] := 649;
-                                                                   END;
-                                                                   backerror;
-                                                                 END;
-                                                               pstack[n] := mem[29997].hh.rh;
-                                                               alignstate := alignstate-unbalance;
-                                                               FOR m:=0 TO n DO
-                                                                 flushlist(pstack[m]);
-                                                               goto 10;
-                                                             END{:396};
-                                   IF curtok<768 THEN IF curtok<512 THEN unbalance := unbalance+1
-                                   ELSE
-                                     BEGIN
-                                       unbalance := unbalance-1;
-                                       IF unbalance=0 THEN goto 31;
-                                     END;
-                                 END;
-                               31: rbraceptr := p;
-                               BEGIN
-                                 q := getavail;
-                                 mem[p].hh.rh := q;
-                                 mem[q].hh.lh := curtok;
-                                 p := q;
-                               END;
-                             END{:399}
+        IF curtok=partoken THEN
+          IF longstate<>112 THEN{396:}
+            BEGIN
+              IF longstate=
+                 111 THEN
+                BEGIN
+                  runaway;
+                  BEGIN
+                    IF interaction=3 THEN;
+                    printnl(262);
+                    print(645);
+                  END;
+                  sprintcs(warningindex);
+                  print(646);
+                  BEGIN
+                    helpptr := 3;
+                    helpline[2] := 647;
+                    helpline[1] := 648;
+                    helpline[0] := 649;
+                  END;
+                  backerror;
+                END;
+              pstack[n] := mem[29997].hh.rh;
+              alignstate := alignstate-unbalance;
+              FOR m:=0 TO n DO
+                flushlist(pstack[m]);
+              goto 10;
+            END{:396};
+        IF curtok<768 THEN
+          IF curtok<512 THEN{399:}
+            BEGIN
+              unbalance := 1;
+              WHILE true DO
+                BEGIN
+                  BEGIN
+                    BEGIN
+                      q := avail;
+                      IF q=0 THEN q := getavail
+                      ELSE
+                        BEGIN
+                          avail := mem[q].hh.rh;
+                          mem[q].hh.rh := 0;
+                          dynused := dynused+1;
+                        END;
+                    END;
+                    mem[p].hh.rh := q;
+                    mem[q].hh.lh := curtok;
+                    p := q;
+                  END;
+                  gettoken;
+                  IF curtok=partoken THEN
+                    IF longstate<>112 THEN{396:}
+                      BEGIN
+                        IF longstate=
+                           111 THEN
+                          BEGIN
+                            runaway;
+                            BEGIN
+                              IF interaction=3 THEN;
+                              printnl(262);
+                              print(645);
+                            END;
+                            sprintcs(warningindex);
+                            print(646);
+                            BEGIN
+                              helpptr := 3;
+                              helpline[2] := 647;
+                              helpline[1] := 648;
+                              helpline[0] := 649;
+                            END;
+                            backerror;
+                          END;
+                        pstack[n] := mem[29997].hh.rh;
+                        alignstate := alignstate-unbalance;
+                        FOR m:=0 TO n DO
+                          flushlist(pstack[m]);
+                        goto 10;
+                      END{:396};
+                  IF curtok<768 THEN
+                    IF curtok<512 THEN unbalance := unbalance+1
+                  ELSE
+                    BEGIN
+                      unbalance := unbalance-1;
+                      IF unbalance=0 THEN goto 31;
+                    END;
+                END;
+              31: rbraceptr := p;
+              BEGIN
+                q := getavail;
+                mem[p].hh.rh := q;
+                mem[q].hh.lh := curtok;
+                p := q;
+              END;
+            END{:399}
         ELSE{395:}
           BEGIN
             backinput;
@@ -5827,8 +5778,9 @@ BEGIN
           END{:395}
         ELSE{393:}
           BEGIN
-            IF curtok=2592 THEN IF mem[r].hh.lh<=3584 THEN
-                                  IF mem[r].hh.lh>=3328 THEN goto 22;
+            IF curtok=2592 THEN
+              IF mem[r].hh.lh<=3584 THEN
+                IF mem[r].hh.lh>=3328 THEN goto 22;
             BEGIN
               q := getavail;
               mem[p].hh.rh := q;
@@ -5839,7 +5791,8 @@ BEGIN
         m := m+1;
         IF mem[r].hh.lh>3584 THEN goto 22;
         IF mem[r].hh.lh<3328 THEN goto 22;
-        40: IF s<>0 THEN{400:}
+        40:
+            IF s<>0 THEN{400:}
               BEGIN
                 IF (m=1)AND(mem[p].hh.lh<768)THEN
                   BEGIN
@@ -6015,7 +5968,8 @@ BEGIN
                    curcs := idlookup(first,j-first);
                    nonewcontrolsequence := true;
                  END
-               ELSE IF j=first THEN curcs := 513
+               ELSE
+                 IF j=first THEN curcs := 513
                ELSE curcs := 257+buffer[first]{:374};
                flushlist(r);
                IF eqtb[curcs].hh.b0=101 THEN
@@ -6028,7 +5982,9 @@ BEGIN
         108: convtoks;
         109: insthetoks;
         105: conditional;
-        106:{510:}IF curchr>iflimit THEN IF iflimit=1 THEN insertrelax
+        106:{510:}
+             IF curchr>iflimit THEN
+               IF iflimit=1 THEN insertrelax
              ELSE
                BEGIN
                  BEGIN
@@ -6056,9 +6012,11 @@ BEGIN
                    freenode(p,2);
                  END{:496};
                END{:510};
-        104:{378:}IF curchr>0 THEN forceeof := true
-             ELSE IF nameinprogress THEN
-                    insertrelax
+        104:{378:}
+             IF curchr>0 THEN forceeof := true
+             ELSE
+               IF nameinprogress THEN
+                 insertrelax
              ELSE startinput{:378};
         ELSE{370:}
           BEGIN
@@ -6079,7 +6037,8 @@ BEGIN
           END{:370}
       END;
     END{:367}
-  ELSE IF curcmd<115 THEN macrocall
+  ELSE
+    IF curcmd<115 THEN macrocall
   ELSE{375:}
     BEGIN
       curtok := 6715;
@@ -6097,7 +6056,8 @@ LABEL 20,30;
 BEGIN
   20: getnext;
   IF curcmd<=100 THEN goto 30;
-  IF curcmd>=111 THEN IF curcmd<115 THEN macrocall
+  IF curcmd>=111 THEN
+    IF curcmd<115 THEN macrocall
   ELSE
     BEGIN
       curcs := 2620;
@@ -6106,7 +6066,8 @@ BEGIN
     END
   ELSE expand;
   goto 20;
-  30: IF curcs=0 THEN curtok := (curcmd*256)+curchr
+  30:
+      IF curcs=0 THEN curtok := (curcmd*256)+curchr
       ELSE curtok := 4095+curcs;
 END;{:380}{381:}
 PROCEDURE xtoken;
@@ -6179,13 +6140,14 @@ BEGIN
           END;
           k := k+1;
         END
-      ELSE IF (curcmd<>10)OR(p<>29987)THEN
-             BEGIN
-               backinput;
-               IF p<>29987 THEN begintokenlist(mem[29987].hh.rh,3);
-               scankeyword := false;
-               goto 10;
-             END;
+      ELSE
+        IF (curcmd<>10)OR(p<>29987)THEN
+          BEGIN
+            backinput;
+            IF p<>29987 THEN begintokenlist(mem[29987].hh.rh,3);
+            scankeyword := false;
+            goto 10;
+          END;
     END;
   flushlist(mem[29987].hh.rh);
   scankeyword := true;
@@ -6317,13 +6279,15 @@ BEGIN{406:}
     getxtoken;
   UNTIL curcmd<>10{:406};
   IF curcmd=88 THEN f := eqtb[3934].hh.rh
-  ELSE IF curcmd=87 THEN f := curchr
-  ELSE IF curcmd=86 THEN
-         BEGIN
-           m := curchr;
-           scanfourbitint;
-           f := eqtb[m+curval].hh.rh;
-         END
+  ELSE
+    IF curcmd=87 THEN f := curchr
+  ELSE
+    IF curcmd=86 THEN
+      BEGIN
+        m := curchr;
+        scanfourbitint;
+        f := eqtb[m+curval].hh.rh;
+      END
   ELSE
     BEGIN
       BEGIN
@@ -6360,7 +6324,8 @@ BEGIN
           deleteglueref(fontglue[f]);
           fontglue[f] := 0;
         END;
-      IF n>fontparams[f]THEN IF f<fontptr THEN curval := fmemptr
+      IF n>fontparams[f]THEN
+        IF f<fontptr THEN curval := fmemptr
       ELSE{580:}
         BEGIN
           REPEAT
@@ -6410,48 +6375,51 @@ BEGIN
               curval := eqtb[5007+curval].hh.rh;
               curvallevel := 0;
             END
-          ELSE IF m<5007 THEN
-                 BEGIN
-                   curval := eqtb[m+curval].hh.rh;
-                   curvallevel := 0;
-                 END
+          ELSE
+            IF m<5007 THEN
+              BEGIN
+                curval := eqtb[m+curval].hh.rh;
+                curvallevel := 0;
+              END
           ELSE
             BEGIN
               curval := eqtb[m+curval].int;
               curvallevel := 0;
             END;
         END{:414};
-    71,72,86,87,88:{415:}IF level<>5 THEN
-                           BEGIN
-                             BEGIN
-                               IF interaction=3 THEN;
-                               printnl(262);
-                               print(664);
-                             END;
-                             BEGIN
-                               helpptr := 3;
-                               helpline[2] := 665;
-                               helpline[1] := 666;
-                               helpline[0] := 667;
-                             END;
-                             backerror;
-                             BEGIN
-                               curval := 0;
-                               curvallevel := 1;
-                             END;
-                           END
-                    ELSE IF curcmd<=72 THEN
-                           BEGIN
-                             IF curcmd<72 THEN
-                               BEGIN
-                                 scaneightbitint;
-                                 m := 3422+curval;
-                               END;
-                             BEGIN
-                               curval := eqtb[m].hh.rh;
-                               curvallevel := 5;
-                             END;
-                           END
+    71,72,86,87,88:{415:}
+                    IF level<>5 THEN
+                      BEGIN
+                        BEGIN
+                          IF interaction=3 THEN;
+                          printnl(262);
+                          print(664);
+                        END;
+                        BEGIN
+                          helpptr := 3;
+                          helpline[2] := 665;
+                          helpline[1] := 666;
+                          helpline[0] := 667;
+                        END;
+                        backerror;
+                        BEGIN
+                          curval := 0;
+                          curvallevel := 1;
+                        END;
+                      END
+                    ELSE
+                      IF curcmd<=72 THEN
+                        BEGIN
+                          IF curcmd<72 THEN
+                            BEGIN
+                              scaneightbitint;
+                              m := 3422+curval;
+                            END;
+                          BEGIN
+                            curval := eqtb[m].hh.rh;
+                            curvallevel := 5;
+                          END;
+                        END
                     ELSE
                       BEGIN
                         backinput;
@@ -6481,49 +6449,52 @@ BEGIN
           curval := eqtb[m].hh.rh;
           curvallevel := 3;
         END;
-    79:{418:}IF abs(curlist.modefield)<>m THEN
-               BEGIN
-                 BEGIN
-                   IF interaction=3
-                     THEN;
-                   printnl(262);
-                   print(680);
-                 END;
-                 printcmdchr(79,m);
-                 BEGIN
-                   helpptr := 4;
-                   helpline[3] := 681;
-                   helpline[2] := 682;
-                   helpline[1] := 683;
-                   helpline[0] := 684;
-                 END;
-                 error;
-                 IF level<>5 THEN
-                   BEGIN
-                     curval := 0;
-                     curvallevel := 1;
-                   END
-                 ELSE
-                   BEGIN
-                     curval := 0;
-                     curvallevel := 0;
-                   END;
-               END
-        ELSE IF m=1 THEN
-               BEGIN
-                 curval := curlist.auxfield.int;
-                 curvallevel := 1;
-               END
+    79:{418:}
+        IF abs(curlist.modefield)<>m THEN
+          BEGIN
+            BEGIN
+              IF interaction=3
+                THEN;
+              printnl(262);
+              print(680);
+            END;
+            printcmdchr(79,m);
+            BEGIN
+              helpptr := 4;
+              helpline[3] := 681;
+              helpline[2] := 682;
+              helpline[1] := 683;
+              helpline[0] := 684;
+            END;
+            error;
+            IF level<>5 THEN
+              BEGIN
+                curval := 0;
+                curvallevel := 1;
+              END
+            ELSE
+              BEGIN
+                curval := 0;
+                curvallevel := 0;
+              END;
+          END
+        ELSE
+          IF m=1 THEN
+            BEGIN
+              curval := curlist.auxfield.int;
+              curvallevel := 1;
+            END
         ELSE
           BEGIN
             curval := curlist.auxfield.hh.lh;
             curvallevel := 0;
           END{:418};
-    80:{422:}IF curlist.modefield=0 THEN
-               BEGIN
-                 curval := 0;
-                 curvallevel := 0;
-               END
+    80:{422:}
+        IF curlist.modefield=0 THEN
+          BEGIN
+            curval := 0;
+            curvallevel := 0;
+          END
         ELSE
           BEGIN
             nest[nestptr] := curlist;
@@ -6544,8 +6515,9 @@ BEGIN
         END{:419};
     81:{421:}
         BEGIN
-          IF (pagecontents=0)AND(NOT outputactive)THEN IF m=0 THEN
-                                                         curval := 1073741823
+          IF (pagecontents=0)AND(NOT outputactive)THEN
+            IF m=0 THEN
+              curval := 1073741823
           ELSE curval := 0
           ELSE curval := pagesofar[m];
           curvallevel := 1;
@@ -6604,65 +6576,45 @@ BEGIN
           END;
           curvallevel := m;
         END{:427};
-    70:{424:}IF curchr>2 THEN
-               BEGIN
-                 IF curchr=3 THEN curval := line
-                 ELSE
-                   curval := lastbadness;
-                 curvallevel := 0;
-               END
+    70:{424:}
+        IF curchr>2 THEN
+          BEGIN
+            IF curchr=3 THEN curval := line
+            ELSE
+              curval := lastbadness;
+            curvallevel := 0;
+          END
         ELSE
           BEGIN
             IF curchr=2 THEN curval := 0
             ELSE curval := 0;
             curvallevel := curchr;
-            IF NOT(curlist.tailfield>=himemmin)AND(curlist.modefield<>0)THEN CASE 
-                                                                                  curchr OF 
-                                                                               0: IF mem[curlist.
-                                                                                     tailfield].hh.
-                                                                                     b0=12 THEN
-                                                                                    curval := mem[
-                                                                                             curlist
-                                                                                              .
-
-                                                                                           tailfield
-                                                                                              +1].
-                                                                                              int;
-                                                                               1: IF mem[curlist.
-                                                                                     tailfield].hh.
-                                                                                     b0=11 THEN
-                                                                                    curval := mem[
-                                                                                             curlist
-                                                                                              .
-                                                                                           tailfield
-                                                                                              +1].
-                                                                                              int;
-                                                                               2: IF mem[curlist.
-                                                                                     tailfield].hh.
-                                                                                     b0=10 THEN
-                                                                                    BEGIN
-                                                                                      curval := mem[
-                                                                                             curlist
-                                                                                                .
-
-                                                                                           tailfield
-                                                                                                +1].
-                                                                                                hh.
-                                                                                                lh;
-                                                                                      IF mem[curlist
-                                                                                         .tailfield]
-                                                                                         .hh.b1=99
-                                                                                        THEN
-                                                                                        curvallevel 
-                                                                                        := 3;
-                                                                                    END;
+            IF NOT(curlist.tailfield>=himemmin)AND(curlist.modefield<>0)THEN
+              CASE 
+                   curchr OF 
+                0:
+                   IF mem[curlist.tailfield].hh.b0=12 THEN curval := mem[curlist.
+                                                                     tailfield+1].int;
+                1:
+                   IF mem[curlist.tailfield].hh.b0=11 THEN curval := mem[curlist.tailfield
+                                                                     +1].int;
+                2:
+                   IF mem[curlist.tailfield].hh.b0=10 THEN
+                     BEGIN
+                       curval := mem[curlist.
+                                 tailfield+1].hh.lh;
+                       IF mem[curlist.tailfield].hh.b1=99 THEN curvallevel := 3;
+                     END;
               END
-            ELSE IF (curlist.modefield=1)AND(curlist.tailfield=curlist.headfield)
-                   THEN CASE curchr OF 
-                          0: curval := lastpenalty;
-                          1: curval := lastkern;
-                          2: IF lastglue<>65535 THEN curval := lastglue;
-                   END;
+            ELSE
+              IF (curlist.modefield=1)AND(curlist.tailfield=curlist.headfield)
+                THEN
+                CASE curchr OF 
+                  0: curval := lastpenalty;
+                  1: curval := lastkern;
+                  2:
+                     IF lastglue<>65535 THEN curval := lastglue;
+                END;
           END{:424};
     ELSE{428:}
       BEGIN
@@ -6695,23 +6647,26 @@ BEGIN
     BEGIN
       IF curvallevel=2 THEN curval := mem[
                                       curval+1].int
-      ELSE IF curvallevel=3 THEN muerror;
+      ELSE
+        IF curvallevel=3 THEN muerror;
       curvallevel := curvallevel-1;
     END{:429};
 {430:}
-  IF negative THEN IF curvallevel>=2 THEN
-                     BEGIN
-                       curval := newspec(
-                                 curval);{431:}
-                       BEGIN
-                         mem[curval+1].int := -mem[curval+1].int;
-                         mem[curval+2].int := -mem[curval+2].int;
-                         mem[curval+3].int := -mem[curval+3].int;
-                       END{:431};
-                     END
+  IF negative THEN
+    IF curvallevel>=2 THEN
+      BEGIN
+        curval := newspec(
+                  curval);{431:}
+        BEGIN
+          mem[curval+1].int := -mem[curval+1].int;
+          mem[curval+2].int := -mem[curval+2].int;
+          mem[curval+3].int := -mem[curval+3].int;
+        END{:431};
+      END
   ELSE curval := -curval
-  ELSE IF (curvallevel>=2)AND(curvallevel<=3)THEN
-         mem[curval].hh.rh := mem[curval].hh.rh+1{:430};
+  ELSE
+    IF (curvallevel>=2)AND(curvallevel<=3)THEN
+      mem[curval].hh.rh := mem[curval].hh.rh+1{:430};
 END;
 {:413}{440:}
 PROCEDURE scanint;
@@ -6743,11 +6698,13 @@ BEGIN
       IF curtok<4095 THEN
         BEGIN
           curval := curchr;
-          IF curcmd<=2 THEN IF curcmd=2 THEN alignstate := alignstate+1
+          IF curcmd<=2 THEN
+            IF curcmd=2 THEN alignstate := alignstate+1
           ELSE
             alignstate := alignstate-1;
         END
-      ELSE IF curtok<4352 THEN curval := curtok-4096
+      ELSE
+        IF curtok<4352 THEN curval := curtok-4096
       ELSE curval := curtok
                      -4352;
       IF curval>255 THEN
@@ -6771,8 +6728,9 @@ BEGIN
           IF curcmd<>10 THEN backinput;
         END{:443};
     END{:442}
-  ELSE IF (curcmd>=68)AND(curcmd<=89)THEN scansomethinginternal(0,
-                                                                false)
+  ELSE
+    IF (curcmd>=68)AND(curcmd<=89)THEN scansomethinginternal(0,
+                                                             false)
   ELSE{444:}
     BEGIN
       radix := 10;
@@ -6783,12 +6741,13 @@ BEGIN
           m := 268435456;
           getxtoken;
         END
-      ELSE IF curtok=3106 THEN
-             BEGIN
-               radix := 16;
-               m := 134217728;
-               getxtoken;
-             END;
+      ELSE
+        IF curtok=3106 THEN
+          BEGIN
+            radix := 16;
+            m := 134217728;
+            getxtoken;
+          END;
       vacuous := true;
       curval := 0;
 {445:}
@@ -6796,10 +6755,13 @@ BEGIN
         BEGIN
           IF (curtok<3120+radix)AND(curtok>=3120)AND(
              curtok<=3129)THEN d := curtok-3120
-          ELSE IF radix=16 THEN IF (curtok<=2886)
-                                   AND(curtok>=2881)THEN d := curtok-2871
-          ELSE IF (curtok<=3142)AND(curtok>=
-                  3137)THEN d := curtok-3127
+          ELSE
+            IF radix=16 THEN
+              IF (curtok<=2886)
+                 AND(curtok>=2881)THEN d := curtok-2871
+          ELSE
+            IF (curtok<=3142)AND(curtok>=
+               3137)THEN d := curtok-3127
           ELSE goto 30
           ELSE goto 30;
           vacuous := false;
@@ -6842,7 +6804,8 @@ BEGIN
           END;
           backerror;
         END{:446}
-      ELSE IF curcmd<>10 THEN backinput;
+      ELSE
+        IF curcmd<>10 THEN backinput;
     END{:444};
   IF negative THEN curval := -curval;
 END;
@@ -6877,19 +6840,20 @@ BEGIN
             curtok := 3115;
           END;
       UNTIL curtok<>3115{:441};
-      IF (curcmd>=68)AND(curcmd<=89)THEN{449:}IF mu THEN
-                                                BEGIN
-                                                  scansomethinginternal(3,false);
+      IF (curcmd>=68)AND(curcmd<=89)THEN{449:}
+        IF mu THEN
+          BEGIN
+            scansomethinginternal(3,false);
 {451:}
-                                                  IF curvallevel>=2 THEN
-                                                    BEGIN
-                                                      v := mem[curval+1].int;
-                                                      deleteglueref(curval);
-                                                      curval := v;
-                                                    END{:451};
-                                                  IF curvallevel=3 THEN goto 89;
-                                                  IF curvallevel<>0 THEN muerror;
-                                                END
+            IF curvallevel>=2 THEN
+              BEGIN
+                v := mem[curval+1].int;
+                deleteglueref(curval);
+                curval := v;
+              END{:451};
+            IF curvallevel=3 THEN goto 89;
+            IF curvallevel<>0 THEN muerror;
+          END
       ELSE
         BEGIN
           scansomethinginternal(1,false);
@@ -6946,30 +6910,31 @@ BEGIN
       curval := -curval;
     END;
 {453:}
-  IF inf THEN{454:}IF scankeyword(311)THEN
-                     BEGIN
-                       curorder := 1;
-                       WHILE scankeyword(108) DO
-                         BEGIN
-                           IF curorder=3 THEN
-                             BEGIN
-                               BEGIN
-                                 IF 
-                                    interaction=3 THEN;
-                                 printnl(262);
-                                 print(705);
-                               END;
-                               print(706);
-                               BEGIN
-                                 helpptr := 1;
-                                 helpline[0] := 707;
-                               END;
-                               error;
-                             END
-                           ELSE curorder := curorder+1;
-                         END;
-                       goto 88;
-                     END{:454};
+  IF inf THEN{454:}
+    IF scankeyword(311)THEN
+      BEGIN
+        curorder := 1;
+        WHILE scankeyword(108) DO
+          BEGIN
+            IF curorder=3 THEN
+              BEGIN
+                BEGIN
+                  IF 
+                     interaction=3 THEN;
+                  printnl(262);
+                  print(705);
+                END;
+                print(706);
+                BEGIN
+                  helpptr := 1;
+                  helpline[0] := 707;
+                END;
+                error;
+              END
+            ELSE curorder := curorder+1;
+          END;
+        goto 88;
+      END{:454};
 {455:}
   savecurval := curval;{406:}
   REPEAT
@@ -6997,8 +6962,9 @@ BEGIN
   IF mu THEN goto 45;
   IF scankeyword(708)THEN v := ({558:}fontinfo[6+parambase[eqtb[3934].hh.rh]
                                ].int{:558})
-  ELSE IF scankeyword(709)THEN v := ({559:}fontinfo[5+parambase[
-                                    eqtb[3934].hh.rh]].int{:559})
+  ELSE
+    IF scankeyword(709)THEN v := ({559:}fontinfo[5+parambase[
+                                 eqtb[3934].hh.rh]].int{:559})
   ELSE goto 45;{443:}
   BEGIN
     getxtoken;
@@ -7007,7 +6973,8 @@ BEGIN
   40: curval := multandadd(savecurval,v,xnoverd(v,f,65536),1073741823);
   goto 89;
   45:{:455};
-  IF mu THEN{456:}IF scankeyword(337)THEN goto 88
+  IF mu THEN{456:}
+    IF scankeyword(337)THEN goto 88
   ELSE
     BEGIN
       BEGIN
@@ -7046,37 +7013,44 @@ BEGIN
       num := 7227;
       denom := 100;
     END
-  ELSE IF scankeyword(716)THEN
-         BEGIN
-           num := 12;
-           denom := 1;
-         END
-  ELSE IF scankeyword(717)THEN
-         BEGIN
-           num := 7227;
-           denom := 254;
-         END
-  ELSE IF scankeyword(718)THEN
-         BEGIN
-           num := 7227;
-           denom := 2540;
-         END
-  ELSE IF scankeyword(719)THEN
-         BEGIN
-           num := 7227;
-           denom := 7200;
-         END
-  ELSE IF scankeyword(720)THEN
-         BEGIN
-           num := 1238;
-           denom := 1157;
-         END
-  ELSE IF scankeyword(721)THEN
-         BEGIN
-           num := 14856;
-           denom := 1157;
-         END
-  ELSE IF scankeyword(722)THEN goto 30
+  ELSE
+    IF scankeyword(716)THEN
+      BEGIN
+        num := 12;
+        denom := 1;
+      END
+  ELSE
+    IF scankeyword(717)THEN
+      BEGIN
+        num := 7227;
+        denom := 254;
+      END
+  ELSE
+    IF scankeyword(718)THEN
+      BEGIN
+        num := 7227;
+        denom := 2540;
+      END
+  ELSE
+    IF scankeyword(719)THEN
+      BEGIN
+        num := 7227;
+        denom := 7200;
+      END
+  ELSE
+    IF scankeyword(720)THEN
+      BEGIN
+        num := 1238;
+        denom := 1157;
+      END
+  ELSE
+    IF scankeyword(721)THEN
+      BEGIN
+        num := 14856;
+        denom := 1157;
+      END
+  ELSE
+    IF scankeyword(722)THEN goto 30
   ELSE{459:}
     BEGIN
       BEGIN
@@ -7103,14 +7077,16 @@ BEGIN
   curval := curval+(f DIV 65536);
   f := f MOD 65536;
   32:{:458};
-  88: IF curval>=16384 THEN aritherror := true
+  88:
+      IF curval>=16384 THEN aritherror := true
       ELSE curval := curval*65536+f;
   30:{:453};{443:}
   BEGIN
     getxtoken;
     IF curcmd<>10 THEN backinput;
   END{:443};
-  89: IF aritherror OR(abs(curval)>=1073741824)THEN{460:}
+  89:
+      IF aritherror OR(abs(curval)>=1073741824)THEN{460:}
         BEGIN
           BEGIN
             IF 
@@ -7161,8 +7137,9 @@ BEGIN
           goto 10;
         END;
       IF curvallevel=0 THEN scandimen(mu,false,true)
-      ELSE IF level=3 THEN
-             muerror;
+      ELSE
+        IF level=3 THEN
+          muerror;
     END
   ELSE
     BEGIN
@@ -7201,7 +7178,8 @@ BEGIN
       mem[q+3].int := 26214;
       mem[q+2].int := 0;
     END;
-  21: IF scankeyword(732)THEN
+  21:
+      IF scankeyword(732)THEN
         BEGIN
           scandimen(false,false,false);
           mem[q+1].int := curval;
@@ -7281,29 +7259,30 @@ BEGIN
           mem[q].hh.lh := 4095+curval;
           p := q;
         END
-      ELSE IF curval<>0 THEN
-             BEGIN
-               r := mem[curval].hh.rh;
-               WHILE r<>0 DO
-                 BEGIN
-                   BEGIN
-                     BEGIN
-                       q := avail;
-                       IF q=0 THEN q := getavail
-                       ELSE
-                         BEGIN
-                           avail := mem[q].hh.rh;
-                           mem[q].hh.rh := 0;
-                           dynused := dynused+1;
-                         END;
-                     END;
-                     mem[p].hh.rh := q;
-                     mem[q].hh.lh := mem[r].hh.lh;
-                     p := q;
-                   END;
-                   r := mem[r].hh.rh;
-                 END;
-             END;
+      ELSE
+        IF curval<>0 THEN
+          BEGIN
+            r := mem[curval].hh.rh;
+            WHILE r<>0 DO
+              BEGIN
+                BEGIN
+                  BEGIN
+                    q := avail;
+                    IF q=0 THEN q := getavail
+                    ELSE
+                      BEGIN
+                        avail := mem[q].hh.rh;
+                        mem[q].hh.rh := 0;
+                        dynused := dynused+1;
+                      END;
+                  END;
+                  mem[p].hh.rh := q;
+                  mem[q].hh.lh := mem[r].hh.lh;
+                  p := q;
+                END;
+                r := mem[r].hh.rh;
+              END;
+          END;
       thetoks := p;
     END{:466}
   ELSE
@@ -7357,7 +7336,8 @@ BEGIN
            scannerstatus := savescannerstatus;
          END;
     4: scanfontident;
-    5: IF jobname=0 THEN openlogfile;
+    5:
+       IF jobname=0 THEN openlogfile;
   END{:471};
   oldsetting := selector;
   selector := 21;
@@ -7365,7 +7345,8 @@ BEGIN
   CASE c OF 
     0: printint(curval);
     1: printromanint(curval);
-    2: IF curcs<>0 THEN sprintcs(curcs)
+    2:
+       IF curcs<>0 THEN sprintcs(curcs)
        ELSE printchar(curchr);
     3: printmeaning;
     4:
@@ -7523,37 +7504,41 @@ BEGIN
           32: xtoken
         END{:478}
       ELSE gettoken;
-      IF curtok<768 THEN IF curcmd<2 THEN unbalance := unbalance+1
+      IF curtok<768 THEN
+        IF curcmd<2 THEN unbalance := unbalance+1
       ELSE
         BEGIN
           unbalance := unbalance-1;
           IF unbalance=0 THEN goto 40;
         END
-      ELSE IF curcmd=6 THEN IF macrodef THEN{479:}
-                              BEGIN
-                                s := curtok;
-                                IF xpand THEN getxtoken
-                                ELSE gettoken;
-                                IF curcmd<>6 THEN IF (curtok<=3120)OR(curtok>t)THEN
-                                                    BEGIN
-                                                      BEGIN
-                                                        IF 
-                                                           interaction=3 THEN;
-                                                        printnl(262);
-                                                        print(750);
-                                                      END;
-                                                      sprintcs(warningindex);
-                                                      BEGIN
-                                                        helpptr := 3;
-                                                        helpline[2] := 751;
-                                                        helpline[1] := 752;
-                                                        helpline[0] := 753;
-                                                      END;
-                                                      backerror;
-                                                      curtok := s;
-                                                    END
-                                ELSE curtok := 1232+curchr;
-                              END{:479};
+      ELSE
+        IF curcmd=6 THEN
+          IF macrodef THEN{479:}
+            BEGIN
+              s := curtok;
+              IF xpand THEN getxtoken
+              ELSE gettoken;
+              IF curcmd<>6 THEN
+                IF (curtok<=3120)OR(curtok>t)THEN
+                  BEGIN
+                    BEGIN
+                      IF 
+                         interaction=3 THEN;
+                      printnl(262);
+                      print(750);
+                    END;
+                    sprintcs(warningindex);
+                    BEGIN
+                      helpptr := 3;
+                      helpline[2] := 751;
+                      helpline[1] := 752;
+                      helpline[0] := 753;
+                    END;
+                    backerror;
+                    curtok := s;
+                  END
+              ELSE curtok := 1232+curchr;
+            END{:479};
       BEGIN
         q := getavail;
         mem[p].hh.rh := q;
@@ -7599,11 +7584,13 @@ BEGIN
   REPEAT{483:}
     beginfilereading;
     curinput.namefield := m+1;
-    IF readopen[m]=2 THEN{484:}IF interaction>1 THEN IF n<0 THEN
-                                                       BEGIN;
-                                                         print(338);
-                                                         terminput;
-                                                       END
+    IF readopen[m]=2 THEN{484:}
+      IF interaction>1 THEN
+        IF n<0 THEN
+          BEGIN;
+            print(338);
+            terminput;
+          END
     ELSE
       BEGIN;
         println;
@@ -7615,8 +7602,10 @@ BEGIN
         n := -1;
       END
     ELSE fatalerror(754){:484}
-    ELSE IF readopen[m]=1 THEN{485:}IF inputln
-                                       (readfile[m],false)THEN readopen[m] := 0
+    ELSE
+      IF readopen[m]=1 THEN{485:}
+        IF inputln
+           (readfile[m],false)THEN readopen[m] := 0
     ELSE
       BEGIN
         aclose(readfile[m]);
@@ -7698,7 +7687,8 @@ BEGIN
           IF l=0 THEN goto 30;
           IF curchr=2 THEN l := l-1;
         END
-      ELSE IF curcmd=105 THEN l := l+1;
+      ELSE
+        IF curcmd=105 THEN l := l+1;
     END;
   30: scannerstatus := savescannerstatus;
 END;
@@ -7757,11 +7747,12 @@ BEGIN{495:}
          BEGIN
            BEGIN
              getxtoken;
-             IF curcmd=0 THEN IF curchr=257 THEN
-                                BEGIN
-                                  curcmd := 13;
-                                  curchr := curtok-4096;
-                                END;
+             IF curcmd=0 THEN
+               IF curchr=257 THEN
+                 BEGIN
+                   curcmd := 13;
+                   curchr := curtok-4096;
+                 END;
            END;
            IF (curcmd>13)OR(curchr>255)THEN
              BEGIN
@@ -7775,11 +7766,12 @@ BEGIN{495:}
              END;
            BEGIN
              getxtoken;
-             IF curcmd=0 THEN IF curchr=257 THEN
-                                BEGIN
-                                  curcmd := 13;
-                                  curchr := curtok-4096;
-                                END;
+             IF curcmd=0 THEN
+               IF curchr=257 THEN
+                 BEGIN
+                   curcmd := 13;
+                   curchr := curtok-4096;
+                 END;
            END;
            IF (curcmd>13)OR(curchr>255)THEN
              BEGIN
@@ -7837,9 +7829,11 @@ BEGIN{495:}
                scaneightbitint;
                p := eqtb[3678+curval].hh.rh;
                IF thisif=9 THEN b := (p=0)
-               ELSE IF p=0 THEN b := false
-               ELSE IF thisif=10
-                      THEN b := (mem[p].hh.b0=0)
+               ELSE
+                 IF p=0 THEN b := false
+               ELSE
+                 IF thisif=10
+                   THEN b := (mem[p].hh.b0=0)
                ELSE b := (mem[p].hh.b0=1);
              END{:505};
     12:{507:}
@@ -7852,7 +7846,8 @@ BEGIN{495:}
           q := curchr;
           getnext;
           IF curcmd<>p THEN b := false
-          ELSE IF curcmd<111 THEN b := (curchr=q)
+          ELSE
+            IF curcmd<111 THEN b := (curchr=q)
           ELSE
 {508:}
             BEGIN
@@ -7896,18 +7891,20 @@ BEGIN{495:}
           WHILE n<>0 DO
             BEGIN
               passtext;
-              IF condptr=savecondptr THEN IF curchr=4 THEN n := n-1
+              IF condptr=savecondptr THEN
+                IF curchr=4 THEN n := n-1
               ELSE goto 50
-              ELSE IF 
-                      curchr=2 THEN{496:}
-                     BEGIN
-                       p := condptr;
-                       ifline := mem[p+1].int;
-                       curif := mem[p].hh.b1;
-                       iflimit := mem[p].hh.b0;
-                       condptr := mem[p].hh.rh;
-                       freenode(p,2);
-                     END{:496};
+              ELSE
+                IF 
+                   curchr=2 THEN{496:}
+                  BEGIN
+                    p := condptr;
+                    ifline := mem[p+1].int;
+                    curif := mem[p].hh.b1;
+                    iflimit := mem[p].hh.b0;
+                    condptr := mem[p].hh.rh;
+                    freenode(p,2);
+                  END{:496};
             END;
           changeiflimit(4,savecondptr);
           goto 10;
@@ -7944,17 +7941,19 @@ BEGIN{495:}
           END;
           error;
         END
-      ELSE IF curchr=2 THEN{496:}
-             BEGIN
-               p := condptr;
-               ifline := mem[p+1].int;
-               curif := mem[p].hh.b1;
-               iflimit := mem[p].hh.b0;
-               condptr := mem[p].hh.rh;
-               freenode(p,2);
-             END{:496};
+      ELSE
+        IF curchr=2 THEN{496:}
+          BEGIN
+            p := condptr;
+            ifline := mem[p+1].int;
+            curif := mem[p].hh.b1;
+            iflimit := mem[p].hh.b0;
+            condptr := mem[p].hh.rh;
+            freenode(p,2);
+          END{:496};
     END{:500};
-  50: IF curchr=2 THEN{496:}
+  50:
+      IF curchr=2 THEN{496:}
         BEGIN
           p := condptr;
           ifline := mem[p+1].int;
@@ -7990,8 +7989,9 @@ BEGIN
           areadelimiter := (poolptr-strstart[strptr]);
           extdelimiter := 0;
         END
-      ELSE IF (c=46)AND(extdelimiter=0)THEN extdelimiter := (poolptr-strstart
-                                                            [strptr]);
+      ELSE
+        IF (c=46)AND(extdelimiter=0)THEN extdelimiter := (poolptr-strstart
+                                                         [strptr]);
       morename := true;
     END;
 END;{:516}{517:}
@@ -8263,8 +8263,9 @@ BEGIN
     END;
   IF termoffset+(strstart[curinput.namefield+1]-strstart[curinput.
      namefield])>maxprintline-2 THEN println
-  ELSE IF (termoffset>0)OR(
-          fileoffset>0)THEN printchar(32);
+  ELSE
+    IF (termoffset>0)OR(
+       fileoffset>0)THEN printchar(32);
   printchar(40);
   openparens := openparens+1;
   slowprint(curinput.namefield);
@@ -8422,11 +8423,12 @@ BEGIN
           printscaled(s);
           print(397);
         END
-      ELSE IF s<>-1000 THEN
-             BEGIN
-               print(804);
-               printint(-s);
-             END;
+      ELSE
+        IF s<>-1000 THEN
+          BEGIN
+            print(804);
+            printint(-s);
+          END;
       print(813);
       BEGIN
         helpptr := 4;
@@ -8486,7 +8488,8 @@ BEGIN
         lh := lh-1;
       END;
     fontdsize[f] := z;
-    IF s<>-1000 THEN IF s>=0 THEN z := s
+    IF s<>-1000 THEN
+      IF s>=0 THEN z := s
     ELSE z := xnoverd(z,-s,1000);
     fontsize[f] := z;
   END{:568};
@@ -8510,8 +8513,10 @@ BEGIN
       END;
       IF (a>=nw)OR(b DIV 16>=nh)OR(b MOD 16>=nd)OR(c DIV 4>=ni)THEN goto 11;
       CASE c MOD 4 OF 
-        1: IF d>=nl THEN goto 11;
-        3: IF d>=ne THEN goto 11;
+        1:
+           IF d>=nl THEN goto 11;
+        3:
+           IF d>=ne THEN goto 11;
         2:{570:}
            BEGIN
              BEGIN
@@ -8553,8 +8558,9 @@ BEGIN
         d := tfmfile^;
         sw := (((((d*z)DIV 256)+(c*z))DIV 256)+(b*z))DIV beta;
         IF a=0 THEN fontinfo[k].int := sw
-        ELSE IF a=255 THEN fontinfo[k].int := sw-
-                                              alpha
+        ELSE
+          IF a=255 THEN fontinfo[k].int := sw-
+                                           alpha
         ELSE goto 11;
       END;
     IF fontinfo[widthbase[f]].int<>0 THEN goto 11;
@@ -8587,7 +8593,8 @@ BEGIN
           IF a>128 THEN
             BEGIN
               IF 256*c+d>=nl THEN goto 11;
-              IF a=255 THEN IF k=ligkernbase[f]THEN bchar := b;
+              IF a=255 THEN
+                IF k=ligkernbase[f]THEN bchar := b;
             END
           ELSE
             BEGIN
@@ -8607,8 +8614,10 @@ BEGIN
                   qw := fontinfo[charbase[f]+d].qqqq;
                   IF NOT(qw.b0>0)THEN goto 11;
                 END
-              ELSE IF 256*(c-128)+d>=nk THEN goto 11;
-              IF a<128 THEN IF k-ligkernbase[f]+a+1>=nl THEN goto 11;
+              ELSE
+                IF 256*(c-128)+d>=nk THEN goto 11;
+              IF a<128 THEN
+                IF k-ligkernbase[f]+a+1>=nl THEN goto 11;
             END;
         END;
       IF a=255 THEN bchlabel := 256*c+d;
@@ -8625,8 +8634,9 @@ BEGIN
       d := tfmfile^;
       sw := (((((d*z)DIV 256)+(c*z))DIV 256)+(b*z))DIV beta;
       IF a=0 THEN fontinfo[k].int := sw
-      ELSE IF a=255 THEN fontinfo[k].int := sw-
-                                            alpha
+      ELSE
+        IF a=255 THEN fontinfo[k].int := sw-
+                                         alpha
       ELSE goto 11;
     END;{:573};
 {574:}
@@ -8705,8 +8715,9 @@ BEGIN
           d := tfmfile^;
           sw := (((((d*z)DIV 256)+(c*z))DIV 256)+(b*z))DIV beta;
           IF a=0 THEN fontinfo[parambase[f]+k-1].int := sw
-          ELSE IF a=255 THEN
-                 fontinfo[parambase[f]+k-1].int := sw-alpha
+          ELSE
+            IF a=255 THEN
+              fontinfo[parambase[f]+k-1].int := sw-alpha
           ELSE goto 11;
         END;
     FOR k:=np+1 TO 7 DO
@@ -8722,12 +8733,13 @@ BEGIN
     bcharlabel[f] := 0;
   fontbchar[f] := bchar;
   fontfalsebchar[f] := bchar;
-  IF bchar<=ec THEN IF bchar>=bc THEN
-                      BEGIN
-                        qw := fontinfo[charbase[f]+bchar
-                              ].qqqq;
-                        IF (qw.b0>0)THEN fontfalsebchar[f] := 256;
-                      END;
+  IF bchar<=ec THEN
+    IF bchar>=bc THEN
+      BEGIN
+        qw := fontinfo[charbase[f]+bchar
+              ].qqqq;
+        IF (qw.b0>0)THEN fontfalsebchar[f] := 256;
+      END;
   fontname[f] := nom;
   fontarea[f] := aire;
   fontbc[f] := bc;
@@ -8758,11 +8770,12 @@ BEGIN
       printscaled(s);
       print(397);
     END
-  ELSE IF s<>-1000 THEN
-         BEGIN
-           print(804);
-           printint(-s);
-         END;
+  ELSE
+    IF s<>-1000 THEN
+      BEGIN
+        print(804);
+        printint(-s);
+      END;
   IF fileopened THEN print(805)
   ELSE print(806);
   BEGIN
@@ -8774,7 +8787,8 @@ BEGIN
     helpline[0] := 811;
   END;
   error{:561};
-  30: IF fileopened THEN bclose(tfmfile);
+  30:
+      IF fileopened THEN bclose(tfmfile);
   readfontinfo := g;
 END;
 {:560}{581:}
@@ -8799,15 +8813,17 @@ LABEL 10;
 
 VAR p: halfword;
 BEGIN
-  IF fontbc[f]<=c THEN IF fontec[f]>=c THEN IF (fontinfo[charbase[f]+
-                                               c].qqqq.b0>0)THEN
-                                              BEGIN
-                                                p := getavail;
-                                                mem[p].hh.b0 := f;
-                                                mem[p].hh.b1 := c;
-                                                newcharacter := p;
-                                                goto 10;
-                                              END;
+  IF fontbc[f]<=c THEN
+    IF fontec[f]>=c THEN
+      IF (fontinfo[charbase[f]+
+         c].qqqq.b0>0)THEN
+        BEGIN
+          p := getavail;
+          mem[p].hh.b0 := f;
+          mem[p].hh.b1 := c;
+          newcharacter := p;
+          goto 10;
+        END;
   charwarning(f,c);
   newcharacter := 0;
   10:
@@ -8969,36 +8985,40 @@ BEGIN
   mstate := 0;
   WHILE p<>0 DO
     BEGIN
-      IF mem[p+1].int=w THEN{612:}CASE mstate+mem[p].hh.lh 
-                                    OF 
-                                    3,4,15,16: IF mem[p+2].int<dvigone THEN goto 45
-                                               ELSE{613:}
-                                                 BEGIN
-                                                   k := mem
-                                                        [p+2].int-dvioffset;
-                                                   IF k<0 THEN k := k+dvibufsize;
-                                                   dvibuf[k] := dvibuf[k]+5;
-                                                   mem[p].hh.lh := 1;
-                                                   goto 40;
-                                                 END{:613};
-                                    5,9,11: IF mem[p+2].int<dvigone THEN goto 45
-                                            ELSE{614:}
-                                              BEGIN
-                                                k := mem[p+2].
-                                                     int-dvioffset;
-                                                IF k<0 THEN k := k+dvibufsize;
-                                                dvibuf[k] := dvibuf[k]+10;
-                                                mem[p].hh.lh := 2;
-                                                goto 40;
-                                              END{:614};
-                                    1,2,8,13: goto 40;
-                                    ELSE
+      IF mem[p+1].int=w THEN{612:}
+        CASE mstate+mem[p].hh.lh 
+          OF 
+          3,4,15,16:
+                     IF mem[p+2].int<dvigone THEN goto 45
+                     ELSE{613:}
+                       BEGIN
+                         k := mem
+                              [p+2].int-dvioffset;
+                         IF k<0 THEN k := k+dvibufsize;
+                         dvibuf[k] := dvibuf[k]+5;
+                         mem[p].hh.lh := 1;
+                         goto 40;
+                       END{:613};
+          5,9,11:
+                  IF mem[p+2].int<dvigone THEN goto 45
+                  ELSE{614:}
+                    BEGIN
+                      k := mem[p+2].
+                           int-dvioffset;
+                      IF k<0 THEN k := k+dvibufsize;
+                      dvibuf[k] := dvibuf[k]+10;
+                      mem[p].hh.lh := 2;
+                      goto 40;
+                    END{:614};
+          1,2,8,13: goto 40;
+          ELSE
         END{:612}
-      ELSE CASE mstate+mem[p].hh.lh OF 
-             1: mstate := 6;
-             2: mstate := 12;
-             8,13: goto 45;
-             ELSE
+      ELSE
+        CASE mstate+mem[p].hh.lh OF 
+          1: mstate := 6;
+          2: mstate := 12;
+          8,13: goto 45;
+          ELSE
         END;
       p := mem[p].hh.rh;
     END;
@@ -9111,7 +9131,8 @@ BEGIN
       downptr := mem[p].hh.rh;
       freenode(p,3);
     END;
-  30: WHILE rightptr<>0 DO
+  30:
+      WHILE rightptr<>0 DO
         BEGIN
           IF mem[rightptr+2].int<l THEN goto 10;
           p := rightptr;
@@ -9238,29 +9259,31 @@ PROCEDURE outwhat(p:halfword);
 VAR j: smallnumber;
 BEGIN
   CASE mem[p].hh.b1 OF 
-    0,1,2:{1374:}IF NOT doingleaders THEN
-                   BEGIN
-                     j 
-                     := mem[p+1].hh.lh;
-                     IF mem[p].hh.b1=1 THEN writeout(p)
-                     ELSE
+    0,1,2:{1374:}
+           IF NOT doingleaders THEN
+             BEGIN
+               j 
+               := mem[p+1].hh.lh;
+               IF mem[p].hh.b1=1 THEN writeout(p)
+               ELSE
+                 BEGIN
+                   IF writeopen[j]THEN aclose(
+                                              writefile[j]);
+                   IF mem[p].hh.b1=2 THEN writeopen[j] := false
+                   ELSE
+                     IF j<16 THEN
                        BEGIN
-                         IF writeopen[j]THEN aclose(
-                                                    writefile[j]);
-                         IF mem[p].hh.b1=2 THEN writeopen[j] := false
-                         ELSE IF j<16 THEN
-                                BEGIN
-                                  curname := mem[p+1].hh.rh;
-                                  curarea := mem[p+2].hh.lh;
-                                  curext := mem[p+2].hh.rh;
-                                  IF curext=338 THEN curext := 791;
-                                  packfilename(curname,curarea,curext);
-                                  WHILE NOT aopenout(writefile[j]) DO
-                                    promptfilename(1301,791);
-                                  writeopen[j] := true;
-                                END;
+                         curname := mem[p+1].hh.rh;
+                         curarea := mem[p+2].hh.lh;
+                         curext := mem[p+2].hh.rh;
+                         IF curext=338 THEN curext := 791;
+                         packfilename(curname,curarea,curext);
+                         WHILE NOT aopenout(writefile[j]) DO
+                           promptfilename(1301,791);
+                         writeopen[j] := true;
                        END;
-                   END{:1374};
+                 END;
+             END{:1374};
     3: specialout(p);
     4:;
     ELSE confusion(1300)
@@ -9305,7 +9328,8 @@ BEGIN
   baseline := curv;
   leftedge := curh;
   WHILE p<>0 DO{620:}
-    21: IF (p>=himemmin)THEN
+    21:
+        IF (p>=himemmin)THEN
           BEGIN
             IF curh<>dvih THEN
               BEGIN
@@ -9367,8 +9391,9 @@ BEGIN
         ELSE{622:}
           BEGIN
             CASE mem[p].hh.b0 OF 
-              0,1:{623:}IF mem[p+5].hh.rh=0
-                          THEN curh := curh+mem[p+1].int
+              0,1:{623:}
+                   IF mem[p+5].hh.rh=0
+                     THEN curh := curh+mem[p+1].int
                    ELSE
                      BEGIN
                        saveh := dvih;
@@ -9404,21 +9429,24 @@ BEGIN
                                 curglue := curglue+mem[g+2].int;
                                 gluetemp := mem[thisbox+6].gr*curglue;
                                 IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
-                                ELSE IF gluetemp<
-                                        -1000000000.0 THEN gluetemp := -1000000000.0;
+                                ELSE
+                                  IF gluetemp<
+                                     -1000000000.0 THEN gluetemp := -1000000000.0;
                                 curg := round(gluetemp);
                               END;
                           END
-                        ELSE IF mem[g].hh.b1=gorder THEN
-                               BEGIN
-                                 curglue := curglue-mem[g+3].int
-                                 ;
-                                 gluetemp := mem[thisbox+6].gr*curglue;
-                                 IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
-                                 ELSE IF gluetemp<
-                                         -1000000000.0 THEN gluetemp := -1000000000.0;
-                                 curg := round(gluetemp);
-                               END;
+                        ELSE
+                          IF mem[g].hh.b1=gorder THEN
+                            BEGIN
+                              curglue := curglue-mem[g+3].int
+                              ;
+                              gluetemp := mem[thisbox+6].gr*curglue;
+                              IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
+                              ELSE
+                                IF gluetemp<
+                                   -1000000000.0 THEN gluetemp := -1000000000.0;
+                              curg := round(gluetemp);
+                            END;
                       END;
                     rulewd := rulewd+curg;
                     IF mem[p].hh.b1>=100 THEN{626:}
@@ -9499,7 +9527,8 @@ BEGIN
               ELSE
             END;
             goto 15;
-            14:{624:}IF (ruleht=-1073741824)THEN ruleht := mem[thisbox+3].int;
+            14:{624:}
+                IF (ruleht=-1073741824)THEN ruleht := mem[thisbox+3].int;
             IF (ruledp=-1073741824)THEN ruledp := mem[thisbox+2].int;
             ruleht := ruleht+ruledp;
             IF (ruleht>0)AND(rulewd>0)THEN
@@ -9579,8 +9608,9 @@ BEGIN
       ELSE{631:}
         BEGIN
           CASE mem[p].hh.b0 OF 
-            0,1:{632:}IF mem[p+5].hh.rh=0 THEN curv := curv
-                                                       +mem[p+3].int+mem[p+2].int
+            0,1:{632:}
+                 IF mem[p+5].hh.rh=0 THEN curv := curv
+                                                  +mem[p+3].int+mem[p+2].int
                  ELSE
                    BEGIN
                      curv := curv+mem[p+3].int;
@@ -9621,21 +9651,24 @@ BEGIN
                               curglue := curglue+mem[g+2].int;
                               gluetemp := mem[thisbox+6].gr*curglue;
                               IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
-                              ELSE IF gluetemp<
-                                      -1000000000.0 THEN gluetemp := -1000000000.0;
+                              ELSE
+                                IF gluetemp<
+                                   -1000000000.0 THEN gluetemp := -1000000000.0;
                               curg := round(gluetemp);
                             END;
                         END
-                      ELSE IF mem[g].hh.b1=gorder THEN
-                             BEGIN
-                               curglue := curglue-mem[g+3].int
-                               ;
-                               gluetemp := mem[thisbox+6].gr*curglue;
-                               IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
-                               ELSE IF gluetemp<
-                                       -1000000000.0 THEN gluetemp := -1000000000.0;
-                               curg := round(gluetemp);
-                             END;
+                      ELSE
+                        IF mem[g].hh.b1=gorder THEN
+                          BEGIN
+                            curglue := curglue-mem[g+3].int
+                            ;
+                            gluetemp := mem[thisbox+6].gr*curglue;
+                            IF gluetemp>1000000000.0 THEN gluetemp := 1000000000.0
+                            ELSE
+                              IF gluetemp<
+                                 -1000000000.0 THEN gluetemp := -1000000000.0;
+                            curg := round(gluetemp);
+                          END;
                     END;
                   ruleht := ruleht+curg;
                   IF mem[p].hh.b1>=100 THEN{635:}
@@ -9710,7 +9743,8 @@ BEGIN
             ELSE
           END;
           goto 15;
-          14:{633:}IF (rulewd=-1073741824)THEN rulewd := mem[thisbox+1].int;
+          14:{633:}
+              IF (rulewd=-1073741824)THEN rulewd := mem[thisbox+1].int;
           ruleht := ruleht+ruledp;
           curv := curv+ruleht;
           IF (ruleht>0)AND(rulewd>0)THEN
@@ -9759,8 +9793,9 @@ BEGIN
       print(830);
     END;
   IF termoffset>maxprintline-9 THEN println
-  ELSE IF (termoffset>0)OR(
-          fileoffset>0)THEN printchar(32);
+  ELSE
+    IF (termoffset>0)OR(
+       fileoffset>0)THEN printchar(32);
   printchar(91);
   j := 9;
   WHILE (eqtb[5318+j].int=0)AND(j>0) DO
@@ -9916,8 +9951,9 @@ VAR s: integer;
 BEGIN
   IF threecodes THEN s := savestack[saveptr+0].int;
   IF scankeyword(843)THEN speccode := 0
-  ELSE IF scankeyword(844)THEN
-         speccode := 1
+  ELSE
+    IF scankeyword(844)THEN
+      speccode := 1
   ELSE
     BEGIN
       speccode := 1;
@@ -9925,7 +9961,8 @@ BEGIN
       goto 40;
     END;
   scandimen(false,false,false);
-  40: IF threecodes THEN
+  40:
+      IF threecodes THEN
         BEGIN
           savestack[saveptr+0].int := s;
           saveptr := saveptr+1;
@@ -9971,7 +10008,8 @@ BEGIN
   totalshrink[3] := 0{:650};
   WHILE p<>0 DO{651:}
     BEGIN
-      21: WHILE (p>=himemmin) DO{654:}
+      21:
+          WHILE (p>=himemmin) DO{654:}
             BEGIN
               f := mem[p].hh
                    .b0;
@@ -9996,7 +10034,8 @@ BEGIN
                         IF mem[p+3].int-s>h THEN h := mem[p+3].int-s;
                         IF mem[p+2].int+s>d THEN d := mem[p+2].int+s;
                       END{:653};
-            3,4,5: IF adjusttail<>0 THEN{655:}
+            3,4,5:
+                   IF adjusttail<>0 THEN{655:}
                      BEGIN
                        WHILE mem[q].hh.rh<>p DO
                          q := mem[q
@@ -10060,44 +10099,50 @@ BEGIN
       mem[r+6].gr := 0.0;
       goto 10;
     END
-  ELSE IF x>0 THEN{658:}
-         BEGIN{659:}
-           IF totalstretch[3]<>0 THEN o := 3
-           ELSE IF totalstretch[2]<>0 THEN o := 2
-           ELSE IF totalstretch[1]<>0 THEN o := 
-                                                1
-           ELSE o := 0{:659};
-           mem[r+5].hh.b1 := o;
-           mem[r+5].hh.b0 := 1;
-           IF totalstretch[o]<>0 THEN mem[r+6].gr := x/totalstretch[o]
-           ELSE
-             BEGIN
-               mem[
-               r+5].hh.b0 := 0;
-               mem[r+6].gr := 0.0;
-             END;
-           IF o=0 THEN IF mem[r+5].hh.rh<>0 THEN{660:}
-                         BEGIN
-                           lastbadness := badness(x,
-                                          totalstretch[0]);
-                           IF lastbadness>eqtb[5289].int THEN
-                             BEGIN
-                               println;
-                               IF lastbadness>100 THEN printnl(845)
-                               ELSE printnl(846);
-                               print(847);
-                               printint(lastbadness);
-                               goto 50;
-                             END;
-                         END{:660};
-           goto 10;
-         END{:658}
+  ELSE
+    IF x>0 THEN{658:}
+      BEGIN{659:}
+        IF totalstretch[3]<>0 THEN o := 3
+        ELSE
+          IF totalstretch[2]<>0 THEN o := 2
+        ELSE
+          IF totalstretch[1]<>0 THEN o := 
+                                          1
+        ELSE o := 0{:659};
+        mem[r+5].hh.b1 := o;
+        mem[r+5].hh.b0 := 1;
+        IF totalstretch[o]<>0 THEN mem[r+6].gr := x/totalstretch[o]
+        ELSE
+          BEGIN
+            mem[
+            r+5].hh.b0 := 0;
+            mem[r+6].gr := 0.0;
+          END;
+        IF o=0 THEN
+          IF mem[r+5].hh.rh<>0 THEN{660:}
+            BEGIN
+              lastbadness := badness(x,
+                             totalstretch[0]);
+              IF lastbadness>eqtb[5289].int THEN
+                BEGIN
+                  println;
+                  IF lastbadness>100 THEN printnl(845)
+                  ELSE printnl(846);
+                  print(847);
+                  printint(lastbadness);
+                  goto 50;
+                END;
+            END{:660};
+        goto 10;
+      END{:658}
   ELSE{664:}
     BEGIN{665:}
       IF totalshrink[3]<>0 THEN o := 3
-      ELSE IF 
-              totalshrink[2]<>0 THEN o := 2
-      ELSE IF totalshrink[1]<>0 THEN o := 1
+      ELSE
+        IF 
+           totalshrink[2]<>0 THEN o := 2
+      ELSE
+        IF totalshrink[1]<>0 THEN o := 1
       ELSE o := 
                 0{:665};
       mem[r+5].hh.b1 := o;
@@ -10130,21 +10175,24 @@ BEGIN
               goto 50;
             END{:666};
         END
-      ELSE IF o=0 THEN IF mem[r+5].hh.rh<>0 THEN{667:}
-                         BEGIN
-                           lastbadness := 
-                                          badness(-x,totalshrink[0]);
-                           IF lastbadness>eqtb[5289].int THEN
-                             BEGIN
-                               println;
-                               printnl(855);
-                               printint(lastbadness);
-                               goto 50;
-                             END;
-                         END{:667};
+      ELSE
+        IF o=0 THEN
+          IF mem[r+5].hh.rh<>0 THEN{667:}
+            BEGIN
+              lastbadness := 
+                             badness(-x,totalshrink[0]);
+              IF lastbadness>eqtb[5289].int THEN
+                BEGIN
+                  println;
+                  printnl(855);
+                  printint(lastbadness);
+                  goto 50;
+                END;
+            END{:667};
       goto 10;
     END{:664}{:657};
-  50:{663:}IF outputactive THEN print(848)
+  50:{663:}
+      IF outputactive THEN print(848)
       ELSE
         BEGIN
           IF packbeginline<>0
@@ -10199,39 +10247,40 @@ BEGIN
   WHILE p<>0 DO{669:}
     BEGIN
       IF (p>=himemmin)THEN confusion(856)
-      ELSE CASE mem
-                [p].hh.b0 OF 
-             0,1,2,13:{670:}
-                       BEGIN
-                         x := x+d+mem[p+3].int;
-                         d := mem[p+2].int;
-                         IF mem[p].hh.b0>=2 THEN s := 0
-                         ELSE s := mem[p+4].int;
-                         IF mem[p+1].int+s>w THEN w := mem[p+1].int+s;
-                       END{:670};
-             8:{1359:}{:1359};
-             10:{671:}
-                 BEGIN
-                   x := x+d;
-                   d := 0;
-                   g := mem[p+1].hh.lh;
-                   x := x+mem[g+1].int;
-                   o := mem[g].hh.b0;
-                   totalstretch[o] := totalstretch[o]+mem[g+2].int;
-                   o := mem[g].hh.b1;
-                   totalshrink[o] := totalshrink[o]+mem[g+3].int;
-                   IF mem[p].hh.b1>=100 THEN
-                     BEGIN
-                       g := mem[p+1].hh.rh;
-                       IF mem[g+1].int>w THEN w := mem[g+1].int;
-                     END;
-                 END{:671};
-             11:
-                 BEGIN
-                   x := x+d+mem[p+1].int;
-                   d := 0;
-                 END;
-             ELSE
+      ELSE
+        CASE mem
+             [p].hh.b0 OF 
+          0,1,2,13:{670:}
+                    BEGIN
+                      x := x+d+mem[p+3].int;
+                      d := mem[p+2].int;
+                      IF mem[p].hh.b0>=2 THEN s := 0
+                      ELSE s := mem[p+4].int;
+                      IF mem[p+1].int+s>w THEN w := mem[p+1].int+s;
+                    END{:670};
+          8:{1359:}{:1359};
+          10:{671:}
+              BEGIN
+                x := x+d;
+                d := 0;
+                g := mem[p+1].hh.lh;
+                x := x+mem[g+1].int;
+                o := mem[g].hh.b0;
+                totalstretch[o] := totalstretch[o]+mem[g+2].int;
+                o := mem[g].hh.b1;
+                totalshrink[o] := totalshrink[o]+mem[g+3].int;
+                IF mem[p].hh.b1>=100 THEN
+                  BEGIN
+                    g := mem[p+1].hh.rh;
+                    IF mem[g+1].int>w THEN w := mem[g+1].int;
+                  END;
+              END{:671};
+          11:
+              BEGIN
+                x := x+d+mem[p+1].int;
+                d := 0;
+              END;
+          ELSE
         END;
       p := mem[p].hh.rh;
     END{:669};
@@ -10252,44 +10301,50 @@ BEGIN
       mem[r+6].gr := 0.0;
       goto 10;
     END
-  ELSE IF x>0 THEN{673:}
-         BEGIN{659:}
-           IF totalstretch[3]<>0 THEN o := 3
-           ELSE IF totalstretch[2]<>0 THEN o := 2
-           ELSE IF totalstretch[1]<>0 THEN o := 
-                                                1
-           ELSE o := 0{:659};
-           mem[r+5].hh.b1 := o;
-           mem[r+5].hh.b0 := 1;
-           IF totalstretch[o]<>0 THEN mem[r+6].gr := x/totalstretch[o]
-           ELSE
-             BEGIN
-               mem[
-               r+5].hh.b0 := 0;
-               mem[r+6].gr := 0.0;
-             END;
-           IF o=0 THEN IF mem[r+5].hh.rh<>0 THEN{674:}
-                         BEGIN
-                           lastbadness := badness(x,
-                                          totalstretch[0]);
-                           IF lastbadness>eqtb[5290].int THEN
-                             BEGIN
-                               println;
-                               IF lastbadness>100 THEN printnl(845)
-                               ELSE printnl(846);
-                               print(857);
-                               printint(lastbadness);
-                               goto 50;
-                             END;
-                         END{:674};
-           goto 10;
-         END{:673}
+  ELSE
+    IF x>0 THEN{673:}
+      BEGIN{659:}
+        IF totalstretch[3]<>0 THEN o := 3
+        ELSE
+          IF totalstretch[2]<>0 THEN o := 2
+        ELSE
+          IF totalstretch[1]<>0 THEN o := 
+                                          1
+        ELSE o := 0{:659};
+        mem[r+5].hh.b1 := o;
+        mem[r+5].hh.b0 := 1;
+        IF totalstretch[o]<>0 THEN mem[r+6].gr := x/totalstretch[o]
+        ELSE
+          BEGIN
+            mem[
+            r+5].hh.b0 := 0;
+            mem[r+6].gr := 0.0;
+          END;
+        IF o=0 THEN
+          IF mem[r+5].hh.rh<>0 THEN{674:}
+            BEGIN
+              lastbadness := badness(x,
+                             totalstretch[0]);
+              IF lastbadness>eqtb[5290].int THEN
+                BEGIN
+                  println;
+                  IF lastbadness>100 THEN printnl(845)
+                  ELSE printnl(846);
+                  print(857);
+                  printint(lastbadness);
+                  goto 50;
+                END;
+            END{:674};
+        goto 10;
+      END{:673}
   ELSE{676:}
     BEGIN{665:}
       IF totalshrink[3]<>0 THEN o := 3
-      ELSE IF 
-              totalshrink[2]<>0 THEN o := 2
-      ELSE IF totalshrink[1]<>0 THEN o := 1
+      ELSE
+        IF 
+           totalshrink[2]<>0 THEN o := 2
+      ELSE
+        IF totalshrink[1]<>0 THEN o := 1
       ELSE o := 
                 0{:665};
       mem[r+5].hh.b1 := o;
@@ -10315,21 +10370,24 @@ BEGIN
               goto 50;
             END{:677};
         END
-      ELSE IF o=0 THEN IF mem[r+5].hh.rh<>0 THEN{678:}
-                         BEGIN
-                           lastbadness := 
-                                          badness(-x,totalshrink[0]);
-                           IF lastbadness>eqtb[5290].int THEN
-                             BEGIN
-                               println;
-                               printnl(860);
-                               printint(lastbadness);
-                               goto 50;
-                             END;
-                         END{:678};
+      ELSE
+        IF o=0 THEN
+          IF mem[r+5].hh.rh<>0 THEN{678:}
+            BEGIN
+              lastbadness := 
+                             badness(-x,totalshrink[0]);
+              IF lastbadness>eqtb[5290].int THEN
+                BEGIN
+                  println;
+                  printnl(860);
+                  printint(lastbadness);
+                  goto 50;
+                END;
+            END{:678};
       goto 10;
     END{:676}{:672};
-  50:{675:}IF outputactive THEN print(848)
+  50:{675:}
+      IF outputactive THEN print(848)
       ELSE
         BEGIN
           IF packbeginline<>0
@@ -10551,48 +10609,50 @@ BEGIN
       z := mem[d].qqqq.b2;
       x := mem[d].qqqq.b3;
     END;
-  40: IF f<>0 THEN{710:}IF ((q.b2)MOD 4)=3 THEN{713:}
-                          BEGIN
-                            b := newnullbox;
-                            mem[b].hh.b0 := 1;
-                            r := fontinfo[extenbase[f]+q.b3].qqqq;{714:}
-                            c := r.b3;
-                            u := heightplusdepth(f,c);
-                            w := 0;
-                            q := fontinfo[charbase[f]+c].qqqq;
-                            mem[b+1].int := fontinfo[widthbase[f]+q.b0].int+fontinfo[italicbase[f]+(
-                                            q.
-                                            b2)DIV 4].int;
-                            c := r.b2;
-                            IF c<>0 THEN w := w+heightplusdepth(f,c);
-                            c := r.b1;
-                            IF c<>0 THEN w := w+heightplusdepth(f,c);
-                            c := r.b0;
-                            IF c<>0 THEN w := w+heightplusdepth(f,c);
-                            n := 0;
-                            IF u>0 THEN WHILE w<v DO
-                                          BEGIN
-                                            w := w+u;
-                                            n := n+1;
-                                            IF r.b1<>0 THEN w := w+u;
-                                          END{:714};
-                            c := r.b2;
-                            IF c<>0 THEN stackintobox(b,f,c);
-                            c := r.b3;
-                            FOR m:=1 TO n DO
-                              stackintobox(b,f,c);
-                            c := r.b1;
-                            IF c<>0 THEN
-                              BEGIN
-                                stackintobox(b,f,c);
-                                c := r.b3;
-                                FOR m:=1 TO n DO
-                                  stackintobox(b,f,c);
-                              END;
-                            c := r.b0;
-                            IF c<>0 THEN stackintobox(b,f,c);
-                            mem[b+2].int := w-mem[b+3].int;
-                          END{:713}
+  40:
+      IF f<>0 THEN{710:}
+        IF ((q.b2)MOD 4)=3 THEN{713:}
+          BEGIN
+            b := newnullbox;
+            mem[b].hh.b0 := 1;
+            r := fontinfo[extenbase[f]+q.b3].qqqq;{714:}
+            c := r.b3;
+            u := heightplusdepth(f,c);
+            w := 0;
+            q := fontinfo[charbase[f]+c].qqqq;
+            mem[b+1].int := fontinfo[widthbase[f]+q.b0].int+fontinfo[italicbase[f]+(q.
+                            b2)DIV 4].int;
+            c := r.b2;
+            IF c<>0 THEN w := w+heightplusdepth(f,c);
+            c := r.b1;
+            IF c<>0 THEN w := w+heightplusdepth(f,c);
+            c := r.b0;
+            IF c<>0 THEN w := w+heightplusdepth(f,c);
+            n := 0;
+            IF u>0 THEN
+              WHILE w<v DO
+                BEGIN
+                  w := w+u;
+                  n := n+1;
+                  IF r.b1<>0 THEN w := w+u;
+                END{:714};
+            c := r.b2;
+            IF c<>0 THEN stackintobox(b,f,c);
+            c := r.b3;
+            FOR m:=1 TO n DO
+              stackintobox(b,f,c);
+            c := r.b1;
+            IF c<>0 THEN
+              BEGIN
+                stackintobox(b,f,c);
+                c := r.b3;
+                FOR m:=1 TO n DO
+                  stackintobox(b,f,c);
+              END;
+            c := r.b0;
+            IF c<>0 THEN stackintobox(b,f,c);
+            mem[b+2].int := w-mem[b+3].int;
+          END{:713}
       ELSE b := charbox(f,c){:710}
       ELSE
         BEGIN
@@ -10734,21 +10794,26 @@ BEGIN
                     DIV 2);
     curmu := xovern(fontinfo[6+parambase[eqtb[3937+cursize].hh.rh]].int,18);
   END{:703};
-  40: IF (q>=himemmin)OR(q=0)THEN x := hpack(q,0,1)
-      ELSE IF (mem[q].hh.rh=0)AND(
-              mem[q].hh.b0<=1)AND(mem[q+4].int=0)THEN x := q
+  40:
+      IF (q>=himemmin)OR(q=0)THEN x := hpack(q,0,1)
+      ELSE
+        IF (mem[q].hh.rh=0)AND(
+           mem[q].hh.b0<=1)AND(mem[q+4].int=0)THEN x := q
       ELSE x := hpack(q,0,1);
 {721:}
   q := mem[x+5].hh.rh;
   IF (q>=himemmin)THEN
     BEGIN
       r := mem[q].hh.rh;
-      IF r<>0 THEN IF mem[r].hh.rh=0 THEN IF NOT(r>=himemmin)THEN IF mem[r].hh
-                                                                     .b0=11 THEN
-                                                                    BEGIN
-                                                                      freenode(r,2);
-                                                                      mem[q].hh.rh := 0;
-                                                                    END;
+      IF r<>0 THEN
+        IF mem[r].hh.rh=0 THEN
+          IF NOT(r>=himemmin)THEN
+            IF mem[r].hh
+               .b0=11 THEN
+              BEGIN
+                freenode(r,2);
+                mem[q].hh.rh := 0;
+              END;
     END{:721};
   cleanbox := x;
 END;{:720}{722:}
@@ -10894,8 +10959,9 @@ BEGIN
                   IF curi.b1=skewchar[curf]THEN
                     BEGIN
                       IF curi.b2>=128
-                        THEN IF curi.b0<=128 THEN s := fontinfo[kernbase[curf]+256*curi.b2+curi.b3
-                                                       ].int;
+                        THEN
+                        IF curi.b0<=128 THEN s := fontinfo[kernbase[curf]+256*curi.b2+curi.b3
+                                                  ].int;
                       goto 31;
                     END;
                   IF curi.b0>=128 THEN goto 31;
@@ -10922,22 +10988,23 @@ BEGIN
       IF h<fontinfo[5+parambase[f]].int THEN delta := h
       ELSE delta := fontinfo[5+
                     parambase[f]].int;
-      IF (mem[q+2].hh.rh<>0)OR(mem[q+3].hh.rh<>0)THEN IF mem[q+1].hh.rh=1 THEN
+      IF (mem[q+2].hh.rh<>0)OR(mem[q+3].hh.rh<>0)THEN
+        IF mem[q+1].hh.rh=1 THEN
 {742:}
-                                                        BEGIN
-                                                          flushnodelist(x);
-                                                          x := newnoad;
-                                                          mem[x+1] := mem[q+1];
-                                                          mem[x+2] := mem[q+2];
-                                                          mem[x+3] := mem[q+3];
-                                                          mem[q+2].hh := emptyfield;
-                                                          mem[q+3].hh := emptyfield;
-                                                          mem[q+1].hh.rh := 3;
-                                                          mem[q+1].hh.lh := x;
-                                                          x := cleanbox(q+1,curstyle);
-                                                          delta := delta+mem[x+3].int-h;
-                                                          h := mem[x+3].int;
-                                                        END{:742};
+          BEGIN
+            flushnodelist(x);
+            x := newnoad;
+            mem[x+1] := mem[q+1];
+            mem[x+2] := mem[q+2];
+            mem[x+3] := mem[q+3];
+            mem[q+2].hh := emptyfield;
+            mem[q+3].hh := emptyfield;
+            mem[q+1].hh.rh := 3;
+            mem[q+1].hh.lh := x;
+            x := cleanbox(q+1,curstyle);
+            delta := delta+mem[x+3].int-h;
+            h := mem[x+3].int;
+          END{:742};
       y := charbox(f,c);
       mem[y+4].int := s+half(w-mem[y+1].int);
       mem[y+1].int := 0;
@@ -11147,607 +11214,84 @@ LABEL 20,10;
 VAR a: integer;
   p,r: halfword;
 BEGIN
-  20: IF mem[q+3].hh.rh=0 THEN IF mem[q+2].hh.rh=0 THEN IF mem[q+1].
-                                                           hh.rh=1 THEN
-                                                          BEGIN
-                                                            p := mem[q].hh.rh;
-                                                            IF p<>0 THEN IF (mem[p].hh.b0>=16)AND(
-                                                                            mem[p].hh.b0<=22)THEN IF
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                   =
-                                                                                                   1
-                                                                                                THEN
-                                                                                                  IF
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b0
-                                                                                                   =
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b0
-                                                                                                THEN
-
-                                                                                               BEGIN
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-
-                                                                                                  :=
-                                                                                                   4
-                                                                                                   ;
-
-                                                                                               fetch
-                                                                                                   (
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   )
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                   (
-                                                                                                   (
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                   )
-                                                                                                 MOD
-                                                                                                   4
-                                                                                                   )
-                                                                                                   =
-                                                                                                   1
-                                                                                                THEN
-
-                                                                                               BEGIN
-
-                                                                                                   a
-                                                                                                  :=
-                                                                                         ligkernbase
-                                                                                                   [
-                                                                                                curf
-                                                                                                   ]
-                                                                                                   +
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ;
-
-                                                                                                curc
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b1
-                                                                                                   ;
-
-                                                                                                curi
-                                                                                                  :=
-                                                                                            fontinfo
-                                                                                                   [
-                                                                                                   a
-                                                                                                   ]
-                                                                                                   .
-                                                                                                qqqq
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b0
-                                                                                                   >
-                                                                                                 128
-                                                                                                THEN
-
-                                                                                               BEGIN
-
-                                                                                                   a
-                                                                                                  :=
-                                                                                         ligkernbase
-                                                                                                   [
-                                                                                                curf
-                                                                                                   ]
-                                                                                                   +
-                                                                                                 256
-                                                                                                   *
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                   +
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-
-                                                                                                   +
-                                                                                               32768
-                                                                                                   -
-                                                                                                 256
-                                                                                                   *
-                                                                                                   (
-                                                                                                 128
-                                                                                                   )
-                                                                                                   ;
-
-                                                                                                curi
-                                                                                                  :=
-                                                                                            fontinfo
-                                                                                                   [
-                                                                                                   a
-                                                                                                   ]
-                                                                                                   .
-                                                                                                qqqq
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                               WHILE
-                                                                                                true
-                                                                                                  DO
-
-                                                                                               BEGIN
-                                                                                              {753:}
-
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b1
-                                                                                                   =
-                                                                                                curc
-                                                                                                THEN
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b0
-                                                                                                  <=
-                                                                                                 128
-                                                                                                THEN
-                                                                                                  IF
-
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                  >=
-                                                                                                 128
-                                                                                                THEN
-
-                                                                                               BEGIN
-
-                                                                                                   p
-                                                                                                  :=
-                                                                                             newkern
-                                                                                                   (
-                                                                                            fontinfo
-                                                                                                   [
-                                                                                            kernbase
-                                                                                                   [
-                                                                                                curf
-                                                                                                   ]
-                                                                                                   +
-                                                                                                 256
-                                                                                                   *
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                   +
-
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ]
-                                                                                                   .
-                                                                                                 int
-                                                                                                   )
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   p
-                                                                                                   ;
-
-                                                                                                goto
-                                                                                                  10
-                                                                                                   ;
-
-                                                                                                 END
-
-                                                                                                ELSE
-
-                                                                                               BEGIN
-
-                                                                                               BEGIN
-
-                                                                                                  IF
-                                                                                           interrupt
-                                                                                                  <>
-                                                                                                   0
-                                                                                                THEN
-                                                                                pauseforinstructions
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                                CASE
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                  OF
-
-                                                                                                   1
-                                                                                                   ,
-                                                                                                   5
-                                                                                                   :
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b1
-                                                                                                  :=
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ;
-
-                                                                                                   2
-                                                                                                   ,
-                                                                                                   6
-                                                                                                   :
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b1
-                                                                                                  :=
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ;
-
-                                                                                                   3
-                                                                                                   ,
-                                                                                                   7
-                                                                                                   ,
-                                                                                                  11
-                                                                                                   :
-
-                                                                                               BEGIN
-
-                                                                                                   r
-                                                                                                  :=
-                                                                                             newnoad
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   r
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b1
-                                                                                                  :=
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   r
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b0
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b0
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   r
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   r
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   p
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                   <
-                                                                                                  11
-                                                                                                THEN
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   r
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   1
-
-                                                                                                ELSE
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   r
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   4
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                                ELSE
-
-                                                                                               BEGIN
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  b1
-                                                                                                  :=
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b3
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   3
-                                                                                                   ]
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   3
-                                                                                                   ]
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   2
-                                                                                                   ]
-                                                                                                  :=
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   p
-                                                                                                   +
-                                                                                                   2
-                                                                                                   ]
-                                                                                                   ;
-
-                                                                                            freenode
-                                                                                                   (
-                                                                                                   p
-                                                                                                   ,
-                                                                                                   4
-                                                                                                   )
-                                                                                                   ;
-
-                                                                                                 END
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b2
-                                                                                                   >
-                                                                                                   3
-                                                                                                THEN
-                                                                                                goto
-                                                                                                  10
-                                                                                                   ;
-
-                                                                                                 mem
-                                                                                                   [
-                                                                                                   q
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ]
-                                                                                                   .
-                                                                                                  hh
-                                                                                                   .
-                                                                                                  rh
-                                                                                                  :=
-                                                                                                   1
-                                                                                                   ;
-
-                                                                                                goto
-                                                                                                  20
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                              {:753}
-                                                                                                   ;
-
-                                                                                                  IF
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b0
-                                                                                                  >=
-                                                                                                 128
-                                                                                                THEN
-                                                                                                goto
-                                                                                                  10
-                                                                                                   ;
-
-                                                                                                   a
-                                                                                                  :=
-                                                                                                   a
-                                                                                                   +
-                                                                                                curi
-                                                                                                   .
-                                                                                                  b0
-                                                                                                   +
-                                                                                                   1
-                                                                                                   ;
-
-                                                                                                curi
-                                                                                                  :=
-                                                                                            fontinfo
-                                                                                                   [
-                                                                                                   a
-                                                                                                   ]
-                                                                                                   .
-                                                                                                qqqq
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                                 END
-                                                                                                   ;
-
-                                                                                                 END
-                                                            ;
-                                                          END;
+  20:
+      IF mem[q+3].hh.rh=0 THEN
+        IF mem[q+2].hh.rh=0 THEN
+          IF mem[q+1].
+             hh.rh=1 THEN
+            BEGIN
+              p := mem[q].hh.rh;
+              IF p<>0 THEN
+                IF (mem[p].hh.b0>=16)AND(mem[p].hh.b0<=22)THEN
+                  IF mem[p+1].
+                     hh.rh=1 THEN
+                    IF mem[p+1].hh.b0=mem[q+1].hh.b0 THEN
+                      BEGIN
+                        mem[q+1].hh.rh 
+                        := 4;
+                        fetch(q+1);
+                        IF ((curi.b2)MOD 4)=1 THEN
+                          BEGIN
+                            a := ligkernbase[curf]+curi.b3;
+                            curc := mem[p+1].hh.b1;
+                            curi := fontinfo[a].qqqq;
+                            IF curi.b0>128 THEN
+                              BEGIN
+                                a := ligkernbase[curf]+256*curi.b2+curi.b3
+                                     +32768-256*(128);
+                                curi := fontinfo[a].qqqq;
+                              END;
+                            WHILE true DO
+                              BEGIN{753:}
+                                IF curi.b1=curc THEN
+                                  IF curi.b0<=128 THEN
+                                    IF 
+                                       curi.b2>=128 THEN
+                                      BEGIN
+                                        p := newkern(fontinfo[kernbase[curf]+256*curi.b2+
+                                             curi.b3].int);
+                                        mem[p].hh.rh := mem[q].hh.rh;
+                                        mem[q].hh.rh := p;
+                                        goto 10;
+                                      END
+                                ELSE
+                                  BEGIN
+                                    BEGIN
+                                      IF interrupt<>0 THEN pauseforinstructions;
+                                    END;
+                                    CASE curi.b2 OF 
+                                      1,5: mem[q+1].hh.b1 := curi.b3;
+                                      2,6: mem[p+1].hh.b1 := curi.b3;
+                                      3,7,11:
+                                              BEGIN
+                                                r := newnoad;
+                                                mem[r+1].hh.b1 := curi.b3;
+                                                mem[r+1].hh.b0 := mem[q+1].hh.b0;
+                                                mem[q].hh.rh := r;
+                                                mem[r].hh.rh := p;
+                                                IF curi.b2<11 THEN mem[r+1].hh.rh := 1
+                                                ELSE mem[r+1].hh.rh := 4;
+                                              END;
+                                      ELSE
+                                        BEGIN
+                                          mem[q].hh.rh := mem[p].hh.rh;
+                                          mem[q+1].hh.b1 := curi.b3;
+                                          mem[q+3] := mem[p+3];
+                                          mem[q+2] := mem[p+2];
+                                          freenode(p,4);
+                                        END
+                                    END;
+                                    IF curi.b2>3 THEN goto 10;
+                                    mem[q+1].hh.rh := 1;
+                                    goto 20;
+                                  END{:753};
+                                IF curi.b0>=128 THEN goto 10;
+                                a := a+curi.b0+1;
+                                curi := fontinfo[a].qqqq;
+                              END;
+                          END;
+                      END;
+            END;
   10:
 END;{:752}{756:}
 PROCEDURE makescripts(q:halfword;
@@ -11792,8 +11336,9 @@ BEGIN
         mem[x+1].int := mem[x+1].int+eqtb[5842].int;
         IF odd(curstyle)THEN clr := fontinfo[15+parambase[eqtb[3937+cursize].hh.rh
                                     ]].int
-        ELSE IF curstyle<2 THEN clr := fontinfo[13+parambase[eqtb[3937+
-                                       cursize].hh.rh]].int
+        ELSE
+          IF curstyle<2 THEN clr := fontinfo[13+parambase[eqtb[3937+
+                                    cursize].hh.rh]].int
         ELSE clr := fontinfo[14+parambase[eqtb[3937+cursize].
                     hh.rh]].int;
         IF shiftup<clr THEN shiftup := clr;
@@ -11893,7 +11438,8 @@ BEGIN
     BEGIN{728:}
       21: delta := 0;
       CASE mem[q].hh.b0 OF 
-        18: CASE rtype OF 
+        18:
+            CASE rtype OF 
               18,17,19,20,22,30:
                                  BEGIN
                                    mem[q].hh.
@@ -11996,17 +11542,19 @@ BEGIN
                   mem[q+1].hh.lh := y;
                   mem[q].hh.b1 := 0;
                 END
-              ELSE IF (cursize<>0)AND(mem[q].hh.b1=98)THEN
-                     BEGIN
-                       p := mem[q].hh.rh;
-                       IF p<>0 THEN IF (mem[p].hh.b0=10)OR(mem[p].hh.b0=11)THEN
-                                      BEGIN
-                                        mem[q].hh.
-                                        rh := mem[p].hh.rh;
-                                        mem[p].hh.rh := 0;
-                                        flushnodelist(p);
-                                      END;
-                     END{:732};
+              ELSE
+                IF (cursize<>0)AND(mem[q].hh.b1=98)THEN
+                  BEGIN
+                    p := mem[q].hh.rh;
+                    IF p<>0 THEN
+                      IF (mem[p].hh.b0=10)OR(mem[p].hh.b0=11)THEN
+                        BEGIN
+                          mem[q].hh.
+                          rh := mem[p].hh.rh;
+                          mem[p].hh.rh := 0;
+                          flushnodelist(p);
+                        END;
+                  END{:732};
               goto 81;
             END;
         11:
@@ -12133,12 +11681,15 @@ BEGIN
           CASE strpool[rtype*8+t+magicoffset] OF 
             48: x := 
                      0;
-            49: IF curstyle<4 THEN x := 15
+            49:
+                IF curstyle<4 THEN x := 15
                 ELSE x := 0;
             50: x := 15;
-            51: IF curstyle<4 THEN x := 16
+            51:
+                IF curstyle<4 THEN x := 16
                 ELSE x := 0;
-            52: IF curstyle<4 THEN x := 17
+            52:
+                IF curstyle<4 THEN x := 17
                 ELSE x := 0;
             ELSE confusion(894)
           END;
@@ -12160,17 +11711,20 @@ BEGIN
             p := mem[p].hh.rh;
           UNTIL mem[p].hh.rh=0;
         END;
-      IF penalties THEN IF mem[q].hh.rh<>0 THEN IF pen<10000 THEN
-                                                  BEGIN
-                                                    rtype 
-                                                    := mem[mem[q].hh.rh].hh.b0;
-                                                    IF rtype<>12 THEN IF rtype<>19 THEN
-                                                                        BEGIN
-                                                                          z := newpenalty(pen);
-                                                                          mem[p].hh.rh := z;
-                                                                          p := z;
-                                                                        END;
-                                                  END{:767};
+      IF penalties THEN
+        IF mem[q].hh.rh<>0 THEN
+          IF pen<10000 THEN
+            BEGIN
+              rtype 
+              := mem[mem[q].hh.rh].hh.b0;
+              IF rtype<>12 THEN
+                IF rtype<>19 THEN
+                  BEGIN
+                    z := newpenalty(pen);
+                    mem[p].hh.rh := z;
+                    p := z;
+                  END;
+            END{:767};
       rtype := t;
       83: r := q;
       q := mem[q].hh.rh;
@@ -12281,8 +11835,9 @@ BEGIN
       curlist.modefield := -1;
       curlist.auxfield.int := nest[nestptr-2].auxfield.int;
     END
-  ELSE IF curlist.modefield>0 THEN curlist.modefield := -curlist.
-                                                        modefield{:775};
+  ELSE
+    IF curlist.modefield>0 THEN curlist.modefield := -curlist.
+                                                     modefield{:775};
   scanspec(6,false);{777:}
   mem[29992].hh.rh := 0;
   curalign := 29992;
@@ -12302,9 +11857,9 @@ BEGIN
         BEGIN
           getpreambletoken;
           IF curcmd=6 THEN goto 31;
-          IF (curcmd<=5)AND(curcmd>=4)AND(alignstate=-1000000)THEN IF (p=29996)AND(
-                                                                      curloop=0)AND(curcmd=4)THEN
-                                                                     curloop := curalign
+          IF (curcmd<=5)AND(curcmd>=4)AND(alignstate=-1000000)THEN
+            IF (p=29996)AND(
+               curloop=0)AND(curcmd=4)THEN curloop := curalign
           ELSE
             BEGIN
               BEGIN
@@ -12322,12 +11877,13 @@ BEGIN
               backerror;
               goto 31;
             END
-          ELSE IF (curcmd<>10)OR(p<>29996)THEN
-                 BEGIN
-                   mem[p].hh.rh := getavail;
-                   p := mem[p].hh.rh;
-                   mem[p].hh.lh := curtok;
-                 END;
+          ELSE
+            IF (curcmd<>10)OR(p<>29996)THEN
+              BEGIN
+                mem[p].hh.rh := getavail;
+                p := mem[p].hh.rh;
+                mem[p].hh.lh := curtok;
+              END;
         END;
       31:{:783};
       mem[curalign].hh.rh := newnullbox;
@@ -12429,39 +11985,40 @@ BEGIN
   IF alignstate<500000 THEN fatalerror(595);
   p := mem[q].hh.rh;
 {792:}
-  IF (p=0)AND(mem[curalign+5].hh.lh<257)THEN IF curloop<>0 THEN{793:}
-                                               BEGIN
-                                                 mem[q].hh.rh := newnullbox;
-                                                 p := mem[q].hh.rh;
-                                                 mem[p].hh.lh := 29991;
-                                                 mem[p+1].int := -1073741824;
-                                                 curloop := mem[curloop].hh.rh;{794:}
-                                                 q := 29996;
-                                                 r := mem[curloop+3].int;
-                                                 WHILE r<>0 DO
-                                                   BEGIN
-                                                     mem[q].hh.rh := getavail;
-                                                     q := mem[q].hh.rh;
-                                                     mem[q].hh.lh := mem[r].hh.lh;
-                                                     r := mem[r].hh.rh;
-                                                   END;
-                                                 mem[q].hh.rh := 0;
-                                                 mem[p+3].int := mem[29996].hh.rh;
-                                                 q := 29996;
-                                                 r := mem[curloop+2].int;
-                                                 WHILE r<>0 DO
-                                                   BEGIN
-                                                     mem[q].hh.rh := getavail;
-                                                     q := mem[q].hh.rh;
-                                                     mem[q].hh.lh := mem[r].hh.lh;
-                                                     r := mem[r].hh.rh;
-                                                   END;
-                                                 mem[q].hh.rh := 0;
-                                                 mem[p+2].int := mem[29996].hh.rh{:794};
-                                                 curloop := mem[curloop].hh.rh;
-                                                 mem[p].hh.rh := newglue(mem[curloop+1].hh.lh);
-                                                 mem[mem[p].hh.rh].hh.b1 := 12;
-                                               END{:793}
+  IF (p=0)AND(mem[curalign+5].hh.lh<257)THEN
+    IF curloop<>0 THEN{793:}
+      BEGIN
+        mem[q].hh.rh := newnullbox;
+        p := mem[q].hh.rh;
+        mem[p].hh.lh := 29991;
+        mem[p+1].int := -1073741824;
+        curloop := mem[curloop].hh.rh;{794:}
+        q := 29996;
+        r := mem[curloop+3].int;
+        WHILE r<>0 DO
+          BEGIN
+            mem[q].hh.rh := getavail;
+            q := mem[q].hh.rh;
+            mem[q].hh.lh := mem[r].hh.lh;
+            r := mem[r].hh.rh;
+          END;
+        mem[q].hh.rh := 0;
+        mem[p+3].int := mem[29996].hh.rh;
+        q := 29996;
+        r := mem[curloop+2].int;
+        WHILE r<>0 DO
+          BEGIN
+            mem[q].hh.rh := getavail;
+            q := mem[q].hh.rh;
+            mem[q].hh.lh := mem[r].hh.lh;
+            r := mem[r].hh.rh;
+          END;
+        mem[q].hh.rh := 0;
+        mem[p+2].int := mem[29996].hh.rh{:794};
+        curloop := mem[curloop].hh.rh;
+        mem[p].hh.rh := newglue(mem[curloop+1].hh.lh);
+        mem[mem[p].hh.rh].hh.b1 := 12;
+      END{:793}
   ELSE
     BEGIN
       BEGIN
@@ -12518,23 +12075,29 @@ BEGIN
                 mem[q].hh.lh := s;
                 mem[s+1].int := w;
               END
-            ELSE IF mem[mem[q].hh.lh+1].int<w THEN mem[mem[q].hh.lh+1].int := w;
+            ELSE
+              IF mem[mem[q].hh.lh+1].int<w THEN mem[mem[q].hh.lh+1].int := w;
           END{:798}
-        ELSE IF w>mem[curalign+1].int THEN mem[curalign+1].int := w;
+        ELSE
+          IF w>mem[curalign+1].int THEN mem[curalign+1].int := w;
         mem[u].hh.b0 := 13;
         mem[u].hh.b1 := n;
 {659:}
         IF totalstretch[3]<>0 THEN o := 3
-        ELSE IF totalstretch[2]<>0 THEN o 
-               := 2
-        ELSE IF totalstretch[1]<>0 THEN o := 1
+        ELSE
+          IF totalstretch[2]<>0 THEN o 
+            := 2
+        ELSE
+          IF totalstretch[1]<>0 THEN o := 1
         ELSE o := 0{:659};
         mem[u+5].hh.b1 := o;
         mem[u+6].int := totalstretch[o];
 {665:}
         IF totalshrink[3]<>0 THEN o := 3
-        ELSE IF totalshrink[2]<>0 THEN o := 2
-        ELSE IF totalshrink[1]<>0 THEN o := 1
+        ELSE
+          IF totalshrink[2]<>0 THEN o := 2
+        ELSE
+          IF totalshrink[1]<>0 THEN o := 1
         ELSE o := 0{:665};
         mem[u+5].hh.b0 := o;
         mem[u+4].int := totalshrink[o];
@@ -12710,149 +12273,154 @@ BEGIN
   s := curlist.headfield;
   WHILE q<>0 DO
     BEGIN
-      IF NOT(q>=himemmin)THEN IF mem[q].hh.b0=13 THEN
+      IF NOT(q>=himemmin)THEN
+        IF mem[q].hh.b0=13 THEN
 {807:}
-                                BEGIN
-                                  IF curlist.modefield=-1 THEN
-                                    BEGIN
-                                      mem[q].hh.b0 := 0;
-                                      mem[q+1].int := mem[p+1].int;
-                                    END
-                                  ELSE
-                                    BEGIN
-                                      mem[q].hh.b0 := 1;
-                                      mem[q+3].int := mem[p+3].int;
-                                    END;
-                                  mem[q+5].hh.b1 := mem[p+5].hh.b1;
-                                  mem[q+5].hh.b0 := mem[p+5].hh.b0;
-                                  mem[q+6].gr := mem[p+6].gr;
-                                  mem[q+4].int := o;
-                                  r := mem[mem[q+5].hh.rh].hh.rh;
-                                  s := mem[mem[p+5].hh.rh].hh.rh;
-                                  REPEAT{808:}
-                                    n := mem[r].hh.b1;
-                                    t := mem[s+1].int;
-                                    w := t;
-                                    u := 29996;
-                                    WHILE n>0 DO
-                                      BEGIN
-                                        n := n-1;{809:}
-                                        s := mem[s].hh.rh;
-                                        v := mem[s+1].hh.lh;
-                                        mem[u].hh.rh := newglue(v);
-                                        u := mem[u].hh.rh;
-                                        mem[u].hh.b1 := 12;
-                                        t := t+mem[v+1].int;
-                                        IF mem[p+5].hh.b0=1 THEN
-                                          BEGIN
-                                            IF mem[v].hh.b0=mem[p+5].hh.b1 THEN t := t+
-                                                                                     round(mem[p+6].
-                                                                                     gr*mem[v+2].int
-                                                                                     );
-                                          END
-                                        ELSE IF mem[p+5].hh.b0=2 THEN
-                                               BEGIN
-                                                 IF mem[v].hh.b1=mem[p+5].hh.b1
-                                                   THEN t := t-round(mem[p+6].gr*mem[v+3].int);
-                                               END;
-                                        s := mem[s].hh.rh;
-                                        mem[u].hh.rh := newnullbox;
-                                        u := mem[u].hh.rh;
-                                        t := t+mem[s+1].int;
-                                        IF curlist.modefield=-1 THEN mem[u+1].int := mem[s+1].int
-                                        ELSE
-                                          BEGIN
-                                            mem[u
-                                            ].hh.b0 := 1;
-                                            mem[u+3].int := mem[s+1].int;
-                                          END{:809};
-                                      END;
-                                    IF curlist.modefield=-1 THEN{810:}
-                                      BEGIN
-                                        mem[r+3].int := mem[q+3].int;
-                                        mem[r+2].int := mem[q+2].int;
-                                        IF t=mem[r+1].int THEN
-                                          BEGIN
-                                            mem[r+5].hh.b0 := 0;
-                                            mem[r+5].hh.b1 := 0;
-                                            mem[r+6].gr := 0.0;
-                                          END
-                                        ELSE IF t>mem[r+1].int THEN
-                                               BEGIN
-                                                 mem[r+5].hh.b0 := 1;
-                                                 IF mem[r+6].int=0 THEN mem[r+6].gr := 0.0
-                                                 ELSE mem[r+6].gr := (t-mem[r+1].
-                                                                     int)/mem[r+6].int;
-                                               END
-                                        ELSE
-                                          BEGIN
-                                            mem[r+5].hh.b1 := mem[r+5].hh.b0;
-                                            mem[r+5].hh.b0 := 2;
-                                            IF mem[r+4].int=0 THEN mem[r+6].gr := 0.0
-                                            ELSE IF (mem[r+5].hh.b1=0)AND(mem
-                                                    [r+1].int-t>mem[r+4].int)THEN mem[r+6].gr := 1.0
-                                            ELSE mem[r+6].gr := (mem[r
-                                                                +1].int-t)/mem[r+4].int;
-                                          END;
-                                        mem[r+1].int := w;
-                                        mem[r].hh.b0 := 0;
-                                      END{:810}
-                                    ELSE{811:}
-                                      BEGIN
-                                        mem[r+1].int := mem[q+1].int;
-                                        IF t=mem[r+3].int THEN
-                                          BEGIN
-                                            mem[r+5].hh.b0 := 0;
-                                            mem[r+5].hh.b1 := 0;
-                                            mem[r+6].gr := 0.0;
-                                          END
-                                        ELSE IF t>mem[r+3].int THEN
-                                               BEGIN
-                                                 mem[r+5].hh.b0 := 1;
-                                                 IF mem[r+6].int=0 THEN mem[r+6].gr := 0.0
-                                                 ELSE mem[r+6].gr := (t-mem[r+3].
-                                                                     int)/mem[r+6].int;
-                                               END
-                                        ELSE
-                                          BEGIN
-                                            mem[r+5].hh.b1 := mem[r+5].hh.b0;
-                                            mem[r+5].hh.b0 := 2;
-                                            IF mem[r+4].int=0 THEN mem[r+6].gr := 0.0
-                                            ELSE IF (mem[r+5].hh.b1=0)AND(mem
-                                                    [r+3].int-t>mem[r+4].int)THEN mem[r+6].gr := 1.0
-                                            ELSE mem[r+6].gr := (mem[r
-                                                                +3].int-t)/mem[r+4].int;
-                                          END;
-                                        mem[r+3].int := w;
-                                        mem[r].hh.b0 := 1;
-                                      END{:811};
-                                    mem[r+4].int := 0;
-                                    IF u<>29996 THEN
-                                      BEGIN
-                                        mem[u].hh.rh := mem[r].hh.rh;
-                                        mem[r].hh.rh := mem[29996].hh.rh;
-                                        r := u;
-                                      END{:808};
-                                    r := mem[mem[r].hh.rh].hh.rh;
-                                    s := mem[mem[s].hh.rh].hh.rh;
-                                  UNTIL r=0;
-                                END{:807}
-      ELSE IF mem[q].hh.b0=2 THEN{806:}
-             BEGIN
-               IF (mem[q+1].int=
-                  -1073741824)THEN mem[q+1].int := mem[p+1].int;
-               IF (mem[q+3].int=-1073741824)THEN mem[q+3].int := mem[p+3].int;
-               IF (mem[q+2].int=-1073741824)THEN mem[q+2].int := mem[p+2].int;
-               IF o<>0 THEN
-                 BEGIN
-                   r := mem[q].hh.rh;
-                   mem[q].hh.rh := 0;
-                   q := hpack(q,0,1);
-                   mem[q+4].int := o;
-                   mem[q].hh.rh := r;
-                   mem[s].hh.rh := q;
-                 END;
-             END{:806};
+          BEGIN
+            IF curlist.modefield=-1 THEN
+              BEGIN
+                mem[q].hh.b0 := 0;
+                mem[q+1].int := mem[p+1].int;
+              END
+            ELSE
+              BEGIN
+                mem[q].hh.b0 := 1;
+                mem[q+3].int := mem[p+3].int;
+              END;
+            mem[q+5].hh.b1 := mem[p+5].hh.b1;
+            mem[q+5].hh.b0 := mem[p+5].hh.b0;
+            mem[q+6].gr := mem[p+6].gr;
+            mem[q+4].int := o;
+            r := mem[mem[q+5].hh.rh].hh.rh;
+            s := mem[mem[p+5].hh.rh].hh.rh;
+            REPEAT{808:}
+              n := mem[r].hh.b1;
+              t := mem[s+1].int;
+              w := t;
+              u := 29996;
+              WHILE n>0 DO
+                BEGIN
+                  n := n-1;{809:}
+                  s := mem[s].hh.rh;
+                  v := mem[s+1].hh.lh;
+                  mem[u].hh.rh := newglue(v);
+                  u := mem[u].hh.rh;
+                  mem[u].hh.b1 := 12;
+                  t := t+mem[v+1].int;
+                  IF mem[p+5].hh.b0=1 THEN
+                    BEGIN
+                      IF mem[v].hh.b0=mem[p+5].hh.b1 THEN t := t+
+                                                               round(mem[p+6].gr*mem[v+2].int);
+                    END
+                  ELSE
+                    IF mem[p+5].hh.b0=2 THEN
+                      BEGIN
+                        IF mem[v].hh.b1=mem[p+5].hh.b1
+                          THEN t := t-round(mem[p+6].gr*mem[v+3].int);
+                      END;
+                  s := mem[s].hh.rh;
+                  mem[u].hh.rh := newnullbox;
+                  u := mem[u].hh.rh;
+                  t := t+mem[s+1].int;
+                  IF curlist.modefield=-1 THEN mem[u+1].int := mem[s+1].int
+                  ELSE
+                    BEGIN
+                      mem[u
+                      ].hh.b0 := 1;
+                      mem[u+3].int := mem[s+1].int;
+                    END{:809};
+                END;
+              IF curlist.modefield=-1 THEN{810:}
+                BEGIN
+                  mem[r+3].int := mem[q+3].int;
+                  mem[r+2].int := mem[q+2].int;
+                  IF t=mem[r+1].int THEN
+                    BEGIN
+                      mem[r+5].hh.b0 := 0;
+                      mem[r+5].hh.b1 := 0;
+                      mem[r+6].gr := 0.0;
+                    END
+                  ELSE
+                    IF t>mem[r+1].int THEN
+                      BEGIN
+                        mem[r+5].hh.b0 := 1;
+                        IF mem[r+6].int=0 THEN mem[r+6].gr := 0.0
+                        ELSE mem[r+6].gr := (t-mem[r+1].
+                                            int)/mem[r+6].int;
+                      END
+                  ELSE
+                    BEGIN
+                      mem[r+5].hh.b1 := mem[r+5].hh.b0;
+                      mem[r+5].hh.b0 := 2;
+                      IF mem[r+4].int=0 THEN mem[r+6].gr := 0.0
+                      ELSE
+                        IF (mem[r+5].hh.b1=0)AND(mem
+                           [r+1].int-t>mem[r+4].int)THEN mem[r+6].gr := 1.0
+                      ELSE mem[r+6].gr := (mem[r
+                                          +1].int-t)/mem[r+4].int;
+                    END;
+                  mem[r+1].int := w;
+                  mem[r].hh.b0 := 0;
+                END{:810}
+              ELSE{811:}
+                BEGIN
+                  mem[r+1].int := mem[q+1].int;
+                  IF t=mem[r+3].int THEN
+                    BEGIN
+                      mem[r+5].hh.b0 := 0;
+                      mem[r+5].hh.b1 := 0;
+                      mem[r+6].gr := 0.0;
+                    END
+                  ELSE
+                    IF t>mem[r+3].int THEN
+                      BEGIN
+                        mem[r+5].hh.b0 := 1;
+                        IF mem[r+6].int=0 THEN mem[r+6].gr := 0.0
+                        ELSE mem[r+6].gr := (t-mem[r+3].
+                                            int)/mem[r+6].int;
+                      END
+                  ELSE
+                    BEGIN
+                      mem[r+5].hh.b1 := mem[r+5].hh.b0;
+                      mem[r+5].hh.b0 := 2;
+                      IF mem[r+4].int=0 THEN mem[r+6].gr := 0.0
+                      ELSE
+                        IF (mem[r+5].hh.b1=0)AND(mem
+                           [r+3].int-t>mem[r+4].int)THEN mem[r+6].gr := 1.0
+                      ELSE mem[r+6].gr := (mem[r
+                                          +3].int-t)/mem[r+4].int;
+                    END;
+                  mem[r+3].int := w;
+                  mem[r].hh.b0 := 1;
+                END{:811};
+              mem[r+4].int := 0;
+              IF u<>29996 THEN
+                BEGIN
+                  mem[u].hh.rh := mem[r].hh.rh;
+                  mem[r].hh.rh := mem[29996].hh.rh;
+                  r := u;
+                END{:808};
+              r := mem[mem[r].hh.rh].hh.rh;
+              s := mem[mem[s].hh.rh].hh.rh;
+            UNTIL r=0;
+          END{:807}
+      ELSE
+        IF mem[q].hh.b0=2 THEN{806:}
+          BEGIN
+            IF (mem[q+1].int=
+               -1073741824)THEN mem[q+1].int := mem[p+1].int;
+            IF (mem[q+3].int=-1073741824)THEN mem[q+3].int := mem[p+3].int;
+            IF (mem[q+2].int=-1073741824)THEN mem[q+2].int := mem[p+2].int;
+            IF o<>0 THEN
+              BEGIN
+                r := mem[q].hh.rh;
+                mem[q].hh.rh := 0;
+                q := hpack(q,0,1);
+                mem[q+4].int := o;
+                mem[q].hh.rh := r;
+                mem[s].hh.rh := q;
+              END;
+          END{:806};
       s := q;
       q := mem[q].hh.rh;
     END{:805};
@@ -12944,9 +12512,11 @@ BEGIN
       newsavelevel(7);
       IF curlist.modefield=-1 THEN normalparagraph;
     END
-  ELSE IF curcmd=2 THEN finalign
-  ELSE IF (curcmd=5)AND(curchr=258)THEN
-         goto 20
+  ELSE
+    IF curcmd=2 THEN finalign
+  ELSE
+    IF (curcmd=5)AND(curchr=258)THEN
+      goto 20
   ELSE
     BEGIN
       initrow;
@@ -13009,7 +12579,8 @@ VAR r: halfword;
   shortfall: scaled;
 {:830}
 BEGIN{831:}
-  IF abs(pi)>=10000 THEN IF pi>0 THEN goto 10
+  IF abs(pi)>=10000 THEN
+    IF pi>0 THEN goto 10
   ELSE pi := 
              -10000{:831};
   nobreakyet := true;
@@ -13056,68 +12627,63 @@ BEGIN{831:}
                     breakwidth[5] := background[5];
                     breakwidth[6] := background[6];
                     s := curp;
-                    IF breaktype>0 THEN IF curp<>0 THEN{840:}
-                                          BEGIN
-                                            t := mem[curp].hh.b1;
-                                            v := curp;
-                                            s := mem[curp+1].hh.rh;
-                                            WHILE t>0 DO
-                                              BEGIN
-                                                t := t-1;
-                                                v := mem[v].hh.rh;
+                    IF breaktype>0 THEN
+                      IF curp<>0 THEN{840:}
+                        BEGIN
+                          t := mem[curp].hh.b1;
+                          v := curp;
+                          s := mem[curp+1].hh.rh;
+                          WHILE t>0 DO
+                            BEGIN
+                              t := t-1;
+                              v := mem[v].hh.rh;
 {841:}
-                                                IF (v>=himemmin)THEN
-                                                  BEGIN
-                                                    f := mem[v].hh.b0;
-                                                    breakwidth[1] := breakwidth[1]-fontinfo[
-                                                                     widthbase[f]+fontinfo[charbase[
-                                                                     f]+
-                                                                     mem[v].hh.b1].qqqq.b0].int;
-                                                  END
-                                                ELSE CASE mem[v].hh.b0 OF 
-                                                       6:
-                                                          BEGIN
-                                                            f := mem[v+1].hh.b0;
-                                                            breakwidth[1] := breakwidth[1]-fontinfo[
-                                                                             widthbase[f]+fontinfo[
-                                                                             charbase[f]+
-                                                                             mem[v+1].hh.b1].qqqq.b0
-                                                                             ].int;
-                                                          END;
-                                                       0,1,2,11: breakwidth[1] := breakwidth[1]-mem[
-                                                                                  v+1].int;
-                                                       ELSE confusion(924)
-                                                  END{:841};
-                                              END;
-                                            WHILE s<>0 DO
-                                              BEGIN{842:}
-                                                IF (s>=himemmin)THEN
-                                                  BEGIN
-                                                    f := mem[s].hh.b0;
-                                                    breakwidth[1] := breakwidth[1]+fontinfo[
-                                                                     widthbase[f]+fontinfo[charbase[
-                                                                     f]+
-                                                                     mem[s].hh.b1].qqqq.b0].int;
-                                                  END
-                                                ELSE CASE mem[s].hh.b0 OF 
-                                                       6:
-                                                          BEGIN
-                                                            f := mem[s+1].hh.b0;
-                                                            breakwidth[1] := breakwidth[1]+fontinfo[
-                                                                             widthbase[f]+fontinfo[
-                                                                             charbase[f]+
-                                                                             mem[s+1].hh.b1].qqqq.b0
-                                                                             ].int;
-                                                          END;
-                                                       0,1,2,11: breakwidth[1] := breakwidth[1]+mem[
-                                                                                  s+1].int;
-                                                       ELSE confusion(925)
-                                                  END{:842};
-                                                s := mem[s].hh.rh;
-                                              END;
-                                            breakwidth[1] := breakwidth[1]+discwidth;
-                                            IF mem[curp+1].hh.rh=0 THEN s := mem[v].hh.rh;
-                                          END{:840};
+                              IF (v>=himemmin)THEN
+                                BEGIN
+                                  f := mem[v].hh.b0;
+                                  breakwidth[1] := breakwidth[1]-fontinfo[widthbase[f]+fontinfo[
+                                                   charbase[f]+
+                                                   mem[v].hh.b1].qqqq.b0].int;
+                                END
+                              ELSE
+                                CASE mem[v].hh.b0 OF 
+                                  6:
+                                     BEGIN
+                                       f := mem[v+1].hh.b0;
+                                       breakwidth[1] := breakwidth[1]-fontinfo[widthbase[f]+fontinfo
+                                                        [charbase[f]+
+                                                        mem[v+1].hh.b1].qqqq.b0].int;
+                                     END;
+                                  0,1,2,11: breakwidth[1] := breakwidth[1]-mem[v+1].int;
+                                  ELSE confusion(924)
+                                END{:841};
+                            END;
+                          WHILE s<>0 DO
+                            BEGIN{842:}
+                              IF (s>=himemmin)THEN
+                                BEGIN
+                                  f := mem[s].hh.b0;
+                                  breakwidth[1] := breakwidth[1]+fontinfo[widthbase[f]+fontinfo[
+                                                   charbase[f]+
+                                                   mem[s].hh.b1].qqqq.b0].int;
+                                END
+                              ELSE
+                                CASE mem[s].hh.b0 OF 
+                                  6:
+                                     BEGIN
+                                       f := mem[s+1].hh.b0;
+                                       breakwidth[1] := breakwidth[1]+fontinfo[widthbase[f]+fontinfo
+                                                        [charbase[f]+
+                                                        mem[s+1].hh.b1].qqqq.b0].int;
+                                     END;
+                                  0,1,2,11: breakwidth[1] := breakwidth[1]+mem[s+1].int;
+                                  ELSE confusion(925)
+                                END{:842};
+                              s := mem[s].hh.rh;
+                            END;
+                          breakwidth[1] := breakwidth[1]+discwidth;
+                          IF mem[curp+1].hh.rh=0 THEN s := mem[v].hh.rh;
+                        END{:840};
                     WHILE s<>0 DO
                       BEGIN
                         IF (s>=himemmin)THEN goto 30;
@@ -13132,7 +12698,8 @@ BEGIN{831:}
                               END{:838};
                           12:;
                           9: breakwidth[1] := breakwidth[1]-mem[s+1].int;
-                          11: IF mem[s].hh.b1<>1 THEN goto 30
+                          11:
+                              IF mem[s].hh.b1<>1 THEN goto 30
                               ELSE breakwidth[1] := breakwidth[1]-mem
                                                     [s+1].int;
                           ELSE goto 30
@@ -13152,15 +12719,16 @@ BEGIN{831:}
                     mem[prevr+5].int := mem[prevr+5].int-curactivewidth[5]+breakwidth[5];
                     mem[prevr+6].int := mem[prevr+6].int-curactivewidth[6]+breakwidth[6];
                   END
-                ELSE IF prevr=29993 THEN
-                       BEGIN
-                         activewidth[1] := breakwidth[1];
-                         activewidth[2] := breakwidth[2];
-                         activewidth[3] := breakwidth[3];
-                         activewidth[4] := breakwidth[4];
-                         activewidth[5] := breakwidth[5];
-                         activewidth[6] := breakwidth[6];
-                       END
+                ELSE
+                  IF prevr=29993 THEN
+                    BEGIN
+                      activewidth[1] := breakwidth[1];
+                      activewidth[2] := breakwidth[2];
+                      activewidth[3] := breakwidth[3];
+                      activewidth[4] := breakwidth[4];
+                      activewidth[5] := breakwidth[5];
+                      activewidth[6] := breakwidth[6];
+                    END
                 ELSE
                   BEGIN
                     q := getnode(7);
@@ -13250,8 +12818,9 @@ BEGIN{831:}
               BEGIN
                 oldl := l;
                 IF l>lastspecialline THEN linewidth := secondwidth
-                ELSE IF eqtb[3412].hh.
-                        rh=0 THEN linewidth := firstwidth
+                ELSE
+                  IF eqtb[3412].hh.
+                     rh=0 THEN linewidth := firstwidth
                 ELSE linewidth := mem[eqtb[3412].hh.rh+2*l
                                   ].int;
               END{:850};
@@ -13260,23 +12829,26 @@ BEGIN{831:}
       BEGIN
         artificialdemerits := false;
         shortfall := linewidth-curactivewidth[1];
-        IF shortfall>0 THEN{852:}IF (curactivewidth[3]<>0)OR(curactivewidth[4]<>0
-                                    )OR(curactivewidth[5]<>0)THEN
-                                   BEGIN
-                                     b := 0;
-                                     fitclass := 2;
-                                   END
+        IF shortfall>0 THEN{852:}
+          IF (curactivewidth[3]<>0)OR(curactivewidth[4]<>0
+             )OR(curactivewidth[5]<>0)THEN
+            BEGIN
+              b := 0;
+              fitclass := 2;
+            END
         ELSE
           BEGIN
-            IF shortfall>7230584 THEN IF curactivewidth[2]<1663497
-                                        THEN
-                                        BEGIN
-                                          b := 10000;
-                                          fitclass := 0;
-                                          goto 31;
-                                        END;
+            IF shortfall>7230584 THEN
+              IF curactivewidth[2]<1663497
+                THEN
+                BEGIN
+                  b := 10000;
+                  fitclass := 0;
+                  goto 31;
+                END;
             b := badness(shortfall,curactivewidth[2]);
-            IF b>12 THEN IF b>99 THEN fitclass := 0
+            IF b>12 THEN
+              IF b>99 THEN fitclass := 0
             ELSE fitclass := 1
             ELSE fitclass := 2;
             31:
@@ -13293,7 +12865,8 @@ BEGIN{831:}
             IF finalpass AND(minimumdemerits
                =1073741823)AND(mem[r].hh.rh=29993)AND(prevr=29993)THEN
               artificialdemerits := true
-            ELSE IF b>threshold THEN goto 60;
+            ELSE
+              IF b>threshold THEN goto 60;
             noderstaysactive := false;
           END{:854}
         ELSE
@@ -13310,10 +12883,13 @@ BEGIN{831:}
                  b;
             IF abs(d)>=10000 THEN d := 100000000
             ELSE d := d*d;
-            IF pi<>0 THEN IF pi>0 THEN d := d+pi*pi
-            ELSE IF pi>-10000 THEN d := d-pi*pi;
-            IF (breaktype=1)AND(mem[r].hh.b0=1)THEN IF curp<>0 THEN d := d+eqtb[5277].
-                                                                         int
+            IF pi<>0 THEN
+              IF pi>0 THEN d := d+pi*pi
+            ELSE
+              IF pi>-10000 THEN d := d-pi*pi;
+            IF (breaktype=1)AND(mem[r].hh.b0=1)THEN
+              IF curp<>0 THEN d := d+eqtb[5277].
+                                   int
             ELSE d := d+eqtb[5278].int;
             IF abs(fitclass-mem[r].hh.b1)>1 THEN d := d+eqtb[5279].int;
           END{:859};
@@ -13336,16 +12912,19 @@ BEGIN{831:}
               END{:857};
             printnl(64);
             IF curp=0 THEN printesc(597)
-            ELSE IF mem[curp].hh.b0<>10 THEN
-                   BEGIN
-                     IF 
-                        mem[curp].hh.b0=12 THEN printesc(531)
-                     ELSE IF mem[curp].hh.b0=7 THEN
-                            printesc(349)
-                     ELSE IF mem[curp].hh.b0=11 THEN printesc(340)
-                     ELSE printesc(
-                                   343);
-                   END;
+            ELSE
+              IF mem[curp].hh.b0<>10 THEN
+                BEGIN
+                  IF 
+                     mem[curp].hh.b0=12 THEN printesc(531)
+                  ELSE
+                    IF mem[curp].hh.b0=7 THEN
+                      printesc(349)
+                  ELSE
+                    IF mem[curp].hh.b0=11 THEN printesc(340)
+                  ELSE printesc(
+                                343);
+                END;
             print(930);
             IF mem[r+1].hh.rh=0 THEN printchar(48)
             ELSE printint(mem[mem[r+1].hh.rh].
@@ -13392,53 +12971,58 @@ BEGIN{831:}
                 freenode(r,7);
               END;
           END{:861}
-        ELSE IF mem[prevr].hh.b0=2 THEN
-               BEGIN
-                 r := mem[prevr].hh.rh;
-                 IF r=29993 THEN
-                   BEGIN
-                     curactivewidth[1] := curactivewidth[1]-mem[prevr+1].
-                                          int;
-                     curactivewidth[2] := curactivewidth[2]-mem[prevr+2].int;
-                     curactivewidth[3] := curactivewidth[3]-mem[prevr+3].int;
-                     curactivewidth[4] := curactivewidth[4]-mem[prevr+4].int;
-                     curactivewidth[5] := curactivewidth[5]-mem[prevr+5].int;
-                     curactivewidth[6] := curactivewidth[6]-mem[prevr+6].int;
-                     mem[prevprevr].hh.rh := 29993;
-                     freenode(prevr,7);
-                     prevr := prevprevr;
-                   END
-                 ELSE IF mem[r].hh.b0=2 THEN
-                        BEGIN
-                          curactivewidth[1] := curactivewidth[
-                                               1]+mem[r+1].int;
-                          curactivewidth[2] := curactivewidth[2]+mem[r+2].int;
-                          curactivewidth[3] := curactivewidth[3]+mem[r+3].int;
-                          curactivewidth[4] := curactivewidth[4]+mem[r+4].int;
-                          curactivewidth[5] := curactivewidth[5]+mem[r+5].int;
-                          curactivewidth[6] := curactivewidth[6]+mem[r+6].int;
-                          mem[prevr+1].int := mem[prevr+1].int+mem[r+1].int;
-                          mem[prevr+2].int := mem[prevr+2].int+mem[r+2].int;
-                          mem[prevr+3].int := mem[prevr+3].int+mem[r+3].int;
-                          mem[prevr+4].int := mem[prevr+4].int+mem[r+4].int;
-                          mem[prevr+5].int := mem[prevr+5].int+mem[r+5].int;
-                          mem[prevr+6].int := mem[prevr+6].int+mem[r+6].int;
-                          mem[prevr].hh.rh := mem[r].hh.rh;
-                          freenode(r,7);
-                        END;
-               END{:860};
+        ELSE
+          IF mem[prevr].hh.b0=2 THEN
+            BEGIN
+              r := mem[prevr].hh.rh;
+              IF r=29993 THEN
+                BEGIN
+                  curactivewidth[1] := curactivewidth[1]-mem[prevr+1].
+                                       int;
+                  curactivewidth[2] := curactivewidth[2]-mem[prevr+2].int;
+                  curactivewidth[3] := curactivewidth[3]-mem[prevr+3].int;
+                  curactivewidth[4] := curactivewidth[4]-mem[prevr+4].int;
+                  curactivewidth[5] := curactivewidth[5]-mem[prevr+5].int;
+                  curactivewidth[6] := curactivewidth[6]-mem[prevr+6].int;
+                  mem[prevprevr].hh.rh := 29993;
+                  freenode(prevr,7);
+                  prevr := prevprevr;
+                END
+              ELSE
+                IF mem[r].hh.b0=2 THEN
+                  BEGIN
+                    curactivewidth[1] := curactivewidth[
+                                         1]+mem[r+1].int;
+                    curactivewidth[2] := curactivewidth[2]+mem[r+2].int;
+                    curactivewidth[3] := curactivewidth[3]+mem[r+3].int;
+                    curactivewidth[4] := curactivewidth[4]+mem[r+4].int;
+                    curactivewidth[5] := curactivewidth[5]+mem[r+5].int;
+                    curactivewidth[6] := curactivewidth[6]+mem[r+6].int;
+                    mem[prevr+1].int := mem[prevr+1].int+mem[r+1].int;
+                    mem[prevr+2].int := mem[prevr+2].int+mem[r+2].int;
+                    mem[prevr+3].int := mem[prevr+3].int+mem[r+3].int;
+                    mem[prevr+4].int := mem[prevr+4].int+mem[r+4].int;
+                    mem[prevr+5].int := mem[prevr+5].int+mem[r+5].int;
+                    mem[prevr+6].int := mem[prevr+6].int+mem[r+6].int;
+                    mem[prevr].hh.rh := mem[r].hh.rh;
+                    freenode(r,7);
+                  END;
+            END{:860};
       END{:851};
     END;
-  10:{858:}IF curp=printednode THEN IF curp<>0 THEN IF mem[curp].hh.b0=7
-                                                      THEN
-                                                      BEGIN
-                                                        t := mem[curp].hh.b1;
-                                                        WHILE t>0 DO
-                                                          BEGIN
-                                                            t := t-1;
-                                                            printednode := mem[printednode].hh.rh;
-                                                          END;
-                                                      END{:858}
+  10:{858:}
+      IF curp=printednode THEN
+        IF curp<>0 THEN
+          IF mem[curp].hh.b0=7
+            THEN
+            BEGIN
+              t := mem[curp].hh.b1;
+              WHILE t>0 DO
+                BEGIN
+                  t := t-1;
+                  printednode := mem[printednode].hh.rh;
+                END;
+            END{:858}
 END;
 {:829}{877:}
 PROCEDURE postlinebreak(finalwidowpenalty:integer;
@@ -13468,15 +13052,16 @@ BEGIN{878:}
     q := mem[curp+1].hh.rh;
     discbreak := false;
     postdiscbreak := false;
-    IF q<>0 THEN IF mem[q].hh.b0=10 THEN
-                   BEGIN
-                     deleteglueref(mem[q+1].hh.lh)
-                     ;
-                     mem[q+1].hh.lh := eqtb[2890].hh.rh;
-                     mem[q].hh.b1 := 9;
-                     mem[eqtb[2890].hh.rh].hh.rh := mem[eqtb[2890].hh.rh].hh.rh+1;
-                     goto 30;
-                   END
+    IF q<>0 THEN
+      IF mem[q].hh.b0=10 THEN
+        BEGIN
+          deleteglueref(mem[q+1].hh.lh)
+          ;
+          mem[q+1].hh.lh := eqtb[2890].hh.rh;
+          mem[q].hh.b1 := 9;
+          mem[eqtb[2890].hh.rh].hh.rh := mem[eqtb[2890].hh.rh].hh.rh+1;
+          goto 30;
+        END
     ELSE
       BEGIN
         IF mem[q].hh.b0=7 THEN{882:}
@@ -13520,7 +13105,8 @@ BEGIN{878:}
             mem[q].hh.rh := r;
             discbreak := true;
           END{:882}
-        ELSE IF (mem[q].hh.b0=9)OR(mem[q].hh.b0=11)THEN mem[q+1].int := 0;
+        ELSE
+          IF (mem[q].hh.b0=9)OR(mem[q].hh.b0=11)THEN mem[q+1].int := 0;
       END
     ELSE
       BEGIN
@@ -13550,11 +13136,12 @@ BEGIN{878:}
         curwidth := secondwidth;
         curindent := secondindent;
       END
-    ELSE IF eqtb[3412].hh.rh=0 THEN
-           BEGIN
-             curwidth := firstwidth;
-             curindent := firstindent;
-           END
+    ELSE
+      IF eqtb[3412].hh.rh=0 THEN
+        BEGIN
+          curwidth := firstwidth;
+          curindent := firstindent;
+        END
     ELSE
       BEGIN
         curwidth := mem[eqtb[3412].hh.rh+2*curline].int;
@@ -13588,26 +13175,29 @@ BEGIN{878:}
       END{:890}{:880};
     curline := curline+1;
     curp := mem[curp+1].hh.lh;
-    IF curp<>0 THEN IF NOT postdiscbreak THEN{879:}
-                      BEGIN
-                        r := 29997;
-                        WHILE true DO
-                          BEGIN
-                            q := mem[r].hh.rh;
-                            IF q=mem[curp+1].hh.rh THEN goto 31;
-                            IF (q>=himemmin)THEN goto 31;
-                            IF (mem[q].hh.b0<9)THEN goto 31;
-                            IF q=nonprunablep THEN goto 31;
-                            IF mem[q].hh.b0=11 THEN IF mem[q].hh.b1<>1 THEN goto 31;
-                            r := q;
-                          END;
-                        31: IF r<>29997 THEN
-                              BEGIN
-                                mem[r].hh.rh := 0;
-                                flushnodelist(mem[29997].hh.rh);
-                                mem[29997].hh.rh := q;
-                              END;
-                      END{:879};
+    IF curp<>0 THEN
+      IF NOT postdiscbreak THEN{879:}
+        BEGIN
+          r := 29997;
+          WHILE true DO
+            BEGIN
+              q := mem[r].hh.rh;
+              IF q=mem[curp+1].hh.rh THEN goto 31;
+              IF (q>=himemmin)THEN goto 31;
+              IF (mem[q].hh.b0<9)THEN goto 31;
+              IF q=nonprunablep THEN goto 31;
+              IF mem[q].hh.b0=11 THEN
+                IF mem[q].hh.b1<>1 THEN goto 31;
+              r := q;
+            END;
+          31:
+              IF r<>29997 THEN
+                BEGIN
+                  mem[r].hh.rh := 0;
+                  flushnodelist(mem[29997].hh.rh);
+                  mem[29997].hh.rh := q;
+                END;
+        END{:879};
   UNTIL curp=0;
   IF (curline<>bestline)OR(mem[29997].hh.rh<>0)THEN confusion(940);
   curlist.pgfield := bestline-1;
@@ -13649,13 +13239,14 @@ BEGIN
           p := mem[p].hh.rh;
         END;
     END
-  ELSE IF curl<256 THEN
-         BEGIN
-           mem[t].hh.rh := getavail;
-           t := mem[t].hh.rh;
-           mem[t].hh.b0 := hf;
-           mem[t].hh.b1 := curl;
-         END;
+  ELSE
+    IF curl<256 THEN
+      BEGIN
+        mem[t].hh.rh := getavail;
+        t := mem[t].hh.rh;
+        mem[t].hh.b0 := hf;
+        mem[t].hh.b1 := curl;
+      END;
   ligstack := 0;
   BEGIN
     IF j<n THEN curr := hu[j+1]
@@ -13663,12 +13254,13 @@ BEGIN
     IF odd(hyf[j])THEN currh := hchar
     ELSE currh := 256;
   END{:908};
-  22:{909:}IF curl=256 THEN
-             BEGIN
-               k := bcharlabel[hf];
-               IF k=0 THEN goto 30
-               ELSE q := fontinfo[k].qqqq;
-             END
+  22:{909:}
+      IF curl=256 THEN
+        BEGIN
+          k := bcharlabel[hf];
+          IF k=0 THEN goto 30
+          ELSE q := fontinfo[k].qqqq;
+        END
       ELSE
         BEGIN
           q := fontinfo[charbase[hf]+curl].qqqq;
@@ -13685,26 +13277,30 @@ BEGIN
   ELSE testchar := curr;
   WHILE true DO
     BEGIN
-      IF q.b1=testchar THEN IF q.b0<=128 THEN IF currh<256
-                                                THEN
-                                                BEGIN
-                                                  hyphenpassed := j;
-                                                  hchar := 256;
-                                                  currh := 256;
-                                                  goto 22;
-                                                END
+      IF q.b1=testchar THEN
+        IF q.b0<=128 THEN
+          IF currh<256
+            THEN
+            BEGIN
+              hyphenpassed := j;
+              hchar := 256;
+              currh := 256;
+              goto 22;
+            END
       ELSE
         BEGIN
-          IF hchar<256 THEN IF odd(hyf[j])THEN
-                              BEGIN
-                                hyphenpassed := 
-                                                j;
-                                hchar := 256;
-                              END;
+          IF hchar<256 THEN
+            IF odd(hyf[j])THEN
+              BEGIN
+                hyphenpassed := 
+                                j;
+                hchar := 256;
+              END;
           IF q.b2<128 THEN{911:}
             BEGIN
               IF curl=256 THEN lfthit := true;
-              IF j=n THEN IF ligstack=0 THEN rthit := true;
+              IF j=n THEN
+                IF ligstack=0 THEN rthit := true;
               BEGIN
                 IF interrupt<>0 THEN pauseforinstructions;
               END;
@@ -13750,11 +13346,12 @@ BEGIN
                                 mem[p].hh.b1 := 2;
                                 lfthit := false;
                               END;
-                            IF false THEN IF ligstack=0 THEN
-                                            BEGIN
-                                              mem[p].hh.b1 := mem[p].hh.b1+1;
-                                              rthit := false;
-                                            END;
+                            IF false THEN
+                              IF ligstack=0 THEN
+                                BEGIN
+                                  mem[p].hh.b1 := mem[p].hh.b1+1;
+                                  rthit := false;
+                                END;
                             mem[curq].hh.rh := p;
                             t := p;
                             ligaturepresent := false;
@@ -13788,7 +13385,8 @@ BEGIN
                           END
                         ELSE curr := mem[ligstack].hh.b1;
                       END
-                    ELSE IF j=n THEN goto 30
+                    ELSE
+                      IF j=n THEN goto 30
                     ELSE
                       BEGIN
                         BEGIN
@@ -13807,13 +13405,15 @@ BEGIN
                       END;
                   END
               END;
-              IF q.b2>4 THEN IF q.b2<>7 THEN goto 30;
+              IF q.b2>4 THEN
+                IF q.b2<>7 THEN goto 30;
               goto 22;
             END{:911};
           w := fontinfo[kernbase[hf]+256*q.b2+q.b3].int;
           goto 30;
         END;
-      IF q.b0>=128 THEN IF currh=256 THEN goto 30
+      IF q.b0>=128 THEN
+        IF currh=256 THEN goto 30
       ELSE
         BEGIN
           currh := 256;
@@ -13833,11 +13433,12 @@ BEGIN
           mem[p].hh.b1 := 2;
           lfthit := false;
         END;
-      IF rthit THEN IF ligstack=0 THEN
-                      BEGIN
-                        mem[p].hh.b1 := mem[p].hh.b1+1;
-                        rthit := false;
-                      END;
+      IF rthit THEN
+        IF ligstack=0 THEN
+          BEGIN
+            mem[p].hh.b1 := mem[p].hh.b1+1;
+            rthit := false;
+          END;
       mem[curq].hh.rh := p;
       t := p;
       ligaturepresent := false;
@@ -13971,31 +13572,37 @@ BEGIN{923:}
   r := mem[ha].hh.rh;
   mem[ha].hh.rh := 0;
   bchar := hyfbchar;
-  IF (ha>=himemmin)THEN IF mem[ha].hh.b0<>hf THEN goto 42
+  IF (ha>=himemmin)THEN
+    IF mem[ha].hh.b0<>hf THEN goto 42
   ELSE
     BEGIN
       initlist := ha;
       initlig := false;
       hu[0] := mem[ha].hh.b1;
     END
-  ELSE IF mem[ha].hh.b0=6 THEN IF mem[ha+1].hh.b0<>hf THEN goto 42
+  ELSE
+    IF mem[ha].hh.b0=6 THEN
+      IF mem[ha+1].hh.b0<>hf THEN goto 42
   ELSE
     BEGIN
       initlist := mem[ha+1].hh.rh;
       initlig := true;
       initlft := (mem[ha].hh.b1>1);
       hu[0] := mem[ha+1].hh.b1;
-      IF initlist=0 THEN IF initlft THEN
-                           BEGIN
-                             hu[0] := 256;
-                             initlig := false;
-                           END;
+      IF initlist=0 THEN
+        IF initlft THEN
+          BEGIN
+            hu[0] := 256;
+            initlig := false;
+          END;
       freenode(ha,2);
     END
   ELSE
     BEGIN
-      IF NOT(r>=himemmin)THEN IF mem[r].hh.b0=6 THEN IF mem[r].
-                                                        hh.b1>1 THEN goto 42;
+      IF NOT(r>=himemmin)THEN
+        IF mem[r].hh.b0=6 THEN
+          IF mem[r].
+             hh.b1>1 THEN goto 42;
       j := 1;
       s := ha;
       initlist := 0;
@@ -14327,7 +13934,8 @@ BEGIN
   IF trienotready THEN
     BEGIN
       IF eqtb[5313].int<=0 THEN curlang := 0
-      ELSE IF eqtb[5313].int>255 THEN curlang := 0
+      ELSE
+        IF eqtb[5313].int>255 THEN curlang := 0
       ELSE curlang := eqtb[5313].int;
       scanleftbrace;{961:}
       k := 0;
@@ -14337,40 +13945,42 @@ BEGIN
         BEGIN
           getxtoken;
           CASE curcmd OF 
-            11,12:{962:}IF digitsensed OR(curchr<48)OR(curchr>57)THEN
-                          BEGIN
-                            IF curchr=46 THEN curchr := 0
-                            ELSE
-                              BEGIN
-                                curchr := eqtb[4239+curchr].
-                                          hh.rh;
-                                IF curchr=0 THEN
-                                  BEGIN
-                                    BEGIN
-                                      IF interaction=3 THEN;
-                                      printnl(262);
-                                      print(958);
-                                    END;
-                                    BEGIN
-                                      helpptr := 1;
-                                      helpline[0] := 957;
-                                    END;
-                                    error;
-                                  END;
-                              END;
-                            IF k<63 THEN
-                              BEGIN
-                                k := k+1;
-                                hc[k] := curchr;
-                                hyf[k] := 0;
-                                digitsensed := false;
-                              END;
-                          END
-                   ELSE IF k<63 THEN
-                          BEGIN
-                            hyf[k] := curchr-48;
-                            digitsensed := true;
-                          END{:962};
+            11,12:{962:}
+                   IF digitsensed OR(curchr<48)OR(curchr>57)THEN
+                     BEGIN
+                       IF curchr=46 THEN curchr := 0
+                       ELSE
+                         BEGIN
+                           curchr := eqtb[4239+curchr].
+                                     hh.rh;
+                           IF curchr=0 THEN
+                             BEGIN
+                               BEGIN
+                                 IF interaction=3 THEN;
+                                 printnl(262);
+                                 print(958);
+                               END;
+                               BEGIN
+                                 helpptr := 1;
+                                 helpline[0] := 957;
+                               END;
+                               error;
+                             END;
+                         END;
+                       IF k<63 THEN
+                         BEGIN
+                           k := k+1;
+                           hc[k] := curchr;
+                           hyf[k] := 0;
+                           digitsensed := false;
+                         END;
+                     END
+                   ELSE
+                     IF k<63 THEN
+                       BEGIN
+                         hyf[k] := curchr-48;
+                         digitsensed := true;
+                       END{:962};
             10,2:
                   BEGIN
                     IF k>0 THEN{963:}
@@ -14561,12 +14171,13 @@ BEGIN
                                       newpenalty(10000);
       curlist.tailfield := mem[curlist.tailfield].hh.rh;
     END
-  ELSE IF mem[curlist.tailfield].hh.b0<>10 THEN
-         BEGIN
-           mem[curlist.
-           tailfield].hh.rh := newpenalty(10000);
-           curlist.tailfield := mem[curlist.tailfield].hh.rh;
-         END
+  ELSE
+    IF mem[curlist.tailfield].hh.b0<>10 THEN
+      BEGIN
+        mem[curlist.
+        tailfield].hh.rh := newpenalty(10000);
+        curlist.tailfield := mem[curlist.tailfield].hh.rh;
+      END
   ELSE
     BEGIN
       mem[curlist.tailfield].hh.b0 := 12;
@@ -14609,12 +14220,13 @@ BEGIN
   minimaldemerits[1] := 1073741823;
   minimaldemerits[0] := 1073741823;
 {:834}{848:}
-  IF eqtb[3412].hh.rh=0 THEN IF eqtb[5847].int=0 THEN
-                               BEGIN
-                                 lastspecialline := 0;
-                                 secondwidth := eqtb[5833].int;
-                                 secondindent := 0;
-                               END
+  IF eqtb[3412].hh.rh=0 THEN
+    IF eqtb[5847].int=0 THEN
+      BEGIN
+        lastspecialline := 0;
+        secondwidth := eqtb[5833].int;
+        secondindent := 0;
+      END
   ELSE{849:}
     BEGIN
       lastspecialline := abs(eqtb[5304].int);
@@ -14714,21 +14326,24 @@ BEGIN
           CASE mem[curp].hh.b0 OF 
             0,1,2: activewidth[1] := activewidth[1]+mem[curp+1]
                                      .int;
-            8:{1362:}IF mem[curp].hh.b1=4 THEN
-                       BEGIN
-                         curlang := mem[curp+1].hh.rh;
-                         lhyf := mem[curp+1].hh.b0;
-                         rhyf := mem[curp+1].hh.b1;
-                       END{:1362};
+            8:{1362:}
+               IF mem[curp].hh.b1=4 THEN
+                 BEGIN
+                   curlang := mem[curp+1].hh.rh;
+                   lhyf := mem[curp+1].hh.b0;
+                   rhyf := mem[curp+1].hh.b1;
+                 END{:1362};
             10:
                 BEGIN{868:}
                   IF autobreaking THEN
                     BEGIN
                       IF (prevp>=himemmin)THEN
                         trybreak(0,0)
-                      ELSE IF (mem[prevp].hh.b0<9)THEN trybreak(0,0)
-                      ELSE IF (mem[
-                              prevp].hh.b0=11)AND(mem[prevp].hh.b1<>1)THEN trybreak(0,0);
+                      ELSE
+                        IF (mem[prevp].hh.b0<9)THEN trybreak(0,0)
+                      ELSE
+                        IF (mem[
+                           prevp].hh.b0=11)AND(mem[prevp].hh.b1<>1)THEN trybreak(0,0);
                     END;
                   IF (mem[mem[curp+1].hh.lh].hh.b1<>0)AND(mem[mem[curp+1].hh.lh+3].int<>0)
                     THEN
@@ -14753,30 +14368,34 @@ BEGIN
                                   := mem[s].hh.b1;
                                   hf := mem[s].hh.b0;
                                 END
-                              ELSE IF mem[s].hh.b0=6 THEN IF mem[s+1].hh.rh=0 THEN goto 22
+                              ELSE
+                                IF mem[s].hh.b0=6 THEN
+                                  IF mem[s+1].hh.rh=0 THEN goto 22
                               ELSE
                                 BEGIN
                                   q := mem[s+1].hh.rh;
                                   c := mem[q].hh.b1;
                                   hf := mem[q].hh.b0;
                                 END
-                              ELSE IF (mem[s].hh.b0=11)AND(mem[s].hh.b1=0)THEN goto 22
-                              ELSE IF mem[
-                                      s].hh.b0=8 THEN
-                                     BEGIN{1363:}
-                                       IF mem[s].hh.b1=4 THEN
-                                         BEGIN
-                                           curlang := mem[s
-                                                      +1].hh.rh;
-                                           lhyf := mem[s+1].hh.b0;
-                                           rhyf := mem[s+1].hh.b1;
-                                         END{:1363};
-                                       goto 22;
-                                     END
+                              ELSE
+                                IF (mem[s].hh.b0=11)AND(mem[s].hh.b1=0)THEN goto 22
+                              ELSE
+                                IF mem[
+                                   s].hh.b0=8 THEN
+                                  BEGIN{1363:}
+                                    IF mem[s].hh.b1=4 THEN
+                                      BEGIN
+                                        curlang := mem[s
+                                                   +1].hh.rh;
+                                        lhyf := mem[s+1].hh.b0;
+                                        rhyf := mem[s+1].hh.b1;
+                                      END{:1363};
+                                    goto 22;
+                                  END
                               ELSE goto 31;
-                              IF eqtb[4239+c].hh.rh<>0 THEN IF (eqtb[4239+c].hh.rh=c)OR(eqtb[5301].
-                                                               int>
-                                                               0)THEN goto 32
+                              IF eqtb[4239+c].hh.rh<>0 THEN
+                                IF (eqtb[4239+c].hh.rh=c)OR(eqtb[5301].int>
+                                   0)THEN goto 32
                               ELSE goto 31;
                               22: prevs := s;
                               s := mem[prevs].hh.rh;
@@ -14803,33 +14422,35 @@ BEGIN
                                   hc[hn] := eqtb[4239+c].hh.rh;
                                   hyfbchar := 256;
                                 END
-                              ELSE IF mem[s].hh.b0=6 THEN{898:}
-                                     BEGIN
-                                       IF mem[s+1].hh.b0<>hf THEN
-                                         goto 33;
-                                       j := hn;
-                                       q := mem[s+1].hh.rh;
-                                       IF q>0 THEN hyfbchar := mem[q].hh.b1;
-                                       WHILE q>0 DO
-                                         BEGIN
-                                           c := mem[q].hh.b1;
-                                           IF eqtb[4239+c].hh.rh=0 THEN goto 33;
-                                           IF j=63 THEN goto 33;
-                                           j := j+1;
-                                           hu[j] := c;
-                                           hc[j] := eqtb[4239+c].hh.rh;
-                                           q := mem[q].hh.rh;
-                                         END;
-                                       hb := s;
-                                       hn := j;
-                                       IF odd(mem[s].hh.b1)THEN hyfbchar := fontbchar[hf]
-                                       ELSE hyfbchar := 256;
-                                     END{:898}
-                              ELSE IF (mem[s].hh.b0=11)AND(mem[s].hh.b1=0)THEN
-                                     BEGIN
-                                       hb := s;
-                                       hyfbchar := fontbchar[hf];
-                                     END
+                              ELSE
+                                IF mem[s].hh.b0=6 THEN{898:}
+                                  BEGIN
+                                    IF mem[s+1].hh.b0<>hf THEN
+                                      goto 33;
+                                    j := hn;
+                                    q := mem[s+1].hh.rh;
+                                    IF q>0 THEN hyfbchar := mem[q].hh.b1;
+                                    WHILE q>0 DO
+                                      BEGIN
+                                        c := mem[q].hh.b1;
+                                        IF eqtb[4239+c].hh.rh=0 THEN goto 33;
+                                        IF j=63 THEN goto 33;
+                                        j := j+1;
+                                        hu[j] := c;
+                                        hc[j] := eqtb[4239+c].hh.rh;
+                                        q := mem[q].hh.rh;
+                                      END;
+                                    hb := s;
+                                    hn := j;
+                                    IF odd(mem[s].hh.b1)THEN hyfbchar := fontbchar[hf]
+                                    ELSE hyfbchar := 256;
+                                  END{:898}
+                              ELSE
+                                IF (mem[s].hh.b0=11)AND(mem[s].hh.b1=0)THEN
+                                  BEGIN
+                                    hb := s;
+                                    hyfbchar := fontbchar[hf];
+                                  END
                               ELSE goto 33;
                               s := mem[s].hh.rh;
                             END;
@@ -14838,11 +14459,13 @@ BEGIN
                           IF hn<lhyf+rhyf THEN goto 31;
                           WHILE true DO
                             BEGIN
-                              IF NOT((s>=himemmin))THEN CASE mem[s].hh.b0 OF 
-                                                          6:;
-                                                          11: IF mem[s].hh.b1<>0 THEN goto 34;
-                                                          8,10,12,3,5,4: goto 34;
-                                                          ELSE goto 31
+                              IF NOT((s>=himemmin))THEN
+                                CASE mem[s].hh.b0 OF 
+                                  6:;
+                                  11:
+                                      IF mem[s].hh.b1<>0 THEN goto 34;
+                                  8,10,12,3,5,4: goto 34;
+                                  ELSE goto 31
                                 END;
                               s := mem[s].hh.rh;
                             END;
@@ -14852,10 +14475,12 @@ BEGIN
                       31:
                     END{:894};
                 END;
-            11: IF mem[curp].hh.b1=1 THEN
+            11:
+                IF mem[curp].hh.b1=1 THEN
                   BEGIN
                     IF NOT(mem[curp].hh.rh>=himemmin)AND
-                       autobreaking THEN IF mem[mem[curp].hh.rh].hh.b0=10 THEN trybreak(0,0);
+                       autobreaking THEN
+                      IF mem[mem[curp].hh.rh].hh.b0=10 THEN trybreak(0,0);
                     activewidth[1] := activewidth[1]+mem[curp+1].int;
                   END
                 ELSE activewidth[1] := activewidth[1]+mem[curp+1].int;
@@ -14880,16 +14505,17 @@ BEGIN
                            discwidth := discwidth+fontinfo[widthbase[f]+fontinfo[charbase[f]+mem[s].
                                         hh.b1].qqqq.b0].int;
                          END
-                       ELSE CASE mem[s].hh.b0 OF 
-                              6:
-                                 BEGIN
-                                   f := mem[s+1].hh.b0;
-                                   discwidth := discwidth+fontinfo[widthbase[f]+fontinfo[charbase[f]
-                                                +mem[s+1]
-                                                .hh.b1].qqqq.b0].int;
-                                 END;
-                              0,1,2,11: discwidth := discwidth+mem[s+1].int;
-                              ELSE confusion(938)
+                       ELSE
+                         CASE mem[s].hh.b0 OF 
+                           6:
+                              BEGIN
+                                f := mem[s+1].hh.b0;
+                                discwidth := discwidth+fontinfo[widthbase[f]+fontinfo[charbase[f]+
+                                             mem[s+1]
+                                             .hh.b1].qqqq.b0].int;
+                              END;
+                           0,1,2,11: discwidth := discwidth+mem[s+1].int;
+                           ELSE confusion(938)
                          END{:870};
                        s := mem[s].hh.rh;
                      UNTIL s=0;
@@ -14907,16 +14533,17 @@ BEGIN
                          activewidth[1] := activewidth[1]+fontinfo[widthbase[f]+fontinfo[charbase[f
                                            ]+mem[s].hh.b1].qqqq.b0].int;
                        END
-                     ELSE CASE mem[s].hh.b0 OF 
-                            6:
-                               BEGIN
-                                 f := mem[s+1].hh.b0;
-                                 activewidth[1] := activewidth[1]+fontinfo[widthbase[f]+fontinfo[
-                                                   charbase[f
-                                                   ]+mem[s+1].hh.b1].qqqq.b0].int;
-                               END;
-                            0,1,2,11: activewidth[1] := activewidth[1]+mem[s+1].int;
-                            ELSE confusion(939)
+                     ELSE
+                       CASE mem[s].hh.b0 OF 
+                         6:
+                            BEGIN
+                              f := mem[s+1].hh.b0;
+                              activewidth[1] := activewidth[1]+fontinfo[widthbase[f]+fontinfo[
+                                                charbase[f
+                                                ]+mem[s+1].hh.b1].qqqq.b0].int;
+                            END;
+                         0,1,2,11: activewidth[1] := activewidth[1]+mem[s+1].int;
+                         ELSE confusion(939)
                        END{:871};
                      r := r-1;
                      s := mem[s].hh.rh;
@@ -14929,9 +14556,9 @@ BEGIN
                BEGIN
                  autobreaking := (mem[curp].hh.b1=1);
                  BEGIN
-                   IF NOT(mem[curp].hh.rh>=himemmin)AND autobreaking THEN IF mem[mem[
-                                                                             curp].hh.rh].hh.b0=10
-                                                                            THEN trybreak(0,0);
+                   IF NOT(mem[curp].hh.rh>=himemmin)AND autobreaking THEN
+                     IF mem[mem[
+                        curp].hh.rh].hh.b0=10 THEN trybreak(0,0);
                    activewidth[1] := activewidth[1]+mem[curp+1].int;
                  END;
                END;
@@ -14951,11 +14578,12 @@ BEGIN
               r := mem[29993].hh.rh;
               fewestdemerits := 1073741823;
               REPEAT
-                IF mem[r].hh.b0<>2 THEN IF mem[r+2].int<fewestdemerits THEN
-                                          BEGIN
-                                            fewestdemerits := mem[r+2].int;
-                                            bestbet := r;
-                                          END;
+                IF mem[r].hh.b0<>2 THEN
+                  IF mem[r+2].int<fewestdemerits THEN
+                    BEGIN
+                      fewestdemerits := mem[r+2].int;
+                      bestbet := r;
+                    END;
                 r := mem[r].hh.rh;
               UNTIL r=29993;
               bestline := mem[bestbet+1].hh.lh{:874};
@@ -14974,12 +14602,13 @@ BEGIN
                           actuallooseness := linediff;
                           fewestdemerits := mem[r+2].int;
                         END
-                      ELSE IF (linediff=actuallooseness)AND(mem[r+2].int<fewestdemerits)
-                             THEN
-                             BEGIN
-                               bestbet := r;
-                               fewestdemerits := mem[r+2].int;
-                             END;
+                      ELSE
+                        IF (linediff=actuallooseness)AND(mem[r+2].int<fewestdemerits)
+                          THEN
+                          BEGIN
+                            bestbet := r;
+                            fewestdemerits := mem[r+2].int;
+                          END;
                     END;
                   r := mem[r].hh.rh;
                 UNTIL r=29993;
@@ -15017,7 +14646,8 @@ BEGIN
           finalpass := true;
         END;
     END;
-  30: IF eqtb[5295].int>0 THEN
+  30:
+      IF eqtb[5295].int>0 THEN
         BEGIN
           enddiagnostic(true);
           normalizeselector;
@@ -15056,26 +14686,29 @@ VAR n: 0..64;
 BEGIN
   scanleftbrace;
   IF eqtb[5313].int<=0 THEN curlang := 0
-  ELSE IF eqtb[5313].int>255 THEN
-         curlang := 0
+  ELSE
+    IF eqtb[5313].int>255 THEN
+      curlang := 0
   ELSE curlang := eqtb[5313].int;{935:}
   n := 0;
   p := 0;
   WHILE true DO
     BEGIN
       getxtoken;
-      21: CASE curcmd OF 
-            11,12,68:{937:}IF curchr=45 THEN{938:}
-                             BEGIN
-                               IF n<63
-                                 THEN
-                                 BEGIN
-                                   q := getavail;
-                                   mem[q].hh.rh := p;
-                                   mem[q].hh.lh := n;
-                                   p := q;
-                                 END;
-                             END{:938}
+      21:
+          CASE curcmd OF 
+            11,12,68:{937:}
+                      IF curchr=45 THEN{938:}
+                        BEGIN
+                          IF n<63
+                            THEN
+                            BEGIN
+                              q := getavail;
+                              mem[q].hh.rh := p;
+                              mem[q].hh.lh := n;
+                              p := q;
+                            END;
+                        END{:938}
                       ELSE
                         BEGIN
                           IF eqtb[4239+curchr].hh.rh=0 THEN
@@ -15093,11 +14726,12 @@ BEGIN
                               END;
                               error;
                             END
-                          ELSE IF n<63 THEN
-                                 BEGIN
-                                   n := n+1;
-                                   hc[n] := eqtb[4239+curchr].hh.rh;
-                                 END;
+                          ELSE
+                            IF n<63 THEN
+                              BEGIN
+                                n := n+1;
+                                hc[n] := eqtb[4239+curchr].hh.rh;
+                              END;
                         END{:937};
             16:
                 BEGIN
@@ -15242,42 +14876,47 @@ BEGIN
   WHILE true DO
     BEGIN{972:}
       IF p=0 THEN pi := -10000
-      ELSE{973:}CASE mem[p].hh
-                     .b0 OF 
-                  0,1,2:
-                         BEGIN
-                           activewidth[1] := activewidth[1]+prevdp+mem[p+3].int;
-                           prevdp := mem[p+2].int;
-                           goto 45;
-                         END;
-                  8:{1365:}goto 45{:1365};
-                  10: IF (mem[prevp].hh.b0<9)THEN pi := 0
-                      ELSE goto 90;
-                  11:
-                      BEGIN
-                        IF mem[p].hh.rh=0 THEN t := 12
-                        ELSE t := mem[mem[p].hh.rh].hh.b0;
-                        IF t=10 THEN pi := 0
-                        ELSE goto 90;
-                      END;
-                  12: pi := mem[p+1].int;
-                  4,3: goto 45;
-                  ELSE confusion(961)
+      ELSE{973:}
+        CASE mem[p].hh
+             .b0 OF 
+          0,1,2:
+                 BEGIN
+                   activewidth[1] := activewidth[1]+prevdp+mem[p+3].int;
+                   prevdp := mem[p+2].int;
+                   goto 45;
+                 END;
+          8:{1365:}goto 45{:1365};
+          10:
+              IF (mem[prevp].hh.b0<9)THEN pi := 0
+              ELSE goto 90;
+          11:
+              BEGIN
+                IF mem[p].hh.rh=0 THEN t := 12
+                ELSE t := mem[mem[p].hh.rh].hh.b0;
+                IF t=10 THEN pi := 0
+                ELSE goto 90;
+              END;
+          12: pi := mem[p+1].int;
+          4,3: goto 45;
+          ELSE confusion(961)
         END{:973};
 {974:}
       IF pi<10000 THEN
         BEGIN{975:}
-          IF activewidth[1]<h THEN IF (
-                                      activewidth[3]<>0)OR(activewidth[4]<>0)OR(activewidth[5]<>0)
-                                     THEN b := 0
+          IF activewidth[1]<h THEN
+            IF (
+               activewidth[3]<>0)OR(activewidth[4]<>0)OR(activewidth[5]<>0)THEN b := 0
           ELSE b := badness(h-activewidth[1],activewidth[2])
-          ELSE IF activewidth[1]-h
-                  >activewidth[6]THEN b := 1073741823
+          ELSE
+            IF activewidth[1]-h
+               >activewidth[6]THEN b := 1073741823
           ELSE b := badness(activewidth[1]-h,
                     activewidth[6]){:975};
-          IF b<1073741823 THEN IF pi<=-10000 THEN b := pi
-          ELSE IF b<10000 THEN b := b+
-                                    pi
+          IF b<1073741823 THEN
+            IF pi<=-10000 THEN b := pi
+          ELSE
+            IF b<10000 THEN b := b+
+                                 pi
           ELSE b := 100000;
           IF b<=leastcost THEN
             BEGIN
@@ -15288,7 +14927,8 @@ BEGIN
           IF (b=1073741823)OR(pi<=-10000)THEN goto 30;
         END{:974};
       IF (mem[p].hh.b0<10)OR(mem[p].hh.b0>11)THEN goto 45;
-      90:{976:}IF mem[p].hh.b0=11 THEN q := p
+      90:{976:}
+          IF mem[p].hh.b0=11 THEN q := p
           ELSE
             BEGIN
               q := mem[p+1].hh.lh;
@@ -15319,7 +14959,8 @@ BEGIN
             END;
       activewidth[1] := activewidth[1]+prevdp+mem[q+1].int;
       prevdp := 0{:976};
-      45: IF prevdp>d THEN
+      45:
+          IF prevdp>d THEN
             BEGIN
               activewidth[1] := activewidth[1]+prevdp-d;
               prevdp := d;
@@ -15374,28 +15015,30 @@ BEGIN
   q := vertbreak(mem[v+5].hh.rh,h,eqtb[5836].int);{979:}
   p := mem[v+5].hh.rh;
   IF p=q THEN mem[v+5].hh.rh := 0
-  ELSE WHILE true DO
-         BEGIN
-           IF mem[p].hh.b0=4
-             THEN IF curmark[3]=0 THEN
-                    BEGIN
-                      curmark[3] := mem[p+1].int;
-                      curmark[4] := curmark[3];
-                      mem[curmark[3]].hh.lh := mem[curmark[3]].hh.lh+2;
-                    END
-           ELSE
-             BEGIN
-               deletetokenref(curmark[4]);
-               curmark[4] := mem[p+1].int;
-               mem[curmark[4]].hh.lh := mem[curmark[4]].hh.lh+1;
-             END;
-           IF mem[p].hh.rh=q THEN
-             BEGIN
-               mem[p].hh.rh := 0;
-               goto 30;
-             END;
-           p := mem[p].hh.rh;
-         END;
+  ELSE
+    WHILE true DO
+      BEGIN
+        IF mem[p].hh.b0=4
+          THEN
+          IF curmark[3]=0 THEN
+            BEGIN
+              curmark[3] := mem[p+1].int;
+              curmark[4] := curmark[3];
+              mem[curmark[3]].hh.lh := mem[curmark[3]].hh.lh+2;
+            END
+        ELSE
+          BEGIN
+            deletetokenref(curmark[4]);
+            curmark[4] := mem[p+1].int;
+            mem[curmark[4]].hh.lh := mem[curmark[4]].hh.lh+1;
+          END;
+        IF mem[p].hh.rh=q THEN
+          BEGIN
+            mem[p].hh.rh := 0;
+            goto 30;
+          END;
+        p := mem[p].hh.rh;
+      END;
   30:{:979};
   q := prunepagetop(q);
   p := mem[v+5].hh.rh;
@@ -15480,21 +15123,22 @@ PROCEDURE ensurevbox(n:eightbits);
 VAR p: halfword;
 BEGIN
   p := eqtb[3678+n].hh.rh;
-  IF p<>0 THEN IF mem[p].hh.b0=0 THEN
-                 BEGIN
-                   BEGIN
-                     IF interaction=3 THEN;
-                     printnl(262);
-                     print(990);
-                   END;
-                   BEGIN
-                     helpptr := 3;
-                     helpline[2] := 991;
-                     helpline[1] := 992;
-                     helpline[0] := 993;
-                   END;
-                   boxerror(n);
-                 END;
+  IF p<>0 THEN
+    IF mem[p].hh.b0=0 THEN
+      BEGIN
+        BEGIN
+          IF interaction=3 THEN;
+          printnl(262);
+          print(990);
+        END;
+        BEGIN
+          helpptr := 3;
+          helpline[2] := 991;
+          helpline[1] := 992;
+          helpline[0] := 993;
+        END;
+        boxerror(n);
+      END;
 END;
 {:993}{994:}{1012:}
 PROCEDURE fireup(c:halfword);
@@ -15586,25 +15230,25 @@ BEGIN{1013:}
                   mem[s].hh.rh := mem[p+4].hh.lh;
                   IF mem[r+2].hh.lh=p THEN{1021:}
                     BEGIN
-                      IF mem[r].hh.b0=1 THEN IF (mem[r+1].
-                                                hh.lh=p)AND(mem[r+1].hh.rh<>0)THEN
-                                               BEGIN
-                                                 WHILE mem[s].hh.rh<>mem[r+1].hh
-                                                       .rh DO
-                                                   s := mem[s].hh.rh;
-                                                 mem[s].hh.rh := 0;
-                                                 eqtb[2892].hh.rh := mem[p+4].hh.rh;
-                                                 mem[p+4].hh.lh := prunepagetop(mem[r+1].hh.rh);
-                                                 IF mem[p+4].hh.lh<>0 THEN
-                                                   BEGIN
-                                                     tempptr := vpackage(mem[p+4].hh.lh,0,1,
-                                                                1073741823);
-                                                     mem[p+3].int := mem[tempptr+3].int+mem[tempptr+
-                                                                     2].int;
-                                                     freenode(tempptr,7);
-                                                     wait := true;
-                                                   END;
-                                               END;
+                      IF mem[r].hh.b0=1 THEN
+                        IF (mem[r+1].
+                           hh.lh=p)AND(mem[r+1].hh.rh<>0)THEN
+                          BEGIN
+                            WHILE mem[s].hh.rh<>mem[r+1].hh
+                                  .rh DO
+                              s := mem[s].hh.rh;
+                            mem[s].hh.rh := 0;
+                            eqtb[2892].hh.rh := mem[p+4].hh.rh;
+                            mem[p+4].hh.lh := prunepagetop(mem[r+1].hh.rh);
+                            IF mem[p+4].hh.lh<>0 THEN
+                              BEGIN
+                                tempptr := vpackage(mem[p+4].hh.lh,0,1,
+                                           1073741823);
+                                mem[p+3].int := mem[tempptr+3].int+mem[tempptr+2].int;
+                                freenode(tempptr,7);
+                                wait := true;
+                              END;
+                          END;
                       mem[r+2].hh.lh := 0;
                       n := mem[r].hh.b1;
                       tempptr := mem[eqtb[3678+n].hh.rh+5].hh.rh;
@@ -15634,17 +15278,18 @@ BEGIN{1013:}
               p := prevp{:1022};
             END{:1020};
         END
-      ELSE IF mem[p].hh.b0=4 THEN{1016:}
-             BEGIN
-               IF curmark[1]=0 THEN
-                 BEGIN
-                   curmark[1] := mem[p+1].int;
-                   mem[curmark[1]].hh.lh := mem[curmark[1]].hh.lh+1;
-                 END;
-               IF curmark[2]<>0 THEN deletetokenref(curmark[2]);
-               curmark[2] := mem[p+1].int;
-               mem[curmark[2]].hh.lh := mem[curmark[2]].hh.lh+1;
-             END{:1016};
+      ELSE
+        IF mem[p].hh.b0=4 THEN{1016:}
+          BEGIN
+            IF curmark[1]=0 THEN
+              BEGIN
+                curmark[1] := mem[p+1].int;
+                mem[curmark[1]].hh.lh := mem[curmark[1]].hh.lh+1;
+              END;
+            IF curmark[2]<>0 THEN deletetokenref(curmark[2]);
+            curmark[2] := mem[p+1].int;
+            mem[curmark[2]].hh.lh := mem[curmark[2]].hh.lh+1;
+          END{:1016};
       prevp := p;
       p := mem[prevp].hh.rh;
     END;
@@ -15652,8 +15297,9 @@ BEGIN{1013:}
 {1017:}
   IF p<>0 THEN
     BEGIN
-      IF mem[29999].hh.rh=0 THEN IF nestptr=0 THEN
-                                   curlist.tailfield := pagetail
+      IF mem[29999].hh.rh=0 THEN
+        IF nestptr=0 THEN
+          curlist.tailfield := pagetail
       ELSE nest[0].tailfield := pagetail;
       mem[pagetail].hh.rh := mem[29999].hh.rh;
       mem[29999].hh.rh := p;
@@ -15693,23 +15339,24 @@ BEGIN{1013:}
       curmark[1] := curmark[0];
       mem[curmark[0]].hh.lh := mem[curmark[0]].hh.lh+1;
     END;
-  IF eqtb[3413].hh.rh<>0 THEN IF deadcycles>=eqtb[5303].int THEN{1024:}
-                                BEGIN
-                                  BEGIN
-                                    IF interaction=3 THEN;
-                                    printnl(262);
-                                    print(1006);
-                                  END;
-                                  printint(deadcycles);
-                                  print(1007);
-                                  BEGIN
-                                    helpptr := 3;
-                                    helpline[2] := 1008;
-                                    helpline[1] := 1009;
-                                    helpline[0] := 1010;
-                                  END;
-                                  error;
-                                END{:1024}
+  IF eqtb[3413].hh.rh<>0 THEN
+    IF deadcycles>=eqtb[5303].int THEN{1024:}
+      BEGIN
+        BEGIN
+          IF interaction=3 THEN;
+          printnl(262);
+          print(1006);
+        END;
+        printint(deadcycles);
+        print(1007);
+        BEGIN
+          helpptr := 3;
+          helpline[2] := 1008;
+          helpline[1] := 1009;
+          helpline[0] := 1010;
+        END;
+        error;
+      END{:1024}
   ELSE{1025:}
     BEGIN
       outputactive := true;
@@ -15729,7 +15376,8 @@ BEGIN{1013:}
     IF mem[29998].hh.rh<>0 THEN
       BEGIN
         IF mem[29999].hh.rh=0
-          THEN IF nestptr=0 THEN curlist.tailfield := pagetail
+          THEN
+          IF nestptr=0 THEN curlist.tailfield := pagetail
         ELSE nest[0].
           tailfield := pagetail
         ELSE mem[pagetail].hh.rh := mem[29999].hh.rh;
@@ -15770,12 +15418,14 @@ BEGIN
       BEGIN
         lastglue := 65535;
         IF mem[p].hh.b0=12 THEN lastpenalty := mem[p+1].int
-        ELSE IF mem[p].hh.b0=
-                11 THEN lastkern := mem[p+1].int;
+        ELSE
+          IF mem[p].hh.b0=
+             11 THEN lastkern := mem[p+1].int;
       END{:996};
 {997:}{1000:}
     CASE mem[p].hh.b0 OF 
-      0,1,2: IF pagecontents<2 THEN{1001:}
+      0,1,2:
+             IF pagecontents<2 THEN{1001:}
                BEGIN
                  IF pagecontents=0 THEN freezepagespecs(2)
                  ELSE pagecontents := 2;
@@ -15795,15 +15445,21 @@ BEGIN
                  goto 80;
                END{:1002};
       8:{1364:}goto 80{:1364};
-      10: IF pagecontents<2 THEN goto 31
-          ELSE IF (mem[pagetail].hh.b0<9)THEN pi 
-                 := 0
+      10:
+          IF pagecontents<2 THEN goto 31
+          ELSE
+            IF (mem[pagetail].hh.b0<9)THEN pi 
+              := 0
           ELSE goto 90;
-      11: IF pagecontents<2 THEN goto 31
-          ELSE IF mem[p].hh.rh=0 THEN goto 10
-          ELSE IF mem[mem[p].hh.rh].hh.b0=10 THEN pi := 0
+      11:
+          IF pagecontents<2 THEN goto 31
+          ELSE
+            IF mem[p].hh.rh=0 THEN goto 10
+          ELSE
+            IF mem[mem[p].hh.rh].hh.b0=10 THEN pi := 0
           ELSE goto 90;
-      12: IF pagecontents<2 THEN goto 31
+      12:
+          IF pagecontents<2 THEN goto 31
           ELSE pi := mem[p+1].int;
       4: goto 80;
       3:{1008:}
@@ -15890,8 +15546,9 @@ BEGIN
                        printscaled(bestheightplusdepth);
                        print(932);
                        IF q=0 THEN printint(-10000)
-                       ELSE IF mem[q].hh.b0=12 THEN printint(mem[q
-                                                             +1].int)
+                       ELSE
+                         IF mem[q].hh.b0=12 THEN printint(mem[q
+                                                          +1].int)
                        ELSE printchar(48);
                        enddiagnostic(false);
                      END{:1011};
@@ -15903,8 +15560,9 @@ BEGIN
                    mem[r+1].hh.rh := q;
                    mem[r+1].hh.lh := p;
                    IF q=0 THEN insertpenalties := insertpenalties-10000
-                   ELSE IF mem[q].hh.b0=
-                           12 THEN insertpenalties := insertpenalties+mem[q+1].int;
+                   ELSE
+                     IF mem[q].hh.b0=
+                        12 THEN insertpenalties := insertpenalties+mem[q+1].int;
                  END{:1010};
              END;
            goto 80;
@@ -15914,18 +15572,21 @@ BEGIN
 {1005:}
     IF pi<10000 THEN
       BEGIN{1007:}
-        IF pagesofar[1]<pagesofar[0]THEN IF (
-                                            pagesofar[3]<>0)OR(pagesofar[4]<>0)OR(pagesofar[5]<>0)
-                                           THEN b := 0
+        IF pagesofar[1]<pagesofar[0]THEN
+          IF (
+             pagesofar[3]<>0)OR(pagesofar[4]<>0)OR(pagesofar[5]<>0)THEN b := 0
         ELSE b := 
                   badness(pagesofar[0]-pagesofar[1],pagesofar[2])
-        ELSE IF pagesofar[1]-
-                pagesofar[0]>pagesofar[6]THEN b := 1073741823
+        ELSE
+          IF pagesofar[1]-
+             pagesofar[0]>pagesofar[6]THEN b := 1073741823
         ELSE b := badness(pagesofar[1]
                   -pagesofar[0],pagesofar[6]){:1007};
-        IF b<1073741823 THEN IF pi<=-10000 THEN c := pi
-        ELSE IF b<10000 THEN c := b+
-                                  pi+insertpenalties
+        IF b<1073741823 THEN
+          IF pi<=-10000 THEN c := pi
+        ELSE
+          IF b<10000 THEN c := b+
+                               pi+insertpenalties
         ELSE c := 100000
         ELSE c := b;
         IF insertpenalties>=10000 THEN c := 1073741823;
@@ -15968,7 +15629,8 @@ BEGIN
           END;
       END{:1005};
     IF (mem[p].hh.b0<10)OR(mem[p].hh.b0>11)THEN goto 80;
-    90:{1004:}IF mem[p].hh.b0=11 THEN q := p
+    90:{1004:}
+        IF mem[p].hh.b0=11 THEN q := p
         ELSE
           BEGIN
             q := mem[p+1].hh.lh;
@@ -15999,12 +15661,13 @@ BEGIN
           END;
     pagesofar[1] := pagesofar[1]+pagesofar[7]+mem[q+1].int;
     pagesofar[7] := 0{:1004};
-    80:{1003:}IF pagesofar[7]>pagemaxdepth THEN
-                BEGIN
-                  pagesofar[1] := 
-                                  pagesofar[1]+pagesofar[7]-pagemaxdepth;
-                  pagesofar[7] := pagemaxdepth;
-                END;
+    80:{1003:}
+        IF pagesofar[7]>pagemaxdepth THEN
+          BEGIN
+            pagesofar[1] := 
+                            pagesofar[1]+pagesofar[7]-pagemaxdepth;
+            pagesofar[7] := pagemaxdepth;
+          END;
 {:1003};{998:}
     mem[pagetail].hh.rh := p;
     pagetail := p;
@@ -16316,41 +15979,44 @@ BEGIN
             END;
         END;
     END{:1076}
-  ELSE IF boxcontext<1073742336 THEN{1077:}IF boxcontext<
-                                              1073742080 THEN eqdefine(-1073738146+boxcontext,119,
-                                                                       curbox)
+  ELSE
+    IF boxcontext<1073742336 THEN{1077:}
+      IF boxcontext<
+         1073742080 THEN eqdefine(-1073738146+boxcontext,119,curbox)
   ELSE
     geqdefine(-1073738402+boxcontext,119,curbox){:1077}
-  ELSE IF curbox<>0
-         THEN IF boxcontext>1073742336 THEN{1078:}
-                BEGIN{404:}
-                  REPEAT
-                    getxtoken;
-                  UNTIL (curcmd<>10)AND(curcmd<>0){:404};
-                  IF ((curcmd=26)AND(abs(curlist.modefield)<>1))OR((curcmd=27)AND(abs(
-                     curlist.modefield)=1))THEN
-                    BEGIN
-                      appendglue;
-                      mem[curlist.tailfield].hh.b1 := boxcontext-(1073742237);
-                      mem[curlist.tailfield+1].hh.rh := curbox;
-                    END
-                  ELSE
-                    BEGIN
-                      BEGIN
-                        IF interaction=3 THEN;
-                        printnl(262);
-                        print(1067);
-                      END;
-                      BEGIN
-                        helpptr := 3;
-                        helpline[2] := 1068;
-                        helpline[1] := 1069;
-                        helpline[0] := 1070;
-                      END;
-                      backerror;
-                      flushnodelist(curbox);
-                    END;
-                END{:1078}
+  ELSE
+    IF curbox<>0
+      THEN
+      IF boxcontext>1073742336 THEN{1078:}
+        BEGIN{404:}
+          REPEAT
+            getxtoken;
+          UNTIL (curcmd<>10)AND(curcmd<>0){:404};
+          IF ((curcmd=26)AND(abs(curlist.modefield)<>1))OR((curcmd=27)AND(abs(
+             curlist.modefield)=1))THEN
+            BEGIN
+              appendglue;
+              mem[curlist.tailfield].hh.b1 := boxcontext-(1073742237);
+              mem[curlist.tailfield+1].hh.rh := curbox;
+            END
+          ELSE
+            BEGIN
+              BEGIN
+                IF interaction=3 THEN;
+                printnl(262);
+                print(1067);
+              END;
+              BEGIN
+                helpptr := 3;
+                helpline[2] := 1068;
+                helpline[1] := 1069;
+                helpline[0] := 1070;
+              END;
+              backerror;
+              flushnodelist(curbox);
+            END;
+        END{:1078}
   ELSE shipout(curbox);
 END;{:1075}{1079:}
 PROCEDURE beginbox(boxcontext:integer);
@@ -16386,49 +16052,44 @@ BEGIN
              END;
              error;
            END
-         ELSE IF (curlist.modefield=1)AND(curlist.headfield=curlist.tailfield)
-                THEN
-                BEGIN
-                  youcant;
-                  BEGIN
-                    helpptr := 2;
-                    helpline[1] := 1072;
-                    helpline[0] := 1073;
-                  END;
-                  error;
-                END
+         ELSE
+           IF (curlist.modefield=1)AND(curlist.headfield=curlist.tailfield)
+             THEN
+             BEGIN
+               youcant;
+               BEGIN
+                 helpptr := 2;
+                 helpline[1] := 1072;
+                 helpline[0] := 1073;
+               END;
+               error;
+             END
          ELSE
            BEGIN
-             IF NOT(curlist.tailfield>=himemmin)THEN IF (mem[curlist.
-                                                        tailfield].hh.b0=0)OR(mem[curlist.tailfield]
-                                                        .hh.b0=1)THEN{1081:}
-                                                       BEGIN
-                                                         q 
-                                                         := curlist.headfield;
-                                                         REPEAT
-                                                           p := q;
-                                                           IF NOT(q>=himemmin)THEN IF mem[q].hh.b0=7
-                                                                                     THEN
-                                                                                     BEGIN
-                                                                                       FOR m:=1 TO
-                                                                                           mem[q].
-                                                                                           hh.b1 DO
-                                                                                         p := mem[p]
-                                                                                              .hh.rh
-                                                                                       ;
-                                                                                       IF p=curlist.
-                                                                                          tailfield
-                                                                                         THEN goto
-                                                                                         30;
-                                                                                     END;
-                                                           q := mem[p].hh.rh;
-                                                         UNTIL q=curlist.tailfield;
-                                                         curbox := curlist.tailfield;
-                                                         mem[curbox+4].int := 0;
-                                                         curlist.tailfield := p;
-                                                         mem[p].hh.rh := 0;
-                                                         30:
-                                                       END{:1081};
+             IF NOT(curlist.tailfield>=himemmin)THEN
+               IF (mem[curlist.
+                  tailfield].hh.b0=0)OR(mem[curlist.tailfield].hh.b0=1)THEN{1081:}
+                 BEGIN
+                   q 
+                   := curlist.headfield;
+                   REPEAT
+                     p := q;
+                     IF NOT(q>=himemmin)THEN
+                       IF mem[q].hh.b0=7 THEN
+                         BEGIN
+                           FOR m:=1 TO mem[q].
+                               hh.b1 DO
+                             p := mem[p].hh.rh;
+                           IF p=curlist.tailfield THEN goto 30;
+                         END;
+                     q := mem[p].hh.rh;
+                   UNTIL q=curlist.tailfield;
+                   curbox := curlist.tailfield;
+                   mem[curbox+4].int := 0;
+                   curlist.tailfield := p;
+                   mem[p].hh.rh := 0;
+                   30:
+                 END{:1081};
            END;
        END{:1080};
     3:{1082:}
@@ -16456,8 +16117,9 @@ BEGIN
       BEGIN
         k := curchr-4;
         savestack[saveptr+0].int := boxcontext;
-        IF k=102 THEN IF (boxcontext<1073741824)AND(abs(curlist.modefield)=1)THEN
-                        scanspec(3,true)
+        IF k=102 THEN
+          IF (boxcontext<1073741824)AND(abs(curlist.modefield)=1)THEN
+            scanspec(3,true)
         ELSE scanspec(2,true)
         ELSE
           BEGIN
@@ -16495,12 +16157,13 @@ BEGIN{404:}
     getxtoken;
   UNTIL (curcmd<>10)AND(curcmd<>0){:404};
   IF curcmd=20 THEN beginbox(boxcontext)
-  ELSE IF (boxcontext>=1073742337)AND
-          ((curcmd=36)OR(curcmd=35))THEN
-         BEGIN
-           curbox := scanrulespec;
-           boxend(boxcontext);
-         END
+  ELSE
+    IF (boxcontext>=1073742337)AND
+       ((curcmd=36)OR(curcmd=35))THEN
+      BEGIN
+        curbox := scanrulespec;
+        boxend(boxcontext);
+      END
   ELSE
     BEGIN
       BEGIN
@@ -16538,7 +16201,8 @@ BEGIN
         BEGIN
           h := 0;
           p := mem[curbox+5].hh.rh;
-          IF p<>0 THEN IF mem[p].hh.b0<=2 THEN h := mem[p+3].int;
+          IF p<>0 THEN
+            IF mem[p].hh.b0<=2 THEN h := mem[p+3].int;
           mem[curbox+2].int := mem[curbox+2].int-h+mem[curbox+3].int;
           mem[curbox+3].int := h;
         END{:1087};
@@ -16550,7 +16214,8 @@ END;
 FUNCTION normmin(h:integer): smallnumber;
 BEGIN
   IF h<=0 THEN normmin := 1
-  ELSE IF h>=63 THEN normmin := 63
+  ELSE
+    IF h>=63 THEN normmin := 63
   ELSE
     normmin := h;
 END;
@@ -16566,8 +16231,9 @@ BEGIN
   curlist.modefield := 102;
   curlist.auxfield.hh.lh := 1000;
   IF eqtb[5313].int<=0 THEN curlang := 0
-  ELSE IF eqtb[5313].int>255 THEN
-         curlang := 0
+  ELSE
+    IF eqtb[5313].int>255 THEN
+      curlang := 0
   ELSE curlang := eqtb[5313].int;
   curlist.auxfield.hh.rh := curlang;
   curlist.pgfield := (normmin(eqtb[5314].int)*64+normmin(eqtb[5315].int))
@@ -16606,7 +16272,8 @@ END;
 {:1093}{1095:}
 PROCEDURE headforvmode;
 BEGIN
-  IF curlist.modefield<0 THEN IF curcmd<>36 THEN offsave
+  IF curlist.modefield<0 THEN
+    IF curcmd<>36 THEN offsave
   ELSE
     BEGIN
       BEGIN
@@ -16716,34 +16383,35 @@ BEGIN
             helpline[0] := 1088;
           END;
           IF curchr=11 THEN helpline[0] := (1089)
-          ELSE IF curchr<>10 THEN helpline[0] 
-                 := (1090);
+          ELSE
+            IF curchr<>10 THEN helpline[0] 
+              := (1090);
           error;
         END;
     END{:1106}
   ELSE
     BEGIN
-      IF NOT(curlist.tailfield>=himemmin)THEN IF mem[
-                                                 curlist.tailfield].hh.b0=curchr THEN
-                                                BEGIN
-                                                  q := curlist.headfield;
-                                                  REPEAT
-                                                    p := q;
-                                                    IF NOT(q>=himemmin)THEN IF mem[q].hh.b0=7 THEN
-                                                                              BEGIN
-                                                                                FOR m:=1 TO mem[q].
-                                                                                    hh.b1 DO
-                                                                                  p := mem[p].hh.rh;
-                                                                                IF p=curlist.
-                                                                                   tailfield THEN
-                                                                                  goto 10;
-                                                                              END;
-                                                    q := mem[p].hh.rh;
-                                                  UNTIL q=curlist.tailfield;
-                                                  mem[p].hh.rh := 0;
-                                                  flushnodelist(curlist.tailfield);
-                                                  curlist.tailfield := p;
-                                                END;
+      IF NOT(curlist.tailfield>=himemmin)THEN
+        IF mem[
+           curlist.tailfield].hh.b0=curchr THEN
+          BEGIN
+            q := curlist.headfield;
+            REPEAT
+              p := q;
+              IF NOT(q>=himemmin)THEN
+                IF mem[q].hh.b0=7 THEN
+                  BEGIN
+                    FOR m:=1 TO mem[q].
+                        hh.b1 DO
+                      p := mem[p].hh.rh;
+                    IF p=curlist.tailfield THEN goto 10;
+                  END;
+              q := mem[p].hh.rh;
+            UNTIL q=curlist.tailfield;
+            mem[p].hh.rh := 0;
+            flushnodelist(curlist.tailfield);
+            curlist.tailfield := p;
+          END;
     END;
   10:
 END;
@@ -16799,8 +16467,9 @@ BEGIN
     BEGIN
       IF (curlist.
          tailfield>=himemmin)THEN p := curlist.tailfield
-      ELSE IF mem[curlist.
-              tailfield].hh.b0=6 THEN p := curlist.tailfield+1
+      ELSE
+        IF mem[curlist.
+           tailfield].hh.b0=6 THEN p := curlist.tailfield+1
       ELSE goto 10;
       f := mem[p].hh.b0;
       BEGIN
@@ -16824,8 +16493,9 @@ BEGIN
   IF curchr=1 THEN
     BEGIN
       c := hyphenchar[eqtb[3934].hh.rh];
-      IF c>=0 THEN IF c<256 THEN mem[curlist.tailfield+1].hh.lh := newcharacter(
-                                                                   eqtb[3934].hh.rh,c);
+      IF c>=0 THEN
+        IF c<256 THEN mem[curlist.tailfield+1].hh.lh := newcharacter(
+                                                        eqtb[3934].hh.rh,c);
     END
   ELSE
     BEGIN
@@ -16852,32 +16522,31 @@ BEGIN
   n := 0;
   WHILE p<>0 DO
     BEGIN
-      IF NOT(p>=himemmin)THEN IF mem[p].hh.b0>2 THEN IF 
-                                                        mem[p].hh.b0<>11 THEN IF mem[p].hh.b0<>6
-                                                                                THEN
-                                                                                BEGIN
-                                                                                  BEGIN
-                                                                                    IF interaction
-                                                                                       =3 THEN;
-                                                                                    printnl(262);
-                                                                                    print(1108);
-                                                                                  END;
-                                                                                  BEGIN
-                                                                                    helpptr := 1;
-                                                                                    helpline[0] := 
-                                                                                                1109
-                                                                                    ;
-                                                                                  END;
-                                                                                  error;
-                                                                                  begindiagnostic;
-                                                                                  printnl(1110);
-                                                                                  showbox(p);
-                                                                                  enddiagnostic(true
-                                                                                  );
-                                                                                  flushnodelist(p);
-                                                                                  mem[q].hh.rh := 0;
-                                                                                  goto 30;
-                                                                                END;
+      IF NOT(p>=himemmin)THEN
+        IF mem[p].hh.b0>2 THEN
+          IF 
+             mem[p].hh.b0<>11 THEN
+            IF mem[p].hh.b0<>6 THEN
+              BEGIN
+                BEGIN
+                  IF interaction
+                     =3 THEN;
+                  printnl(262);
+                  print(1108);
+                END;
+                BEGIN
+                  helpptr := 1;
+                  helpline[0] := 1109;
+                END;
+                error;
+                begindiagnostic;
+                printnl(1110);
+                showbox(p);
+                enddiagnostic(true);
+                flushnodelist(p);
+                mem[q].hh.rh := 0;
+                goto 30;
+              END;
       q := p;
       p := mem[q].hh.rh;
       n := n+1;
@@ -16959,11 +16628,12 @@ BEGIN
       q := 0;
       f := eqtb[3934].hh.rh;
       IF (curcmd=11)OR(curcmd=12)OR(curcmd=68)THEN q := newcharacter(f,curchr)
-      ELSE IF curcmd=16 THEN
-             BEGIN
-               scancharnum;
-               q := newcharacter(f,curval);
-             END
+      ELSE
+        IF curcmd=16 THEN
+          BEGIN
+            scancharnum;
+            q := newcharacter(f,curval);
+          END
       ELSE backinput{:1124};
       IF q<>0 THEN{1125:}
         BEGIN
@@ -17161,7 +16831,8 @@ BEGIN
           p := mem[justbox+5].hh.rh;
           WHILE p<>0 DO
             BEGIN{1147:}
-              21: IF (p>=himemmin)THEN
+              21:
+                  IF (p>=himemmin)THEN
                     BEGIN
                       f := mem[p].hh.b0;
                       d := fontinfo[widthbase[f]+fontinfo[charbase[f]+mem[p].hh.b1].qqqq.b0].int
@@ -17191,11 +16862,12 @@ BEGIN
                           IF (mem[justbox+5].hh.b1=mem[q].hh.
                              b0)AND(mem[q+2].int<>0)THEN v := 1073741823;
                         END
-                      ELSE IF mem[justbox+5].hh.b0=2 THEN
-                             BEGIN
-                               IF (mem[justbox+5].hh.b1=
-                                  mem[q].hh.b1)AND(mem[q+3].int<>0)THEN v := 1073741823;
-                             END;
+                      ELSE
+                        IF mem[justbox+5].hh.b0=2 THEN
+                          BEGIN
+                            IF (mem[justbox+5].hh.b1=
+                               mem[q].hh.b1)AND(mem[q+3].int<>0)THEN v := 1073741823;
+                          END;
                       IF mem[p].hh.b1>=100 THEN goto 40;
                     END{:1148};
                 8:{1361:}d := 0{:1361};
@@ -17203,7 +16875,8 @@ BEGIN
               END{:1147};
               IF v<1073741823 THEN v := v+d;
               goto 45;
-              40: IF v<1073741823 THEN
+              40:
+                  IF v<1073741823 THEN
                     BEGIN
                       v := v+d;
                       w := v;
@@ -17218,15 +16891,15 @@ BEGIN
           30:{:1146};
         END;
 {1149:}
-      IF eqtb[3412].hh.rh=0 THEN IF (eqtb[5847].int<>0)AND(((eqtb[5304].
-                                    int>=0)AND(curlist.pgfield+2>eqtb[5304].int))OR(curlist.pgfield+
-                                    1<-eqtb[
-                                    5304].int))THEN
-                                   BEGIN
-                                     l := eqtb[5833].int-abs(eqtb[5847].int);
-                                     IF eqtb[5847].int>0 THEN s := eqtb[5847].int
-                                     ELSE s := 0;
-                                   END
+      IF eqtb[3412].hh.rh=0 THEN
+        IF (eqtb[5847].int<>0)AND(((eqtb[5304].
+           int>=0)AND(curlist.pgfield+2>eqtb[5304].int))OR(curlist.pgfield+1<-eqtb[
+           5304].int))THEN
+          BEGIN
+            l := eqtb[5833].int-abs(eqtb[5847].int);
+            IF eqtb[5847].int>0 THEN s := eqtb[5847].int
+            ELSE s := 0;
+          END
       ELSE
         BEGIN
           l := eqtb[5833].int;
@@ -17281,7 +16954,8 @@ BEGIN
   20:{404:}REPEAT
              getxtoken;
       UNTIL (curcmd<>10)AND(curcmd<>0){:404};
-  21: CASE curcmd OF 
+  21:
+      CASE curcmd OF 
         11,12,68:
                   BEGIN
                     c := eqtb[5007+curchr].hh.rh;
@@ -17366,12 +17040,13 @@ PROCEDURE mathlimitswitch;
 
 LABEL 10;
 BEGIN
-  IF curlist.headfield<>curlist.tailfield THEN IF mem[curlist.
-                                                  tailfield].hh.b0=17 THEN
-                                                 BEGIN
-                                                   mem[curlist.tailfield].hh.b1 := curchr;
-                                                   goto 10;
-                                                 END;
+  IF curlist.headfield<>curlist.tailfield THEN
+    IF mem[curlist.
+       tailfield].hh.b0=17 THEN
+      BEGIN
+        mem[curlist.tailfield].hh.b1 := curchr;
+        goto 10;
+      END;
   BEGIN
     IF interaction=3 THEN;
     printnl(262);
@@ -17546,13 +17221,14 @@ VAR t: smallnumber;
 BEGIN
   t := 0;
   p := 0;
-  IF curlist.tailfield<>curlist.headfield THEN IF (mem[curlist.tailfield].
-                                                  hh.b0>=16)AND(mem[curlist.tailfield].hh.b0<30)THEN
-                                                 BEGIN
-                                                   p := curlist.
-                                                        tailfield+2+curcmd-7;
-                                                   t := mem[p].hh.rh;
-                                                 END;
+  IF curlist.tailfield<>curlist.headfield THEN
+    IF (mem[curlist.tailfield].
+       hh.b0>=16)AND(mem[curlist.tailfield].hh.b0<30)THEN
+      BEGIN
+        p := curlist.
+             tailfield+2+curcmd-7;
+        t := mem[p].hh.rh;
+      END;
   IF (p=0)OR(t<>0)THEN{1177:}
     BEGIN
       BEGIN
@@ -17738,25 +17414,26 @@ BEGIN
       flushmath;
       danger := true;
     END
-  ELSE IF (fontparams[eqtb[3938].hh.rh]<13)OR(fontparams[eqtb[3954].hh.
-          rh]<13)OR(fontparams[eqtb[3970].hh.rh]<13)THEN
-         BEGIN
-           BEGIN
-             IF 
-                interaction=3 THEN;
-             printnl(262);
-             print(1163);
-           END;
-           BEGIN
-             helpptr := 3;
-             helpline[2] := 1164;
-             helpline[1] := 1165;
-             helpline[0] := 1166;
-           END;
-           error;
-           flushmath;
-           danger := true;
-         END{:1195};
+  ELSE
+    IF (fontparams[eqtb[3938].hh.rh]<13)OR(fontparams[eqtb[3954].hh.
+       rh]<13)OR(fontparams[eqtb[3970].hh.rh]<13)THEN
+      BEGIN
+        BEGIN
+          IF 
+             interaction=3 THEN;
+          printnl(262);
+          print(1163);
+        END;
+        BEGIN
+          helpptr := 3;
+          helpline[2] := 1164;
+          helpline[1] := 1165;
+          helpline[0] := 1166;
+        END;
+        error;
+        flushmath;
+        danger := true;
+      END{:1195};
   m := curlist.modefield;
   l := false;
   p := finmlist(0);
@@ -17808,25 +17485,26 @@ BEGIN
           flushmath;
           danger := true;
         END
-      ELSE IF (fontparams[eqtb[3938].hh.rh]<13)OR(fontparams[eqtb[3954].hh.
-              rh]<13)OR(fontparams[eqtb[3970].hh.rh]<13)THEN
-             BEGIN
-               BEGIN
-                 IF 
-                    interaction=3 THEN;
-                 printnl(262);
-                 print(1163);
-               END;
-               BEGIN
-                 helpptr := 3;
-                 helpline[2] := 1164;
-                 helpline[1] := 1165;
-                 helpline[0] := 1166;
-               END;
-               error;
-               flushmath;
-               danger := true;
-             END{:1195};
+      ELSE
+        IF (fontparams[eqtb[3938].hh.rh]<13)OR(fontparams[eqtb[3954].hh.
+           rh]<13)OR(fontparams[eqtb[3970].hh.rh]<13)THEN
+          BEGIN
+            BEGIN
+              IF 
+                 interaction=3 THEN;
+              printnl(262);
+              print(1163);
+            END;
+            BEGIN
+              helpptr := 3;
+              helpline[2] := 1164;
+              helpline[1] := 1165;
+              helpline[0] := 1166;
+            END;
+            error;
+            flushmath;
+            danger := true;
+          END{:1195};
       m := curlist.modefield;
       p := finmlist(0);
     END
@@ -17919,7 +17597,9 @@ BEGIN
       IF (e>0)AND(d<2*e)THEN
         BEGIN
           d := half(z-w-e);
-          IF p<>0 THEN IF NOT(p>=himemmin)THEN IF mem[p].hh.b0=10 THEN d := 0;
+          IF p<>0 THEN
+            IF NOT(p>=himemmin)THEN
+              IF mem[p].hh.b0=10 THEN d := 0;
         END{:1202};
 {1203:}
       BEGIN
@@ -18009,8 +17689,9 @@ BEGIN
   curlist.modefield := 102;
   curlist.auxfield.hh.lh := 1000;
   IF eqtb[5313].int<=0 THEN curlang := 0
-  ELSE IF eqtb[5313].int>255 THEN
-         curlang := 0
+  ELSE
+    IF eqtb[5313].int>255 THEN
+      curlang := 0
   ELSE curlang := eqtb[5313].int;
   curlist.auxfield.hh.rh := curlang;
   curlist.pgfield := (normmin(eqtb[5314].int)*64+normmin(eqtb[5315].int))
@@ -18110,15 +17791,17 @@ BEGIN
   END;
   40:{:1237};
   IF q=89 THEN scanoptionalequals
-  ELSE IF scankeyword(1207)THEN;
+  ELSE
+    IF scankeyword(1207)THEN;
   aritherror := false;
-  IF q<91 THEN{1238:}IF p<2 THEN
-                       BEGIN
-                         IF p=0 THEN scanint
-                         ELSE scandimen(
-                                        false,false,false);
-                         IF q=90 THEN curval := curval+eqtb[l].int;
-                       END
+  IF q<91 THEN{1238:}
+    IF p<2 THEN
+      BEGIN
+        IF p=0 THEN scanint
+        ELSE scandimen(
+                       false,false,false);
+        IF q=90 THEN curval := curval+eqtb[l].int;
+      END
   ELSE
     BEGIN
       scanglue(p);
@@ -18131,29 +17814,33 @@ BEGIN
           IF mem[q+2].int=0 THEN mem[q].hh.b0 := 0;
           IF mem[q].hh.b0=mem[r].hh.b0 THEN mem[q+2].int := mem[q+2].int+mem[r+2].
                                                             int
-          ELSE IF (mem[q].hh.b0<mem[r].hh.b0)AND(mem[r+2].int<>0)THEN
-                 BEGIN
-                   mem
-                   [q+2].int := mem[r+2].int;
-                   mem[q].hh.b0 := mem[r].hh.b0;
-                 END;
+          ELSE
+            IF (mem[q].hh.b0<mem[r].hh.b0)AND(mem[r+2].int<>0)THEN
+              BEGIN
+                mem
+                [q+2].int := mem[r+2].int;
+                mem[q].hh.b0 := mem[r].hh.b0;
+              END;
           IF mem[q+3].int=0 THEN mem[q].hh.b1 := 0;
           IF mem[q].hh.b1=mem[r].hh.b1 THEN mem[q+3].int := mem[q+3].int+mem[r+3].
                                                             int
-          ELSE IF (mem[q].hh.b1<mem[r].hh.b1)AND(mem[r+3].int<>0)THEN
-                 BEGIN
-                   mem
-                   [q+3].int := mem[r+3].int;
-                   mem[q].hh.b1 := mem[r].hh.b1;
-                 END;
+          ELSE
+            IF (mem[q].hh.b1<mem[r].hh.b1)AND(mem[r+3].int<>0)THEN
+              BEGIN
+                mem
+                [q+3].int := mem[r+3].int;
+                mem[q].hh.b1 := mem[r].hh.b1;
+              END;
           curval := q;
         END{:1239};
     END{:1238}
   ELSE{1240:}
     BEGIN
       scanint;
-      IF p<2 THEN IF q=91 THEN IF p=0 THEN curval := multandadd(eqtb[l].int,
-                                                     curval,0,2147483647)
+      IF p<2 THEN
+        IF q=91 THEN
+          IF p=0 THEN curval := multandadd(eqtb[l].int,
+                                curval,0,2147483647)
       ELSE curval := multandadd(eqtb[l].int,curval,0,
                      1073741823)
       ELSE curval := xovern(eqtb[l].int,curval)
@@ -18194,7 +17881,8 @@ BEGIN
       error;
       goto 10;
     END;
-  IF p<2 THEN IF (a>=4)THEN geqworddefine(l,curval)
+  IF p<2 THEN
+    IF (a>=4)THEN geqworddefine(l,curval)
   ELSE eqworddefine(l,
                     curval)
   ELSE
@@ -18319,7 +18007,9 @@ BEGIN
   getrtoken;
   u := curcs;
   IF u>=514 THEN t := hash[u].rh
-  ELSE IF u>=257 THEN IF u=513 THEN t := 1220
+  ELSE
+    IF u>=257 THEN
+      IF u=513 THEN t := 1220
   ELSE t := u-257
   ELSE
     BEGIN
@@ -18360,25 +18050,26 @@ BEGIN
           s := 10*65536;
         END;
     END{:1259}
-  ELSE IF scankeyword(1222)THEN
-         BEGIN
-           scanint;
-           s := -curval;
-           IF (curval<=0)OR(curval>32768)THEN
-             BEGIN
-               BEGIN
-                 IF interaction=3 THEN;
-                 printnl(262);
-                 print(552);
-               END;
-               BEGIN
-                 helpptr := 1;
-                 helpline[0] := 553;
-               END;
-               interror(curval);
-               s := -1000;
-             END;
-         END
+  ELSE
+    IF scankeyword(1222)THEN
+      BEGIN
+        scanint;
+        s := -curval;
+        IF (curval<=0)OR(curval>32768)THEN
+          BEGIN
+            BEGIN
+              IF interaction=3 THEN;
+              printnl(262);
+              print(552);
+            END;
+            BEGIN
+              helpptr := 1;
+              helpline[0] := 553;
+            END;
+            interror(curval);
+            s := -1000;
+          END;
+      END
   ELSE s := -1000;
   nameinprogress := false{:1258};{1260:}
   flushablestring := strptr-1;
@@ -18398,7 +18089,8 @@ BEGIN
           BEGIN
             IF s=fontsize[f]THEN goto 50;
           END
-        ELSE IF fontsize[f]=xnoverd(fontdsize[f],-s,1000)THEN goto 50;
+        ELSE
+          IF fontsize[f]=xnoverd(fontdsize[f],-s,1000)THEN goto 50;
       END{:1260};
   f := readfontinfo(u,curname,curarea,s);
   50: eqtb[u].hh.rh := f;
@@ -18475,17 +18167,19 @@ BEGIN
       error;
     END{:1213};
 {1214:}
-  IF eqtb[5306].int<>0 THEN IF eqtb[5306].int<0 THEN
-                              BEGIN
-                                IF (a>=4)
-                                  THEN a := a-4;
-                              END
+  IF eqtb[5306].int<>0 THEN
+    IF eqtb[5306].int<0 THEN
+      BEGIN
+        IF (a>=4)
+          THEN a := a-4;
+      END
   ELSE
     BEGIN
       IF NOT(a>=4)THEN a := a+4;
     END{:1214};
   CASE curcmd OF {1217:}
-    87: IF (a>=4)THEN geqdefine(3934,120,curchr)
+    87:
+        IF (a>=4)THEN geqdefine(3934,120,curchr)
         ELSE
           eqdefine(3934,120,curchr);
 {:1217}{1218:}
@@ -18555,19 +18249,24 @@ BEGIN
               BEGIN
                 scaneightbitint;
                 CASE n OF 
-                  2: IF (a>=4)THEN geqdefine(p,73,5318+curval)
+                  2:
+                     IF (a>=4)THEN geqdefine(p,73,5318+curval)
                      ELSE eqdefine(p,73,
                                    5318+curval);
-                  3: IF (a>=4)THEN geqdefine(p,74,5851+curval)
+                  3:
+                     IF (a>=4)THEN geqdefine(p,74,5851+curval)
                      ELSE eqdefine(p,74,5851+curval
                        );
-                  4: IF (a>=4)THEN geqdefine(p,75,2900+curval)
+                  4:
+                     IF (a>=4)THEN geqdefine(p,75,2900+curval)
                      ELSE eqdefine(p,75,2900+curval
                        );
-                  5: IF (a>=4)THEN geqdefine(p,76,3156+curval)
+                  5:
+                     IF (a>=4)THEN geqdefine(p,76,3156+curval)
                      ELSE eqdefine(p,76,3156+curval
                        );
-                  6: IF (a>=4)THEN geqdefine(p,72,3422+curval)
+                  6:
+                     IF (a>=4)THEN geqdefine(p,72,3422+curval)
                      ELSE eqdefine(p,72,3422+curval
                        );
                 END;
@@ -18623,7 +18322,8 @@ BEGIN
                  IF curcmd=72 THEN
                    BEGIN
                      q := eqtb[curchr].hh.rh;
-                     IF q=0 THEN IF (a>=4)THEN geqdefine(p,101,0)
+                     IF q=0 THEN
+                       IF (a>=4)THEN geqdefine(p,101,0)
                      ELSE eqdefine(p,101,0)
                      ELSE
                        BEGIN
@@ -18696,11 +18396,14 @@ BEGIN
     85:
         BEGIN{1233:}
           IF curchr=3983 THEN n := 15
-          ELSE IF curchr=
-                  5007 THEN n := 32768
-          ELSE IF curchr=4751 THEN n := 32767
-          ELSE IF curchr=5574
-                 THEN n := 16777215
+          ELSE
+            IF curchr=
+               5007 THEN n := 32768
+          ELSE
+            IF curchr=4751 THEN n := 32767
+          ELSE
+            IF curchr=5574
+              THEN n := 16777215
           ELSE n := 255{:1233};
           p := curchr;
           scancharnum;
@@ -18726,13 +18429,17 @@ BEGIN
               error;
               curval := 0;
             END;
-          IF p<5007 THEN IF (a>=4)THEN geqdefine(p,120,curval)
+          IF p<5007 THEN
+            IF (a>=4)THEN geqdefine(p,120,curval)
           ELSE eqdefine(p,120,
                         curval)
-          ELSE IF p<5574 THEN IF (a>=4)THEN geqdefine(p,120,curval)
+          ELSE
+            IF p<5574 THEN
+              IF (a>=4)THEN geqdefine(p,120,curval)
           ELSE
             eqdefine(p,120,curval)
-          ELSE IF (a>=4)THEN geqworddefine(p,curval)
+          ELSE
+            IF (a>=4)THEN geqworddefine(p,curval)
           ELSE
             eqworddefine(p,curval);
         END;{:1232}{1234:}
@@ -18802,7 +18509,8 @@ BEGIN
           ELSE eqdefine(3412,118,p);
         END;
 {:1248}{1252:}
-    99: IF curchr=1 THEN
+    99:
+        IF curchr=1 THEN
           BEGIN
             IF TeXVariation>0 THEN
               BEGIN
@@ -18851,12 +18559,13 @@ BEGIN
 {:1264}
     ELSE confusion(1179)
   END;
-  30:{1269:}IF aftertoken<>0 THEN
-              BEGIN
-                curtok := aftertoken;
-                backinput;
-                aftertoken := 0;
-              END{:1269};
+  30:{1269:}
+      IF aftertoken<>0 THEN
+        BEGIN
+          curtok := aftertoken;
+          backinput;
+          aftertoken := 0;
+        END{:1269};
   10:
 END;{:1211}{1270:}
 PROCEDURE doassignments;
@@ -18920,8 +18629,9 @@ BEGIN
     BEGIN
       IF termoffset+(strstart[s+1]-strstart[s])>
          maxprintline-2 THEN println
-      ELSE IF (termoffset>0)OR(fileoffset>0)THEN
-             printchar(32);
+      ELSE
+        IF (termoffset>0)OR(fileoffset>0)THEN
+          printchar(32);
       slowprint(s);
       flush(output);
     END{:1280}
@@ -18934,11 +18644,12 @@ BEGIN
       END;
       slowprint(s);
       IF eqtb[3421].hh.rh<>0 THEN useerrhelp := true
-      ELSE IF longhelpseen THEN
-             BEGIN
-               helpptr := 1;
-               helpline[0] := 1233;
-             END
+      ELSE
+        IF longhelpseen THEN
+          BEGIN
+            helpptr := 1;
+            helpline[0] := 1233;
+          END
       ELSE
         BEGIN
           IF interaction<3 THEN longhelpseen := true;
@@ -19040,26 +18751,29 @@ BEGIN
     printnl(262);
     print(1256);
   END;
-  IF selector=19 THEN IF eqtb[5292].int<=0 THEN
-                        BEGIN
-                          selector := 17;
-                          print(1257);
-                          selector := 19;
-                        END{:1298};
-  50: IF interaction<3 THEN
+  IF selector=19 THEN
+    IF eqtb[5292].int<=0 THEN
+      BEGIN
+        selector := 17;
+        print(1257);
+        selector := 19;
+      END{:1298};
+  50:
+      IF interaction<3 THEN
         BEGIN
           helpptr := 0;
           errorcount := errorcount-1;
         END
-      ELSE IF eqtb[5292].int>0 THEN
-             BEGIN
-               BEGIN
-                 helpptr := 3;
-                 helpline[2] := 1244;
-                 helpline[1] := 1245;
-                 helpline[0] := 1246;
-               END;
-             END
+      ELSE
+        IF eqtb[5292].int>0 THEN
+          BEGIN
+            BEGIN
+              helpptr := 3;
+              helpline[2] := 1244;
+              helpline[1] := 1245;
+              helpline[0] := 1246;
+            END;
+          END
       ELSE
         BEGIN
           BEGIN
@@ -19614,7 +19328,8 @@ BEGIN
     BEGIN
       scanint;
       IF curval<0 THEN curval := 17
-      ELSE IF curval>15 THEN curval := 16;
+      ELSE
+        IF curval>15 THEN curval := 16;
     END;
   mem[curlist.tailfield+1].hh.lh := curval;
 END;{:1350}
@@ -19667,14 +19382,16 @@ BEGIN
            END
          ELSE backinput;
        END{:1375};
-    5:{1377:}IF abs(curlist.modefield)<>102 THEN reportillegalcase
+    5:{1377:}
+       IF abs(curlist.modefield)<>102 THEN reportillegalcase
        ELSE
          BEGIN
            newwhatsit(4,2);
            scanint;
            IF curval<=0 THEN curlist.auxfield.hh.rh := 0
-           ELSE IF curval>255 THEN
-                  curlist.auxfield.hh.rh := 0
+           ELSE
+             IF curval>255 THEN
+               curlist.auxfield.hh.rh := 0
            ELSE curlist.auxfield.hh.rh := curval;
            mem[curlist.tailfield+1].hh.rh := curlist.auxfield.hh.rh;
            mem[curlist.tailfield+1].hh.b0 := normmin(eqtb[5314].int);
@@ -19688,8 +19405,9 @@ PROCEDURE fixlanguage;
 VAR l: ASCIIcode;
 BEGIN
   IF eqtb[5313].int<=0 THEN l := 0
-  ELSE IF eqtb[5313].int>255 THEN l := 
-                                       0
+  ELSE
+    IF eqtb[5313].int>255 THEN l := 
+                                    0
   ELSE l := eqtb[5313].int;
   IF l<>curlist.auxfield.hh.rh THEN
     BEGIN
@@ -19893,30 +19611,33 @@ BEGIN
          mem[savestack[saveptr+0].int].hh.rh := 3;
          p := finmlist(0);
          mem[savestack[saveptr+0].int].hh.lh := p;
-         IF p<>0 THEN IF mem[p].hh.rh=0 THEN IF mem[p].hh.b0=16 THEN
-                                               BEGIN
-                                                 IF mem
-                                                    [p+3].hh.rh=0 THEN IF mem[p+2].hh.rh=0 THEN
-                                                                         BEGIN
-                                                                           mem[savestack[saveptr
-                                                                           +0].int].hh := mem[p+1].
-                                                                                          hh;
-                                                                           freenode(p,4);
-                                                                         END;
-                                               END
-         ELSE IF mem[p].hh.b0=28 THEN IF savestack[saveptr+0].int=curlist.
-                                         tailfield+1 THEN IF mem[curlist.tailfield].hh.b0=16 THEN
-                                                            {1187:}
-                                                            BEGIN
-                                                              q := 
-                                                                   curlist.headfield;
-                                                              WHILE mem[q].hh.rh<>curlist.tailfield 
-                                                                DO
-                                                                q := mem[q].hh.rh;
-                                                              mem[q].hh.rh := p;
-                                                              freenode(curlist.tailfield,4);
-                                                              curlist.tailfield := p;
-                                                            END{:1187};
+         IF p<>0 THEN
+           IF mem[p].hh.rh=0 THEN
+             IF mem[p].hh.b0=16 THEN
+               BEGIN
+                 IF mem
+                    [p+3].hh.rh=0 THEN
+                   IF mem[p+2].hh.rh=0 THEN
+                     BEGIN
+                       mem[savestack[saveptr
+                       +0].int].hh := mem[p+1].hh;
+                       freenode(p,4);
+                     END;
+               END
+         ELSE
+           IF mem[p].hh.b0=28 THEN
+             IF savestack[saveptr+0].int=curlist.
+                tailfield+1 THEN
+               IF mem[curlist.tailfield].hh.b0=16 THEN{1187:}
+                 BEGIN
+                   q := 
+                        curlist.headfield;
+                   WHILE mem[q].hh.rh<>curlist.tailfield DO
+                     q := mem[q].hh.rh;
+                   mem[q].hh.rh := p;
+                   freenode(curlist.tailfield,4);
+                   curlist.tailfield := p;
+                 END{:1187};
        END;{:1186}
     ELSE confusion(1048)
   END;
@@ -19930,14 +19651,16 @@ VAR t: integer;
 BEGIN
   IF eqtb[3419].hh.rh<>0 THEN begintokenlist(eqtb[3419].hh.rh,12);
   60: getxtoken;
-  21:{1031:}IF interrupt<>0 THEN IF OKtointerrupt THEN
-                                   BEGIN
-                                     backinput;
-                                     BEGIN
-                                       IF interrupt<>0 THEN pauseforinstructions;
-                                     END;
-                                     goto 60;
-                                   END;
+  21:{1031:}
+      IF interrupt<>0 THEN
+        IF OKtointerrupt THEN
+          BEGIN
+            backinput;
+            BEGIN
+              IF interrupt<>0 THEN pauseforinstructions;
+            END;
+            goto 60;
+          END;
 {if panicking then checkmem(false);}
   IF eqtb[5299].int>0 THEN showcurcmdchr{:1031};
   CASE abs(curlist.modefield)+curcmd OF 
@@ -19955,7 +19678,8 @@ BEGIN
              := true;
            goto 21;
          END;
-    112: IF curlist.auxfield.hh.lh=1000 THEN goto 120
+    112:
+         IF curlist.auxfield.hh.lh=1000 THEN goto 120
          ELSE appspace;
     166,267: goto 120;{1045:}
     1,102,203,11,213,268:;
@@ -19966,7 +19690,8 @@ BEGIN
                   UNTIL curcmd<>10{:406};
                   goto 21;
                 END;
-    15: IF itsallover THEN goto 10;
+    15:
+        IF itsallover THEN goto 10;
 {1048:}
     23,123,224,71,172,273,{:1048}{1098:}39,{:1098}{1111:}45,{:1111}
 {1144:}49,150,{:1144}7,108,209: reportillegalcase;
@@ -19983,8 +19708,9 @@ BEGIN
                     curlist.tailfield := mem[curlist.tailfield].hh.rh;
                   END;
                   IF abs(curlist.modefield)=1 THEN curlist.auxfield.int := -65536000
-                  ELSE IF 
-                          abs(curlist.modefield)=102 THEN curlist.auxfield.hh.lh := 1000;
+                  ELSE
+                    IF 
+                       abs(curlist.modefield)=102 THEN curlist.auxfield.hh.lh := 1000;
                 END;
 {:1056}{1057:}
     28,128,229,231: appendglue;
@@ -19992,7 +19718,8 @@ BEGIN
 {:1057}{1063:}
     2,103: newsavelevel(1);
     62,163,264: newsavelevel(14);
-    63,164,265: IF curgroup=14 THEN unsave
+    63,164,265:
+                IF curgroup=14 THEN unsave
                 ELSE offsave;
 {:1063}{1067:}
     3,104,205: handlerightbrace;
@@ -20050,14 +19777,18 @@ BEGIN
     35,136,237: noalignerror;
     64,165,266: omiterror;{:1126}{1130:}
     33,135: initalign;
-    235: IF privileged THEN IF curgroup=15 THEN initalign
+    235:
+         IF privileged THEN
+           IF curgroup=15 THEN initalign
          ELSE offsave;
     10,111: doendv;{:1130}{1134:}
     68,169,270: cserror;
 {:1134}{1137:}
     105: initmath;
 {:1137}{1140:}
-    251: IF privileged THEN IF curgroup=15 THEN starteqno
+    251:
+         IF privileged THEN
+           IF curgroup=15 THEN starteqno
          ELSE
            offsave;
 {:1140}{1150:}
@@ -20133,7 +19864,8 @@ BEGIN
 {:1180}{1190:}
     252: mathleftright;
 {:1190}{1193:}
-    206: IF curgroup=15 THEN aftermath
+    206:
+         IF curgroup=15 THEN aftermath
          ELSE offsave;
 {:1193}{1210:}
     72,173,274,73,174,275,74,175,276,75,176,277,76,177,278,77,
@@ -20165,18 +19897,21 @@ BEGIN
   goto 60;
   70:{1034:}mains := eqtb[4751+curchr].hh.rh;
   IF mains=1000 THEN curlist.auxfield.hh.lh := 1000
-  ELSE IF mains<1000 THEN
-         BEGIN
-           IF mains>0 THEN curlist.auxfield.hh.lh := mains;
-         END
-  ELSE IF curlist.auxfield.hh.lh<1000 THEN curlist.auxfield.hh.lh := 
-                                                                     1000
+  ELSE
+    IF mains<1000 THEN
+      BEGIN
+        IF mains>0 THEN curlist.auxfield.hh.lh := mains;
+      END
+  ELSE
+    IF curlist.auxfield.hh.lh<1000 THEN curlist.auxfield.hh.lh := 
+                                                                  1000
   ELSE curlist.auxfield.hh.lh := mains;
   mainf := eqtb[3934].hh.rh;
   bchar := fontbchar[mainf];
   falsebchar := fontfalsebchar[mainf];
-  IF curlist.modefield>0 THEN IF eqtb[5313].int<>curlist.auxfield.hh.rh
-                                THEN fixlanguage;
+  IF curlist.modefield>0 THEN
+    IF eqtb[5313].int<>curlist.auxfield.hh.rh
+      THEN fixlanguage;
   BEGIN
     ligstack := avail;
     IF ligstack=0 THEN ligstack := getavail
@@ -20202,45 +19937,50 @@ BEGIN
   curr := curl;
   curl := 256;
   goto 111;
-  80:{1035:}IF curl<256 THEN
-              BEGIN
-                IF mem[curq].hh.rh>0 THEN IF mem[
-                                             curlist.tailfield].hh.b1=hyphenchar[mainf]THEN insdisc 
-                                            := true;
-                IF ligaturepresent THEN
+  80:{1035:}
+      IF curl<256 THEN
+        BEGIN
+          IF mem[curq].hh.rh>0 THEN
+            IF mem[
+               curlist.tailfield].hh.b1=hyphenchar[mainf]THEN insdisc := true;
+          IF ligaturepresent THEN
+            BEGIN
+              mainp := newligature(mainf,curl,mem[curq].hh
+                       .rh);
+              IF lfthit THEN
+                BEGIN
+                  mem[mainp].hh.b1 := 2;
+                  lfthit := false;
+                END;
+              IF rthit THEN
+                IF ligstack=0 THEN
                   BEGIN
-                    mainp := newligature(mainf,curl,mem[curq].hh
-                             .rh);
-                    IF lfthit THEN
-                      BEGIN
-                        mem[mainp].hh.b1 := 2;
-                        lfthit := false;
-                      END;
-                    IF rthit THEN IF ligstack=0 THEN
-                                    BEGIN
-                                      mem[mainp].hh.b1 := mem[mainp].hh.
-                                                          b1+1;
-                                      rthit := false;
-                                    END;
-                    mem[curq].hh.rh := mainp;
-                    curlist.tailfield := mainp;
-                    ligaturepresent := false;
+                    mem[mainp].hh.b1 := mem[mainp].hh.
+                                        b1+1;
+                    rthit := false;
                   END;
-                IF insdisc THEN
-                  BEGIN
-                    insdisc := false;
-                    IF curlist.modefield>0 THEN
-                      BEGIN
-                        mem[curlist.tailfield].hh.rh := newdisc;
-                        curlist.tailfield := mem[curlist.tailfield].hh.rh;
-                      END;
-                  END;
-              END{:1035};
-  90:{1036:}IF ligstack=0 THEN goto 21;
+              mem[curq].hh.rh := mainp;
+              curlist.tailfield := mainp;
+              ligaturepresent := false;
+            END;
+          IF insdisc THEN
+            BEGIN
+              insdisc := false;
+              IF curlist.modefield>0 THEN
+                BEGIN
+                  mem[curlist.tailfield].hh.rh := newdisc;
+                  curlist.tailfield := mem[curlist.tailfield].hh.rh;
+                END;
+            END;
+        END{:1035};
+  90:{1036:}
+      IF ligstack=0 THEN goto 21;
   curq := curlist.tailfield;
   curl := mem[ligstack].hh.b1;
-  91: IF NOT(ligstack>=himemmin)THEN goto 95;
-  92: IF (curchr<fontbc[mainf])OR(curchr>fontec[mainf])THEN
+  91:
+      IF NOT(ligstack>=himemmin)THEN goto 95;
+  92:
+      IF (curchr<fontbc[mainf])OR(curchr>fontec[mainf])THEN
         BEGIN
           charwarning(mainf,curchr);
           BEGIN
@@ -20283,12 +20023,14 @@ BEGIN
   goto 110;
   101: mains := eqtb[4751+curchr].hh.rh;
   IF mains=1000 THEN curlist.auxfield.hh.lh := 1000
-  ELSE IF mains<1000 THEN
-         BEGIN
-           IF mains>0 THEN curlist.auxfield.hh.lh := mains;
-         END
-  ELSE IF curlist.auxfield.hh.lh<1000 THEN curlist.auxfield.hh.lh := 
-                                                                     1000
+  ELSE
+    IF mains<1000 THEN
+      BEGIN
+        IF mains>0 THEN curlist.auxfield.hh.lh := mains;
+      END
+  ELSE
+    IF curlist.auxfield.hh.lh<1000 THEN curlist.auxfield.hh.lh := 
+                                                                  1000
   ELSE curlist.auxfield.hh.lh := mains;
   BEGIN
     ligstack := avail;
@@ -20305,153 +20047,156 @@ BEGIN
   curr := curchr;
   mem[ligstack].hh.b1 := curr;
   IF curr=falsebchar THEN curr := 256{:1038};
-  110:{1039:}IF ((maini.b2)MOD 4)<>1 THEN goto 80;
+  110:{1039:}
+       IF ((maini.b2)MOD 4)<>1 THEN goto 80;
   IF curr=256 THEN goto 80;
   maink := ligkernbase[mainf]+maini.b3;
   mainj := fontinfo[maink].qqqq;
   IF mainj.b0<=128 THEN goto 112;
   maink := ligkernbase[mainf]+256*mainj.b2+mainj.b3+32768-256*(128);
   111: mainj := fontinfo[maink].qqqq;
-  112: IF mainj.b1=curr THEN IF mainj.b0<=128 THEN{1040:}
-                               BEGIN
-                                 IF mainj.b2
-                                    >=128 THEN
-                                   BEGIN
-                                     IF curl<256 THEN
-                                       BEGIN
-                                         IF mem[curq].hh.rh>0 THEN IF mem
-                                                                      [curlist.tailfield].hh.b1=
-                                                                      hyphenchar[mainf]THEN insdisc 
-                                                                     := true;
-                                         IF ligaturepresent THEN
-                                           BEGIN
-                                             mainp := newligature(mainf,curl,mem[curq].hh
-                                                      .rh);
-                                             IF lfthit THEN
-                                               BEGIN
-                                                 mem[mainp].hh.b1 := 2;
-                                                 lfthit := false;
-                                               END;
-                                             IF rthit THEN IF ligstack=0 THEN
-                                                             BEGIN
-                                                               mem[mainp].hh.b1 := mem[mainp].hh.
-                                                                                   b1+1;
-                                                               rthit := false;
-                                                             END;
-                                             mem[curq].hh.rh := mainp;
-                                             curlist.tailfield := mainp;
-                                             ligaturepresent := false;
-                                           END;
-                                         IF insdisc THEN
-                                           BEGIN
-                                             insdisc := false;
-                                             IF curlist.modefield>0 THEN
-                                               BEGIN
-                                                 mem[curlist.tailfield].hh.rh := newdisc;
-                                                 curlist.tailfield := mem[curlist.tailfield].hh.rh;
-                                               END;
-                                           END;
-                                       END;
-                                     BEGIN
-                                       mem[curlist.tailfield].hh.rh := newkern(fontinfo[kernbase[
-                                                                       mainf]+256
-                                                                       *mainj.b2+mainj.b3].int);
-                                       curlist.tailfield := mem[curlist.tailfield].hh.rh;
-                                     END;
-                                     goto 90;
-                                   END;
-                                 IF curl=256 THEN lfthit := true
-                                 ELSE IF ligstack=0 THEN rthit := true;
+  112:
+       IF mainj.b1=curr THEN
+         IF mainj.b0<=128 THEN{1040:}
+           BEGIN
+             IF mainj.b2
+                >=128 THEN
+               BEGIN
+                 IF curl<256 THEN
+                   BEGIN
+                     IF mem[curq].hh.rh>0 THEN
+                       IF mem
+                          [curlist.tailfield].hh.b1=hyphenchar[mainf]THEN insdisc := true;
+                     IF ligaturepresent THEN
+                       BEGIN
+                         mainp := newligature(mainf,curl,mem[curq].hh
+                                  .rh);
+                         IF lfthit THEN
+                           BEGIN
+                             mem[mainp].hh.b1 := 2;
+                             lfthit := false;
+                           END;
+                         IF rthit THEN
+                           IF ligstack=0 THEN
+                             BEGIN
+                               mem[mainp].hh.b1 := mem[mainp].hh.
+                                                   b1+1;
+                               rthit := false;
+                             END;
+                         mem[curq].hh.rh := mainp;
+                         curlist.tailfield := mainp;
+                         ligaturepresent := false;
+                       END;
+                     IF insdisc THEN
+                       BEGIN
+                         insdisc := false;
+                         IF curlist.modefield>0 THEN
+                           BEGIN
+                             mem[curlist.tailfield].hh.rh := newdisc;
+                             curlist.tailfield := mem[curlist.tailfield].hh.rh;
+                           END;
+                       END;
+                   END;
+                 BEGIN
+                   mem[curlist.tailfield].hh.rh := newkern(fontinfo[kernbase[mainf]+256
+                                                   *mainj.b2+mainj.b3].int);
+                   curlist.tailfield := mem[curlist.tailfield].hh.rh;
+                 END;
+                 goto 90;
+               END;
+             IF curl=256 THEN lfthit := true
+             ELSE
+               IF ligstack=0 THEN rthit := true;
+             BEGIN
+               IF interrupt<>0 THEN pauseforinstructions;
+             END;
+             CASE mainj.b2 OF 
+               1,5:
+                    BEGIN
+                      curl := mainj.b3;
+                      maini := fontinfo[charbase[mainf]+curl].qqqq;
+                      ligaturepresent := true;
+                    END;
+               2,6:
+                    BEGIN
+                      curr := mainj.b3;
+                      IF ligstack=0 THEN
+                        BEGIN
+                          ligstack := newligitem(curr);
+                          bchar := 256;
+                        END
+                      ELSE
+                        IF (ligstack>=himemmin)THEN
+                          BEGIN
+                            mainp := ligstack;
+                            ligstack := newligitem(curr);
+                            mem[ligstack+1].hh.rh := mainp;
+                          END
+                      ELSE mem[ligstack].hh.b1 := curr;
+                    END;
+               3:
+                  BEGIN
+                    curr := mainj.b3;
+                    mainp := ligstack;
+                    ligstack := newligitem(curr);
+                    mem[ligstack].hh.rh := mainp;
+                  END;
+               7,11:
+                     BEGIN
+                       IF curl<256 THEN
+                         BEGIN
+                           IF mem[curq].hh.rh>0 THEN
+                             IF mem[
+                                curlist.tailfield].hh.b1=hyphenchar[mainf]THEN insdisc := true;
+                           IF ligaturepresent THEN
+                             BEGIN
+                               mainp := newligature(mainf,curl,mem[curq].hh
+                                        .rh);
+                               IF lfthit THEN
                                  BEGIN
-                                   IF interrupt<>0 THEN pauseforinstructions;
+                                   mem[mainp].hh.b1 := 2;
+                                   lfthit := false;
                                  END;
-                                 CASE mainj.b2 OF 
-                                   1,5:
-                                        BEGIN
-                                          curl := mainj.b3;
-                                          maini := fontinfo[charbase[mainf]+curl].qqqq;
-                                          ligaturepresent := true;
-                                        END;
-                                   2,6:
-                                        BEGIN
-                                          curr := mainj.b3;
-                                          IF ligstack=0 THEN
-                                            BEGIN
-                                              ligstack := newligitem(curr);
-                                              bchar := 256;
-                                            END
-                                          ELSE IF (ligstack>=himemmin)THEN
-                                                 BEGIN
-                                                   mainp := ligstack;
-                                                   ligstack := newligitem(curr);
-                                                   mem[ligstack+1].hh.rh := mainp;
-                                                 END
-                                          ELSE mem[ligstack].hh.b1 := curr;
-                                        END;
-                                   3:
-                                      BEGIN
-                                        curr := mainj.b3;
-                                        mainp := ligstack;
-                                        ligstack := newligitem(curr);
-                                        mem[ligstack].hh.rh := mainp;
-                                      END;
-                                   7,11:
-                                         BEGIN
-                                           IF curl<256 THEN
-                                             BEGIN
-                                               IF mem[curq].hh.rh>0 THEN IF mem[
-                                                                            curlist.tailfield].hh.b1
-                                                                            =hyphenchar[mainf]THEN
-                                                                           insdisc := true;
-                                               IF ligaturepresent THEN
-                                                 BEGIN
-                                                   mainp := newligature(mainf,curl,mem[curq].hh
-                                                            .rh);
-                                                   IF lfthit THEN
-                                                     BEGIN
-                                                       mem[mainp].hh.b1 := 2;
-                                                       lfthit := false;
-                                                     END;
-                                                   IF false THEN IF ligstack=0 THEN
-                                                                   BEGIN
-                                                                     mem[mainp].hh.b1 := mem[mainp].
-                                                                                         hh.
-                                                                                         b1+1;
-                                                                     rthit := false;
-                                                                   END;
-                                                   mem[curq].hh.rh := mainp;
-                                                   curlist.tailfield := mainp;
-                                                   ligaturepresent := false;
-                                                 END;
-                                               IF insdisc THEN
-                                                 BEGIN
-                                                   insdisc := false;
-                                                   IF curlist.modefield>0 THEN
-                                                     BEGIN
-                                                       mem[curlist.tailfield].hh.rh := newdisc;
-                                                       curlist.tailfield := mem[curlist.tailfield].
-                                                                            hh.rh;
-                                                     END;
-                                                 END;
-                                             END;
-                                           curq := curlist.tailfield;
-                                           curl := mainj.b3;
-                                           maini := fontinfo[charbase[mainf]+curl].qqqq;
-                                           ligaturepresent := true;
-                                         END;
-                                   ELSE
-                                     BEGIN
-                                       curl := mainj.b3;
-                                       ligaturepresent := true;
-                                       IF ligstack=0 THEN goto 80
-                                       ELSE goto 91;
-                                     END
+                               IF false THEN
+                                 IF ligstack=0 THEN
+                                   BEGIN
+                                     mem[mainp].hh.b1 := mem[mainp].hh.
+                                                         b1+1;
+                                     rthit := false;
+                                   END;
+                               mem[curq].hh.rh := mainp;
+                               curlist.tailfield := mainp;
+                               ligaturepresent := false;
+                             END;
+                           IF insdisc THEN
+                             BEGIN
+                               insdisc := false;
+                               IF curlist.modefield>0 THEN
+                                 BEGIN
+                                   mem[curlist.tailfield].hh.rh := newdisc;
+                                   curlist.tailfield := mem[curlist.tailfield].hh.rh;
                                  END;
-                                 IF mainj.b2>4 THEN IF mainj.b2<>7 THEN goto 80;
-                                 IF curl<256 THEN goto 110;
-                                 maink := bcharlabel[mainf];
-                                 goto 111;
-                               END{:1040};
+                             END;
+                         END;
+                       curq := curlist.tailfield;
+                       curl := mainj.b3;
+                       maini := fontinfo[charbase[mainf]+curl].qqqq;
+                       ligaturepresent := true;
+                     END;
+               ELSE
+                 BEGIN
+                   curl := mainj.b3;
+                   ligaturepresent := true;
+                   IF ligstack=0 THEN goto 80
+                   ELSE goto 91;
+                 END
+             END;
+             IF mainj.b2>4 THEN
+               IF mainj.b2<>7 THEN goto 80;
+             IF curl<256 THEN goto 110;
+             maink := bcharlabel[mainf];
+             goto 111;
+           END{:1040};
   IF mainj.b0=0 THEN maink := maink+1
   ELSE
     BEGIN
@@ -20471,28 +20216,30 @@ BEGIN
   freenode(tempptr,2);
   maini := fontinfo[charbase[mainf]+curl].qqqq;
   ligaturepresent := true;
-  IF ligstack=0 THEN IF mainp>0 THEN goto 100
+  IF ligstack=0 THEN
+    IF mainp>0 THEN goto 100
   ELSE curr := bchar
   ELSE curr := 
                mem[ligstack].hh.b1;
   goto 110{:1037}{:1034};
-  120:{1041:}IF eqtb[2894].hh.rh=0 THEN
-               BEGIN{1042:}
-                 BEGIN
-                   mainp := fontglue[
-                            eqtb[3934].hh.rh];
-                   IF mainp=0 THEN
-                     BEGIN
-                       mainp := newspec(0);
-                       maink := parambase[eqtb[3934].hh.rh]+2;
-                       mem[mainp+1].int := fontinfo[maink].int;
-                       mem[mainp+2].int := fontinfo[maink+1].int;
-                       mem[mainp+3].int := fontinfo[maink+2].int;
-                       fontglue[eqtb[3934].hh.rh] := mainp;
-                     END;
-                 END{:1042};
-                 tempptr := newglue(mainp);
-               END
+  120:{1041:}
+       IF eqtb[2894].hh.rh=0 THEN
+         BEGIN{1042:}
+           BEGIN
+             mainp := fontglue[
+                      eqtb[3934].hh.rh];
+             IF mainp=0 THEN
+               BEGIN
+                 mainp := newspec(0);
+                 maink := parambase[eqtb[3934].hh.rh]+2;
+                 mem[mainp+1].int := fontinfo[maink].int;
+                 mem[mainp+2].int := fontinfo[maink+1].int;
+                 mem[mainp+3].int := fontinfo[maink+2].int;
+                 fontglue[eqtb[3934].hh.rh] := mainp;
+               END;
+           END{:1042};
+           tempptr := newglue(mainp);
+         END
        ELSE tempptr := newparamglue(12);
   mem[curlist.tailfield].hh.rh := tempptr;
   curlist.tailfield := tempptr;
@@ -21104,39 +20851,33 @@ BEGIN{1378:}
     IF writeopen[k]THEN aclose(writefile[k])
 {:1378};
   eqtb[5312].int := -1;
-  IF eqtb[5294].int>0 THEN{1334:}IF logopened THEN
-                                   BEGIN
-                                     writeln(logfile,
-                                             ' ');
-                                     writeln(logfile,'Here is how much of TeX''s memory',
-                                             ' you used:');
-                                     write(logfile,' ',strptr-initstrptr:1,' string');
-                                     IF strptr<>initstrptr+1 THEN write(logfile,'s');
-                                     writeln(logfile,' out of ',maxstrings-initstrptr:1);
-                                     writeln(logfile,' ',poolptr-initpoolptr:1,
-                                             ' string characters out of ',
-                                             poolsize-initpoolptr:1);
-                                     writeln(logfile,' ',lomemmax-memmin+memend-himemmin+2:1,
-                                             ' words of memory out of ',memend+1-memmin:1);
-                                     writeln(logfile,' ',cscount:1,
-                                             ' multiletter control sequences out of ',
-                                             2100:1);
-                                     write(logfile,' ',fmemptr:1,' words of font info for ',fontptr-
-                                           0:1,
-                                           ' font');
-                                     IF fontptr<>1 THEN write(logfile,'s');
-                                     writeln(logfile,', out of ',fontmemsize:1,' for ',fontmax-0:1);
-                                     write(logfile,' ',hyphcount:1,' hyphenation exception');
-                                     IF hyphcount<>1 THEN write(logfile,'s');
-                                     writeln(logfile,' out of ',307:1);
-                                     writeln(logfile,' ',maxinstack:1,'i,',maxneststack:1,'n,',
-                                             maxparamstack:
-                                             1,'p,',maxbufstack+1:1,'b,',maxsavestack+6:1,
-                                             's stack positions out of '
-                                             ,stacksize:1,'i,',nestsize:1,'n,',paramsize:1,'p,',
-                                             bufsize:1,'b,',
-                                             savesize:1,'s');
-                                   END{:1334};;
+  IF eqtb[5294].int>0 THEN{1334:}
+    IF logopened THEN
+      BEGIN
+        writeln(logfile,
+                ' ');
+        writeln(logfile,'Here is how much of TeX''s memory',' you used:');
+        write(logfile,' ',strptr-initstrptr:1,' string');
+        IF strptr<>initstrptr+1 THEN write(logfile,'s');
+        writeln(logfile,' out of ',maxstrings-initstrptr:1);
+        writeln(logfile,' ',poolptr-initpoolptr:1,' string characters out of ',
+                poolsize-initpoolptr:1);
+        writeln(logfile,' ',lomemmax-memmin+memend-himemmin+2:1,
+                ' words of memory out of ',memend+1-memmin:1);
+        writeln(logfile,' ',cscount:1,' multiletter control sequences out of ',
+                2100:1);
+        write(logfile,' ',fmemptr:1,' words of font info for ',fontptr-0:1,
+              ' font');
+        IF fontptr<>1 THEN write(logfile,'s');
+        writeln(logfile,', out of ',fontmemsize:1,' for ',fontmax-0:1);
+        write(logfile,' ',hyphcount:1,' hyphenation exception');
+        IF hyphcount<>1 THEN write(logfile,'s');
+        writeln(logfile,' out of ',307:1);
+        writeln(logfile,' ',maxinstack:1,'i,',maxneststack:1,'n,',maxparamstack:
+                1,'p,',maxbufstack+1:1,'b,',maxsavestack+6:1,'s stack positions out of '
+                ,stacksize:1,'i,',nestsize:1,'n,',paramsize:1,'p,',bufsize:1,'b,',
+                savesize:1,'s');
+      END{:1334};;
 {642:}
   WHILE curs>-1 DO
     BEGIN
@@ -21294,13 +21035,15 @@ BEGIN
       condptr := mem[condptr].hh.rh;
       freenode(tempptr,2);
     END;
-  IF history<>0 THEN IF ((history=1)OR(interaction<3))THEN IF selector=19
-                                                             THEN
-                                                             BEGIN
-                                                               selector := 17;
-                                                               printnl(1283);
-                                                               selector := 19;
-                                                             END;
+  IF history<>0 THEN
+    IF ((history=1)OR(interaction<3))THEN
+      IF selector=19
+        THEN
+        BEGIN
+          selector := 17;
+          printnl(1283);
+          selector := 19;
+        END;
   IF c=1 THEN
     BEGIN
       IF TeXVariation>0 THEN
@@ -21884,6 +21627,7 @@ BEGIN
   maincontrol;
   finalcleanup;
   9998: closefilesandterminate;
-  9999: IF wantedit THEN execeditor;
+  9999:
+        IF wantedit THEN execeditor;
   halt(history);
 END.{:1332}

@@ -5,7 +5,9 @@
 help() {
     echo "Usage: $0 <action> ..."
     echo
+    echo "  build       Build tach, a TeX clone in modern Pascal"
     echo "  ref         Build reference DVIs with original TeX82"
+    echo "  check       Check if tach output is identical to TeX82 reference"
     echo
     echo "  clean       Remove build files"
 }
