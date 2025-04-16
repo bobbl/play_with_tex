@@ -1,0 +1,6 @@
+*.tex
+*.dvi
+*.log
+tmp.*
+TeXfonts
+TeXformats

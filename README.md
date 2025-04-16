@@ -157,3 +157,16 @@ be removed.
 
 See steps 3.1 to 3.3 from the quick solution above.
 
+
+
+
+
+
+Modify the Pascal source  code - tach
+-------------------------------------
+
+The initial version of tach is a pretty printed version of `tex.p`:
+
+    ptop -c ptop.cfg ../tex82/build/tex.p tach.p
+
+

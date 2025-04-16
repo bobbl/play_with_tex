@@ -276,13 +276,13 @@ trip() {
     relaxed_compare trip.pl tmp.pl
 
     # Step 2: build special TeX version
-    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool
-    fpc -Fasysutils,baseunix,unix triptex.p
+    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool > tmp.tangle
+    fpc -Fasysutils,baseunix,unix triptex.p > tmp.fpc
 
     # Step 3: First run of TeX
     cp ../sources/dist/tex/trip.tex .
     cp ../sources/dist/tex/trip.tfm TeXfonts/
-    printf "\n\\input trip\n" | ./triptex
+    printf "\n\\input trip\n" | ./triptex > tmp.trip1.stdout
     mv trip.log tripin.log
     relaxed_compare tripin.log ../sources/dist/tex/tripin.log
 

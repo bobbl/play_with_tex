@@ -1,0 +1,6 @@
+*.zip
+dist/
+local/
+manual/
+tfm/
+
