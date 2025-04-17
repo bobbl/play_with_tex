@@ -47,8 +47,8 @@ ref() {
 build() {
     mkdir -p build
     cd build
-    cp ../tach.p .
-    fpc -Fasysutils,baseunix,unix tach.p
+    cp ../tach.pas .
+    fpc -Fasysutils,baseunix,unix tach.pas
     cd ..
 }
 

@@ -2,8 +2,6 @@
 
 PROGRAM TEX(input,output);
 
-LABEL {6:}1,9998,9999;{:6}
-
 CONST {11:}memmax = 30000;
   memmin = 0;
   bufsize = 500;
@@ -452,6 +450,10 @@ wasmemend,waslomax,washimin:halfword;panicking:boolean;}
 {:1383}
 PROCEDURE catchsignal(i:integer);
 interrupt forward;
+
+procedure EditAndHalt; forward;
+
+
 PROCEDURE initialize;
 
 VAR {19:}i: integer;{:19}{163:}
@@ -925,13 +927,12 @@ END;
 {:57}{58:}
 PROCEDURE printchar(s:ASCIIcode);
 
-LABEL 10;
 BEGIN
   IF {244:}s=eqtb[5312].int{:244}THEN
     IF selector<20 THEN
       BEGIN
         println;
-        goto 10;
+        exit;
       END;
   CASE selector OF 
     19:
@@ -977,11 +978,8 @@ BEGIN
     ELSE write(writefile[selector],xchr[s])
   END;
   tally := tally+1;
-  10:
 END;{:58}{59:}
 PROCEDURE print(s:integer);
-
-LABEL 10;
 
 VAR j: poolpointer;
   nl: integer;
@@ -995,13 +993,13 @@ BEGIN
       IF selector>20 THEN
         BEGIN
           printchar(s);
-          goto 10;
+          exit;
         END;
       IF ({244:}s=eqtb[5312].int{:244})THEN
         IF selector<20 THEN
           BEGIN
             println;
-            goto 10;
+            exit;
           END;
       nl := eqtb[5312].int;
       eqtb[5312].int := -1;
@@ -1012,7 +1010,7 @@ BEGIN
           j := j+1;
         END;
       eqtb[5312].int := nl;
-      goto 10;
+      exit;
     END;
   j := strstart[s];
   WHILE j<strstart[s+1] DO
@@ -1020,7 +1018,6 @@ BEGIN
       printchar(strpool[j]);
       j := j+1;
     END;
-  10:
 END;
 {:59}{60:}
 PROCEDURE slowprint(s:integer);
@@ -1189,12 +1186,11 @@ forward;{procedure debughelp;forward;}
 {:78}{81:}
 PROCEDURE jumpout;
 BEGIN
-  goto 9998;
+  closefilesandterminate;
+  EditAndHalt;
 END;
 {:81}{82:}
 PROCEDURE error;
-
-LABEL 22,10;
 
 VAR c: ASCIIcode;
   s1,s2,s3,s4: integer;
@@ -1205,15 +1201,14 @@ BEGIN
   IF interaction=3 THEN{83:}
     WHILE true DO
       BEGIN
-        22:
             IF interaction<>3 THEN
-              goto 10;
+              exit;
         clearforerrorprompt;
         BEGIN;
           print(264);
           terminput;
         END;
-        IF last=first THEN goto 10;
+        IF last=first THEN exit;
         c := buffer[first];
         IF c>=97 THEN c := c-32;
 {84:}
@@ -1248,8 +1243,8 @@ BEGIN
                                                helpline[0] := 280;
                                              END;
                                              showcontext;
-                                             goto 22;
-                                           END{:88};{68:begin debughelp;goto 22;end;}
+                                             continue;
+                                           END{:88};{68:begin debughelp;continue;end;}
           69:
               IF baseptr>0 THEN
                 IF inputstack[baseptr].namefield>=256 THEN
@@ -1290,7 +1285,7 @@ BEGIN
                   helpline[1] := 284;
                   helpline[0] := 285;
                 END;
-                goto 22;
+                continue;
               END{:89};
           73:{87:}
               BEGIN
@@ -1310,7 +1305,7 @@ BEGIN
                   END;
                 first := last;
                 curinput.limitfield := last-1;
-                goto 10;
+                exit;
               END{:87};
           81,82,83:{86:}
                     BEGIN
@@ -1326,7 +1321,7 @@ BEGIN
                       println;
                       flush(output);
                       IF c=81 THEN selector := selector-1;
-                      goto 10;
+                      exit;
                     END{:86};
           88:
               BEGIN
@@ -1369,7 +1364,6 @@ BEGIN
   println;
   IF interaction>0 THEN selector := selector+1;
   println{:90};
-  10:
 END;
 {:82}{93:}
 PROCEDURE fatalerror(s:strnumber);
@@ -1540,7 +1534,7 @@ BEGIN
                   BEGIN
                     writeln(
                             output,'Buffer size exceeded!');
-                    goto 9999;
+                    EditAndHalt;
                   END
               ELSE
                 BEGIN
@@ -1581,7 +1575,7 @@ BEGIN
                =0 THEN
               BEGIN
                 writeln(output,'Buffer size exceeded!');
-                goto 9999;
+                EditAndHalt;
               END
           ELSE
             BEGIN
@@ -1602,14 +1596,13 @@ BEGIN
 END;{:36}{37:}
 FUNCTION initterminal: boolean;
 
-LABEL 10;
 BEGIN;
   inputcommandln;
   curinput.locfield := first;
   IF curinput.locfield<last THEN
     BEGIN
       initterminal := true;
-      goto 10;
+      exit;
     END;
   WHILE true DO
     BEGIN
@@ -1618,7 +1611,7 @@ BEGIN;
         BEGIN
           writeln(output);
           initterminal := false;
-          goto 10;
+          exit;
         END;
       curinput.locfield := first;
       WHILE (curinput.locfield<last)AND(buffer[curinput.locfield]=32) DO
@@ -1626,11 +1619,10 @@ BEGIN;
       IF curinput.locfield<last THEN
         BEGIN
           initterminal := true;
-          goto 10;
+          exit;
         END;
       writeln(output,'Please type the name of your input file or Control-D.');
     END;
-  10:
 END;{:37}{43:}
 FUNCTION makestring: strnumber;
 BEGIN
@@ -1642,8 +1634,6 @@ END;
 {:43}{45:}
 FUNCTION streqbuf(s:strnumber;k:integer): boolean;
 
-LABEL 45;
-
 VAR j: poolpointer;
   result: boolean;
 BEGIN
@@ -1652,40 +1642,41 @@ BEGIN
     BEGIN
       IF strpool[j]<>buffer[k]THEN
         BEGIN
-          result 
-          := false;
-          goto 45;
+          streqbuf := false;
+          exit;
         END;
       j := j+1;
       k := k+1;
     END;
   result := true;
-  45: streqbuf := result;
+  streqbuf := result;
 END;{:45}{46:}
 FUNCTION streqstr(s,t:strnumber): boolean;
-
-LABEL 45;
 
 VAR j,k: poolpointer;
   result: boolean;
 BEGIN
   result := false;
-  IF (strstart[s+1]-strstart[s])<>(strstart[t+1]-strstart[t])THEN goto 45;
+  IF (strstart[s+1]-strstart[s])<>(strstart[t+1]-strstart[t])THEN begin
+    streqstr := false;
+    exit;
+  end;
   j := strstart[s];
   k := strstart[t];
   WHILE j<strstart[s+1] DO
     BEGIN
-      IF strpool[j]<>strpool[k]THEN goto 45;
+      IF strpool[j]<>strpool[k]THEN begin
+        streqstr := false;
+        exit;
+      end;
       j := j+1;
       k := k+1;
     END;
   result := true;
-  45: streqstr := result;
+  streqstr := result;
 END;
 {:46}{47:}
 FUNCTION getstringsstarted: boolean;
-
-LABEL 30,10;
 
 VAR k,l: 0..255;
   m,n: char;
@@ -1763,7 +1754,7 @@ BEGIN
             BEGIN;
               writeln(output,'! TEX.POOL has no check sum.');
               getstringsstarted := false;
-              goto 10;
+              exit;
             END;
           read(poolfile,m,n);
           IF m='*'THEN{53:}
@@ -1776,19 +1767,18 @@ BEGIN
                     BEGIN;
                       writeln(output,'! TEX.POOL check sum doesn''t have nine digits.');
                       getstringsstarted := false;
-                      goto 10;
+                      exit;
                     END;
                   a := 10*a+xord[n]-48;
-                  IF k=9 THEN goto 30;
+                  IF k=9 THEN break;
                   k := k+1;
                   read(poolfile,n);
                 END;
-              30:
                   IF a<>305924274 THEN
                     BEGIN;
                       writeln(output,'! TeXformats/tex.pool doesn''t match. Not installed?');
                       getstringsstarted := false;
-                      goto 10;
+                      exit;
                     END;
               c := true;
             END{:53}
@@ -1799,14 +1789,14 @@ BEGIN
                 BEGIN;
                   writeln(output,'! TEX.POOL line doesn''t begin with two digits.');
                   getstringsstarted := false;
-                  goto 10;
+                  exit;
                 END;
               l := xord[m]*10+xord[n]-48*11;
               IF poolptr+l+stringvacancies>poolsize THEN
                 BEGIN;
                   writeln(output,'! You have to increase POOLSIZE.');
                   getstringsstarted := false;
-                  goto 10;
+                  exit;
                 END;
               FOR k:=1 TO l DO
                 BEGIN
@@ -1830,9 +1820,8 @@ BEGIN
     BEGIN;
       writeln(output,'! I can''t read TeXformats/tex.pool.');
       getstringsstarted := false;
-      goto 10;
+      exit;
     END{:51};
-  10:
 END;
 {:47}{66:}
 PROCEDURE printtwo(n:integer);
@@ -1857,8 +1846,6 @@ BEGIN
 END;{:67}{69:}
 PROCEDURE printromanint(n:integer);
 
-LABEL 10;
-
 VAR j,k: poolpointer;
   u,v: nonnegativeinteger;
 BEGIN
@@ -1871,7 +1858,7 @@ BEGIN
           printchar(strpool[j]);
           n := n-v;
         END;
-      IF n<=0 THEN goto 10;
+      IF n<=0 THEN exit;
       k := j+2;
       u := v DIV(strpool[k-1]-48);
       IF strpool[k-1]=50 THEN
@@ -1890,7 +1877,6 @@ BEGIN
           v := v DIV(strpool[j-1]-48);
         END;
     END;
-  10:
 END;
 {:69}{70:}
 PROCEDURE printcurrentstring;
@@ -2105,8 +2091,6 @@ printint(w.qqqq.b3);end;}
 {:114}{119:}{292:}
 PROCEDURE showtokenlist(p,q:integer;l:integer);
 
-LABEL 10;
-
 VAR m,c: integer;
   matchchr: ASCIIcode;
   n: ASCIIcode;
@@ -2127,7 +2111,7 @@ BEGIN
       IF (p<himemmin)OR(p>memend)THEN
         BEGIN
           printesc(309);
-          goto 10;
+          exit;
         END;
       IF mem[p].hh.lh>=4095 THEN printcs(mem[p].hh.lh-4095)
       ELSE
@@ -2152,7 +2136,7 @@ BEGIN
                    ELSE
                      BEGIN
                        printchar(33);
-                       goto 10;
+                       exit;
                      END;
                  END;
               13:
@@ -2161,7 +2145,7 @@ BEGIN
                     print(c);
                     n := n+1;
                     printchar(n);
-                    IF n>57 THEN goto 10;
+                    IF n>57 THEN exit;
                   END;
               14: print(556);
               ELSE printesc(555)
@@ -2170,7 +2154,6 @@ BEGIN
       p := mem[p].hh.rh;
     END;
   IF p<>0 THEN printesc(554);
-  10:
 END;{:292}{306:}
 PROCEDURE runaway;
 
@@ -2253,7 +2236,7 @@ END;
 {:123}{125:}
 FUNCTION getnode(s:integer): halfword;
 
-LABEL 40,10,20;
+LABEL 20;
 
 VAR p: halfword;
   q: halfword;
@@ -2276,7 +2259,10 @@ BEGIN
       BEGIN
         mem[p].hh.lh := r-p;
         rover := p;
-        goto 40;
+        mem[r].hh.rh := 0;
+        varused := varused+s;
+        getnode := r;
+        exit;
       END{:128};
     IF r=p THEN
       IF mem[p+1].hh.rh<>p THEN{129:}
@@ -2285,7 +2271,10 @@ BEGIN
           t := mem[p+1].hh.lh;
           mem[rover+1].hh.lh := t;
           mem[t+1].hh.rh := rover;
-          goto 40;
+          mem[r].hh.rh := 0;
+          varused := varused+s;
+          getnode := r;
+          exit;
         END{:129};
     mem[p].hh.lh := q-p{:127};
     p := mem[p+1].hh.rh;
@@ -2293,7 +2282,7 @@ BEGIN
   IF s=1073741824 THEN
     BEGIN
       getnode := 65535;
-      goto 10;
+      exit;
     END;
   IF lomemmax+2<himemmin THEN
     IF lomemmax+2<=65535 THEN{126:}
@@ -2318,10 +2307,9 @@ BEGIN
         goto 20;
       END{:126};
   overflow(300,memmax+1-memmin);
-  40: mem[r].hh.rh := 0;
+  mem[r].hh.rh := 0;
   varused := varused+s;
   getnode := r;
-  10:
 END;{:125}{130:}
 PROCEDURE freenode(p:halfword;s:halfword);
 
@@ -2782,7 +2770,7 @@ BEGIN
     BEGIN
       IF p>0 THEN
         print(314);
-      goto 10;
+      exit;
     END;
   n := 0;
   WHILE p>memmin DO
@@ -2792,13 +2780,13 @@ BEGIN
       IF p>memend THEN
         BEGIN
           print(315);
-          goto 10;
+          exit;
         END;
       n := n+1;
       IF n>breadthmax THEN
         BEGIN
           print(316);
-          goto 10;
+          exit;
         END;
 {183:}
       IF (p>=himemmin)THEN printfontandchar(p)
@@ -4353,8 +4341,6 @@ END;
 {:252}{259:}
 FUNCTION idlookup(j,l:integer): halfword;
 
-LABEL 40;
-
 VAR h: integer;
   d: integer;
   p: halfword;
@@ -4373,7 +4359,10 @@ BEGIN{261:}
       IF hash[p].rh>0 THEN
         IF (strstart[hash[p].rh+1]-
            strstart[hash[p].rh])=l THEN
-          IF streqbuf(hash[p].rh,j)THEN goto 40;
+          IF streqbuf(hash[p].rh,j)THEN begin
+            idlookup := p;
+            exit;
+          end;
       IF hash[p].lh=0 THEN
         BEGIN
           IF nonewcontrolsequence THEN p := 2881
@@ -4408,11 +4397,12 @@ BEGIN{261:}
               poolptr := poolptr+d;
               cscount := cscount+1;
             END{:260};
-          goto 40;
+          idlookup := p;
+          exit;
         END;
       p := hash[p].lh;
     END;
-  40: idlookup := p;
+    idlookup := p;
 END;{:259}{264:}
 PROCEDURE primitive(s:strnumber;
                     c:quarterword;o:halfword);
@@ -4558,8 +4548,6 @@ PROCEDURE backinput;
 forward;
 PROCEDURE unsave;
 
-LABEL 30;
-
 VAR p: halfword;
   l: quarterword;
   t: halfword;
@@ -4571,7 +4559,7 @@ BEGIN
       WHILE true DO
         BEGIN
           saveptr := saveptr-1;
-          IF savestack[saveptr].hh.b0=3 THEN goto 30;
+          IF savestack[saveptr].hh.b0=3 THEN break;
           p := savestack[saveptr].hh.rh;
           IF savestack[saveptr].hh.b0=2 THEN{326:}
             BEGIN
@@ -4616,7 +4604,7 @@ BEGIN
                 END{:283};
             END;
         END;
-      30: curgroup := savestack[saveptr].hh.b1;
+      curgroup := savestack[saveptr].hh.b1;
       curboundary := savestack[saveptr].hh.rh{:282};
     END
   ELSE confusion(543);
@@ -4699,8 +4687,6 @@ BEGIN
 END;
 {:299}{311:}
 PROCEDURE showcontext;
-
-LABEL 30;
 
 VAR oldsetting: 0..21;
   nn: integer;
@@ -4853,10 +4839,10 @@ BEGIN
             printnl(277);
             nn := nn+1;
           END;
-      IF bottomline THEN goto 30;
+      IF bottomline THEN break;
       baseptr := baseptr-1;
     END;
-  30: curinput := inputstack[inputptr];
+  curinput := inputstack[inputptr];
 END;
 {:311}{323:}
 PROCEDURE begintokenlist(p:halfword;t:quarterword);
@@ -5402,7 +5388,7 @@ BEGIN
                     BEGIN
                       curcmd := 0;
                       curchr := 0;
-                      goto 10;
+                      exit;
                     END;
                   IF inputptr>0 THEN
                     BEGIN
@@ -5544,7 +5530,7 @@ END;
 {:365}{366:}{389:}
 PROCEDURE macrocall;
 
-LABEL 10,22,30,31,40;
+LABEL 22,40;
 
 VAR r: halfword;
   p: halfword;
@@ -5625,7 +5611,9 @@ BEGIN
                 helpline[0] := 655;
               END;
               error;
-              goto 10;
+              scannerstatus := savescannerstatus;
+              warningindex := savewarningindex;
+              exit;
             END{:398}
         ELSE
           BEGIN
@@ -5643,17 +5631,17 @@ BEGIN
               WHILE true DO
                 BEGIN
                   IF u=r THEN
-                    IF curtok<>mem[v].hh.lh THEN goto 30
+                    IF curtok<>mem[v].hh.lh THEN break
                   ELSE
                     BEGIN
                       r := mem[v].hh.rh;
                       goto 22;
                     END;
-                  IF mem[u].hh.lh<>mem[v].hh.lh THEN goto 30;
+                  IF mem[u].hh.lh<>mem[v].hh.lh THEN break;
                   u := mem[u].hh.rh;
                   v := mem[v].hh.rh;
                 END;
-              30: t := mem[t].hh.rh;
+              t := mem[t].hh.rh;
             UNTIL t=r;
             r := s;
           END{:397};
@@ -5683,7 +5671,9 @@ BEGIN
               alignstate := alignstate-unbalance;
               FOR m:=0 TO n DO
                 flushlist(pstack[m]);
-              goto 10;
+              scannerstatus := savescannerstatus;
+              warningindex := savewarningindex;
+              exit;
             END{:396};
         IF curtok<768 THEN
           IF curtok<512 THEN{399:}
@@ -5733,17 +5723,19 @@ BEGIN
                         alignstate := alignstate-unbalance;
                         FOR m:=0 TO n DO
                           flushlist(pstack[m]);
-                        goto 10;
+                        scannerstatus := savescannerstatus;
+                        warningindex := savewarningindex;
+                        exit;
                       END{:396};
                   IF curtok<768 THEN
                     IF curtok<512 THEN unbalance := unbalance+1
                   ELSE
                     BEGIN
                       unbalance := unbalance-1;
-                      IF unbalance=0 THEN goto 31;
+                      IF unbalance=0 THEN break;
                     END;
                 END;
-              31: rbraceptr := p;
+              rbraceptr := p;
               BEGIN
                 q := getavail;
                 mem[p].hh.rh := q;
@@ -5844,7 +5836,7 @@ BEGIN
         paramstack[paramptr+m] := pstack[m];
       paramptr := paramptr+n;
     END{:390};
-  10: scannerstatus := savescannerstatus;
+  scannerstatus := savescannerstatus;
   warningindex := savewarningindex;
 END;{:389}{379:}
 PROCEDURE insertrelax;
@@ -6146,7 +6138,7 @@ BEGIN
             backinput;
             IF p<>29987 THEN begintokenlist(mem[29987].hh.rh,3);
             scankeyword := false;
-            goto 10;
+            exit;
           END;
     END;
   flushlist(mem[29987].hh.rh);
@@ -7134,7 +7126,7 @@ BEGIN
       IF curvallevel>=2 THEN
         BEGIN
           IF curvallevel<>level THEN muerror;
-          goto 10;
+          exit;
         END;
       IF curvallevel=0 THEN scandimen(mu,false,true)
       ELSE
@@ -7709,7 +7701,7 @@ BEGIN
           IF mem[q].hh.rh=p THEN
             BEGIN
               mem[q].hh.b0 := l;
-              goto 10;
+              exit;
             END;
           q := mem[q].hh.rh;
         END;
@@ -7907,7 +7899,7 @@ BEGIN{495:}
                   END{:496};
             END;
           changeiflimit(4,savecondptr);
-          goto 10;
+          exit;
         END{:509};
   END{:501};
   IF eqtb[5299].int>1 THEN{502:}
@@ -7920,7 +7912,7 @@ BEGIN{495:}
   IF b THEN
     BEGIN
       changeiflimit(3,savecondptr);
-      goto 10;
+      exit;
     END;
 {500:}
   WHILE true DO
@@ -8822,7 +8814,7 @@ BEGIN
           mem[p].hh.b0 := f;
           mem[p].hh.b1 := c;
           newcharacter := p;
-          goto 10;
+          exit;
         END;
   charwarning(f,c);
   newcharacter := 0;
@@ -9033,7 +9025,7 @@ BEGIN
         IF dviptr=dvilimit THEN dviswap;
       END;
       dvifour(w);
-      goto 10;
+      exit;
     END;
   IF abs(w)>=32768 THEN
     BEGIN
@@ -9080,7 +9072,7 @@ BEGIN
        dviptr := dviptr+1;
        IF dviptr=dvilimit THEN dviswap;
      END;
-  goto 10{:610};
+  exit{:610};
   40:{609:}mem[q].hh.lh := mem[p].hh.lh;
   IF mem[q].hh.lh=1 THEN
     BEGIN
@@ -9134,7 +9126,7 @@ BEGIN
   30:
       WHILE rightptr<>0 DO
         BEGIN
-          IF mem[rightptr+2].int<l THEN goto 10;
+          IF mem[rightptr+2].int<l THEN exit;
           p := rightptr;
           rightptr := mem[p].hh.rh;
           freenode(p,3);
@@ -9976,7 +9968,7 @@ END;{:645}{649:}
 FUNCTION hpack(p:halfword;w:scaled;
                m:smallnumber): halfword;
 
-LABEL 21,50,10;
+LABEL 21,50;
 
 VAR r: halfword;
   q: halfword;
@@ -10097,7 +10089,8 @@ BEGIN
       mem[r+5].hh.b0 := 0;
       mem[r+5].hh.b1 := 0;
       mem[r+6].gr := 0.0;
-      goto 10;
+      hpack := r;
+      exit;
     END
   ELSE
     IF x>0 THEN{658:}
@@ -10133,7 +10126,8 @@ BEGIN
                   goto 50;
                 END;
             END{:660};
-        goto 10;
+        hpack := r;
+        exit;
       END{:658}
   ELSE{664:}
     BEGIN{665:}
@@ -10189,7 +10183,8 @@ BEGIN
                   goto 50;
                 END;
             END{:667};
-      goto 10;
+      hpack := r;
+      exit;
     END{:664}{:657};
   50:{663:}
       IF outputactive THEN print(848)
@@ -10213,13 +10208,13 @@ BEGIN
   begindiagnostic;
   showbox(r);
   enddiagnostic(true){:663};
-  10: hpack := r;
+  hpack := r;
 END;
 {:649}{668:}
 FUNCTION vpackage(p:halfword;h:scaled;m:smallnumber;
                   l:scaled): halfword;
 
-LABEL 50,10;
+LABEL 50;
 
 VAR r: halfword;
   w,d,x: scaled;
@@ -10299,7 +10294,8 @@ BEGIN
       mem[r+5].hh.b0 := 0;
       mem[r+5].hh.b1 := 0;
       mem[r+6].gr := 0.0;
-      goto 10;
+      vpackage := r;
+      exit;
     END
   ELSE
     IF x>0 THEN{673:}
@@ -10335,7 +10331,8 @@ BEGIN
                   goto 50;
                 END;
             END{:674};
-        goto 10;
+        vpackage := r;
+        exit;
       END{:673}
   ELSE{676:}
     BEGIN{665:}
@@ -10384,7 +10381,8 @@ BEGIN
                   goto 50;
                 END;
             END{:678};
-      goto 10;
+      vpackage := r;
+      exit;
     END{:676}{:672};
   50:{675:}
       IF outputactive THEN print(848)
@@ -10404,7 +10402,7 @@ BEGIN
   begindiagnostic;
   showbox(r);
   enddiagnostic(true){:675};
-  10: vpackage := r;
+  vpackage := r;
 END;
 {:668}{679:}
 PROCEDURE appendtovlist(b:halfword);
@@ -11252,7 +11250,7 @@ BEGIN
                                              curi.b3].int);
                                         mem[p].hh.rh := mem[q].hh.rh;
                                         mem[q].hh.rh := p;
-                                        goto 10;
+                                        exit;
                                       END
                                 ELSE
                                   BEGIN
@@ -11281,11 +11279,11 @@ BEGIN
                                           freenode(p,4);
                                         END
                                     END;
-                                    IF curi.b2>3 THEN goto 10;
+                                    IF curi.b2>3 THEN exit;
                                     mem[q+1].hh.rh := 1;
                                     goto 20;
                                   END{:753};
-                                IF curi.b0>=128 THEN goto 10;
+                                IF curi.b0>=128 THEN exit;
                                 a := a+curi.b0+1;
                                 curi := fontinfo[a].qqqq;
                               END;
@@ -12115,7 +12113,7 @@ BEGIN
       IF mem[curalign+5].hh.lh>=257 THEN
         BEGIN
           fincol := true;
-          goto 10;
+          exit;
         END;
       initspan(p);
     END;
@@ -13533,7 +13531,7 @@ BEGIN{923:}
       ELSE h := 307;
     END;
   45: hn := hn-1{:930};
-  IF trie[curlang+1].b1<>curlang THEN goto 10;
+  IF trie[curlang+1].b1<>curlang THEN exit;
   hc[0] := 0;
   hc[hn+1] := 0;
   hc[hn+2] := 256;
@@ -13565,7 +13563,7 @@ BEGIN{923:}
 {902:}
   FOR j:=lhyf TO hn-rhyf DO
     IF odd(hyf[j])THEN goto 41;
-  goto 10;
+  exit;
   41:{:902};{903:}
   q := mem[hb].hh.rh;
   mem[hb].hh.rh := 0;
@@ -13773,13 +13771,13 @@ BEGIN
           trieophash[h] := trieopptr;
           trieopval[trieopptr] := u;
           newtrieop := u;
-          goto 10;
+          exit;
         END;
       IF (hyfdistance[l]=d)AND(hyfnum[l]=n)AND(hyfnext[l]=v)AND(trieoplang[l]=
          curlang)THEN
         BEGIN
           newtrieop := trieopval[l];
-          goto 10;
+          exit;
         END;
       IF h>-trieopsize THEN h := h-1
       ELSE h := trieopsize;
@@ -13803,13 +13801,13 @@ BEGIN
         BEGIN
           triehash[h] := p;
           trienode := p;
-          goto 10;
+          exit;
         END;
       IF (triec[q]=triec[p])AND(trieo[q]=trieo[p])AND(triel[q]=triel[p])AND(
          trier[q]=trier[p])THEN
         BEGIN
           trienode := q;
-          goto 10;
+          exit;
         END;
       IF h>0 THEN h := h-1
       ELSE h := triesize;
@@ -14788,7 +14786,7 @@ BEGIN
                         hyphword[h] := s;
                         hyphlist[h] := p{:940};
                       END{:939};
-                    IF curcmd=2 THEN goto 10;
+                    IF curcmd=2 THEN exit;
                     n := 0;
                     p := 0;
                   END;
@@ -14991,7 +14989,7 @@ BEGIN
   IF v=0 THEN
     BEGIN
       vsplit := 0;
-      goto 10;
+      exit;
     END;
   IF mem[v].hh.b0<>1 THEN
     BEGIN
@@ -15010,7 +15008,7 @@ BEGIN
       END;
       error;
       vsplit := 0;
-      goto 10;
+      exit;
     END{:978};
   q := vertbreak(mem[v+5].hh.rh,h,eqtb[5836].int);{979:}
   p := mem[v+5].hh.rh;
@@ -15369,7 +15367,7 @@ BEGIN{1013:}
       newsavelevel(8);
       normalparagraph;
       scanleftbrace;
-      goto 10;
+      exit;
     END{:1025};
 {1023:}
   BEGIN
@@ -15402,7 +15400,7 @@ VAR p: halfword;
   n: 0..255;
   delta,h,w: scaled;
 BEGIN
-  IF (mem[29999].hh.rh=0)OR outputactive THEN goto 10;
+  IF (mem[29999].hh.rh=0)OR outputactive THEN exit;
   REPEAT
     22: p := mem[29999].hh.rh;
 {996:}
@@ -15454,7 +15452,7 @@ BEGIN
       11:
           IF pagecontents<2 THEN goto 31
           ELSE
-            IF mem[p].hh.rh=0 THEN goto 10
+            IF mem[p].hh.rh=0 THEN exit
           ELSE
             IF mem[mem[p].hh.rh].hh.b0=10 THEN pi := 0
           ELSE goto 90;
@@ -15624,7 +15622,7 @@ BEGIN
         IF (c=1073741823)OR(pi<=-10000)THEN
           BEGIN
             fireup(p);
-            IF outputactive THEN goto 10;
+            IF outputactive THEN exit;
             goto 30;
           END;
       END{:1005};
@@ -15785,7 +15783,7 @@ BEGIN
          curlist.tailfield)AND(deadcycles=0)THEN
         BEGIN
           itsallover := true;
-          goto 10;
+          exit;
         END;
       backinput;
       BEGIN
@@ -16144,7 +16142,7 @@ BEGIN
             curlist.auxfield.hh.lh := 1000;
             IF eqtb[3417].hh.rh<>0 THEN begintokenlist(eqtb[3417].hh.rh,10);
           END;
-        goto 10;
+        exit;
       END{:1083}
   END;
   boxend(boxcontext);
@@ -16404,7 +16402,7 @@ BEGIN
                     FOR m:=1 TO mem[q].
                         hh.b1 DO
                       p := mem[p].hh.rh;
-                    IF p=curlist.tailfield THEN goto 10;
+                    IF p=curlist.tailfield THEN exit;
                   END;
               q := mem[p].hh.rh;
             UNTIL q=curlist.tailfield;
@@ -16426,7 +16424,7 @@ BEGIN
   c := curchr;
   scaneightbitint;
   p := eqtb[3678+curval].hh.rh;
-  IF p=0 THEN goto 10;
+  IF p=0 THEN exit;
   IF (abs(curlist.modefield)=203)OR((abs(curlist.modefield)=1)AND(mem[p].hh
      .b0<>1))OR((abs(curlist.modefield)=102)AND(mem[p].hh.b0<>0))THEN
     BEGIN
@@ -16442,7 +16440,7 @@ BEGIN
         helpline[0] := 1101;
       END;
       error;
-      goto 10;
+      exit;
     END;
   IF c=1 THEN mem[curlist.tailfield].hh.rh := copynodelist(mem[p+5].hh.rh)
   ELSE
@@ -16470,7 +16468,7 @@ BEGIN
       ELSE
         IF mem[curlist.
            tailfield].hh.b0=6 THEN p := curlist.tailfield+1
-      ELSE goto 10;
+      ELSE exit;
       f := mem[p].hh.b0;
       BEGIN
         mem[curlist.tailfield].hh.rh := newkern(fontinfo[italicbase[f]+(
@@ -16596,7 +16594,7 @@ BEGIN
            END;
          IF n>0 THEN curlist.tailfield := q;
          saveptr := saveptr-1;
-         goto 10;
+         exit;
        END{:1120};
   END;
   savestack[saveptr-1].int := savestack[saveptr-1].int+1;
@@ -16996,7 +16994,7 @@ BEGIN
             savestack[saveptr+0].int := p;
             saveptr := saveptr+1;
             pushmath(9);
-            goto 10;
+            exit;
           END{:1153}
       END;
   mem[p].hh.rh := 1;
@@ -17045,7 +17043,7 @@ BEGIN
        tailfield].hh.b0=17 THEN
       BEGIN
         mem[curlist.tailfield].hh.b1 := curchr;
-        goto 10;
+        exit;
       END;
   BEGIN
     IF interaction=3 THEN;
@@ -17206,7 +17204,7 @@ BEGIN
        BEGIN
          mem[curlist.tailfield+2].hh.rh := p;
          saveptr := saveptr-1;
-         goto 10;
+         exit;
        END;
   END;
   savestack[saveptr-1].int := savestack[saveptr-1].int+1;
@@ -17777,7 +17775,7 @@ BEGIN
               helpline[0] := 1211;
             END;
             error;
-            goto 10;
+            exit;
           END;
       END;
     p := curchr;
@@ -17879,7 +17877,7 @@ BEGIN
       END;
       IF p>=2 THEN deleteglueref(curval);
       error;
-      goto 10;
+      exit;
     END;
   IF p<2 THEN
     IF (a>=4)THEN geqworddefine(l,curval)
@@ -18142,7 +18140,7 @@ BEGIN
             helpline[0] := 1181;
           END;
           backerror;
-          goto 10;
+          exit;
         END{:1212};
     END;
 {1213:}
@@ -18527,7 +18525,7 @@ BEGIN
             REPEAT
               gettoken;
             UNTIL curcmd=2;
-            goto 10;
+            exit;
           END
         ELSE
           BEGIN
@@ -18577,7 +18575,7 @@ BEGIN
       REPEAT
         getxtoken;
       UNTIL (curcmd<>10)AND(curcmd<>0){:404};
-      IF curcmd<=70 THEN goto 10;
+      IF curcmd<=70 THEN exit;
       setboxallowed := false;
       prefixedcommand;
       setboxallowed := true;
@@ -19691,7 +19689,7 @@ BEGIN
                   goto 21;
                 END;
     15:
-        IF itsallover THEN goto 10;
+        IF itsallover THEN exit;
 {1048:}
     23,123,224,71,172,273,{:1048}{1098:}39,{:1098}{1111:}45,{:1111}
 {1144:}49,150,{:1144}7,108,209: reportillegalcase;
@@ -20278,7 +20276,7 @@ BEGIN
     BEGIN;
       writeln(output,'I can''t find TeXformats/plain.fmt!');
       openfmtfile := false;
-      goto 10;
+      exit;
     END;
   40: curinput.locfield := j;
   openfmtfile := true;
@@ -20836,7 +20834,7 @@ BEGIN{1308:}
   END;
   IF (x<>69069)THEN goto 6666{:1327};
   loadfmtfile := true;
-  goto 10;
+  exit;
   6666:;
   writeln(output,'(Fatal format file error; I''m stymied)');
   loadfmtfile := false;
@@ -21053,10 +21051,10 @@ BEGIN
                curmark[c]<>0 THEN deletetokenref(curmark[c]);
           IF lastglue<>65535 THEN deleteglueref(lastglue);
           storefmtfile;
-          goto 10;
+          exit;
         END;
       printnl(1284);
-      goto 10;
+      exit;
     END;
   10:
 END;{:1335}{1336:}
@@ -21437,20 +21435,20 @@ BEGIN
   nonewcontrolsequence := true;
 END;
 {:1336}{1338:}
-{procedure debughelp;label 888,10;var k,l,m,n:integer;
+{procedure debughelp;label 888;var k,l,m,n:integer;
 begin;while true do begin;printnl(1285);flush(output);
-if eof(input)then goto 10;read(input,m);
-if m<0 then goto 10 else if m=0 then begin goto 888;888:m:=0;
-['BREAKPOINT']end else begin if eof(input)then goto 10;read(input,n);
+if eof(input)then exit;read(input,m);
+if m<0 then exit else if m=0 then begin goto 888;888:m:=0;
+['BREAKPOINT']end else begin if eof(input)then exit;read(input,n);
 case m of[1339:]1:printword(mem[n]);2:printint(mem[n].hh.lh);
 3:printint(mem[n].hh.rh);4:printword(eqtb[n]);5:printword(fontinfo[n]);
 6:printword(savestack[n]);7:showbox(n);8:begin breadthmax:=10000;
 depththreshold:=poolsize-poolptr-10;shownodelist(n);end;
 9:showtokenlist(n,0,1000);10:slowprint(n);11:checkmem(n>0);
-12:searchmem(n);13:begin if eof(input)then goto 10;read(input,l);
+12:searchmem(n);13:begin if eof(input)then exit;read(input,l);
 printcmdchr(n,l);end;14:for k:=0 to n do print(buffer[k]);
 15:begin fontinshortdisplay:=0;shortdisplay(n);end;
-16:panicking:=not panicking;[:1339]else print(63)end;end;end;10:end;}
+16:panicking:=not panicking;[:1339]else print(63)end;end;end;end;}
 {:1338}{1380:}
 PROCEDURE execeditor;
 
@@ -21506,53 +21504,62 @@ BEGIN
   fpexecvp(editor,argv);
   writeln('Sorry, executing the editor failed.');
 END;{:1380}{:1330}{1332:}
+
+procedure EditAndHalt;
+begin
+  if wantedit then execeditor;
+  halt(history);
+end;
+
 BEGIN
   history := 3;;
-  IF readyalready=314159 THEN goto 1;{14:}
-  bad := 0;
-  IF (halferrorline<30)OR(halferrorline>errorline-15)THEN bad := 1;
-  IF maxprintline<60 THEN bad := 2;
-  IF dvibufsize MOD 8<>0 THEN bad := 3;
-  IF 1100>30000 THEN bad := 4;
-  IF 1777>2100 THEN bad := 5;
-  IF maxinopen>=128 THEN bad := 6;
-  IF 30000<267 THEN bad := 7;
+  if readyalready<>314159 then begin{14:}
+    bad := 0;
+    IF (halferrorline<30)OR(halferrorline>errorline-15)THEN bad := 1;
+    IF maxprintline<60 THEN bad := 2;
+    IF dvibufsize MOD 8<>0 THEN bad := 3;
+    IF 1100>30000 THEN bad := 4;
+    IF 1777>2100 THEN bad := 5;
+    IF maxinopen>=128 THEN bad := 6;
+    IF 30000<267 THEN bad := 7;
 {:14}{111:}
-  IF (memmin<>0)OR(memmax<>30000)THEN bad := 10;
-  IF (memmin>0)OR(memmax<30000)THEN bad := 10;
-  IF (0>0)OR(255<127)THEN bad := 11;
-  IF (0>0)OR(65535<32767)THEN bad := 12;
-  IF (0<0)OR(255>65535)THEN bad := 13;
-  IF (memmin<0)OR(memmax>=65535)OR(-0-memmin>65536)THEN bad := 14;
-  IF (0<0)OR(fontmax>255)THEN bad := 15;
-  IF fontmax>256 THEN bad := 16;
-  IF (savesize>65535)OR(maxstrings>65535)THEN bad := 17;
-  IF bufsize>65535 THEN bad := 18;
-  IF 255<255 THEN bad := 19;
+    IF (memmin<>0)OR(memmax<>30000)THEN bad := 10;
+    IF (memmin>0)OR(memmax<30000)THEN bad := 10;
+    IF (0>0)OR(255<127)THEN bad := 11;
+    IF (0>0)OR(65535<32767)THEN bad := 12;
+    IF (0<0)OR(255>65535)THEN bad := 13;
+    IF (memmin<0)OR(memmax>=65535)OR(-0-memmin>65536)THEN bad := 14;
+    IF (0<0)OR(fontmax>255)THEN bad := 15;
+    IF fontmax>256 THEN bad := 16;
+    IF (savesize>65535)OR(maxstrings>65535)THEN bad := 17;
+    IF bufsize>65535 THEN bad := 18;
+    IF 255<255 THEN bad := 19;
 {:111}{290:}
-  IF 6976>65535 THEN bad := 21;
+    IF 6976>65535 THEN bad := 21;
 {:290}{522:}
-  IF 20>filenamesize THEN bad := 31;
+    IF 20>filenamesize THEN bad := 31;
 {:522}{1249:}
-  IF 2*65535<30000-memmin THEN bad := 41;
+    IF 2*65535<30000-memmin THEN bad := 41;
 {:1249}
-  IF bad>0 THEN
-    BEGIN
-      writeln(output,
-              'Ouch---my internal constants have been clobbered!','---case ',bad:1);
-      goto 9999;
-    END;
-  initialize;
-  IF TeXVariation>0 THEN
-    BEGIN
-      IF NOT getstringsstarted THEN goto 9999;
-      initprim;
-      initstrptr := strptr;
-      initpoolptr := poolptr;
-      fixdateandtime;
-    END;
-  readyalready := 314159;
-  1:{55:}selector := 17;
+    IF bad>0 THEN
+      BEGIN
+        writeln(output,
+                'Ouch---my internal constants have been clobbered!','---case ',bad:1);
+        EditAndHalt;
+      END;
+    initialize;
+    IF TeXVariation>0 THEN
+      BEGIN
+        IF NOT getstringsstarted THEN EditAndHalt;
+        initprim;
+        initstrptr := strptr;
+        initpoolptr := poolptr;
+        fixdateandtime;
+      END;
+    readyalready := 314159;
+  end;
+
+  {55:}selector := 17;
   tally := 0;
   termoffset := 0;
   fileoffset := 0;{:55}{61:}
@@ -21593,7 +21600,7 @@ BEGIN
       curinput.namefield := 0;
       forceeof := false;
       alignstate := 1000000;
-      IF NOT initterminal THEN goto 9999;
+      IF NOT initterminal THEN EditAndHalt;
       curinput.limitfield := last;
       first := last+1;
     END{:331};
@@ -21601,11 +21608,11 @@ BEGIN
       BEGIN
         IF 
            formatident<>0 THEN initialize;
-        IF NOT openfmtfile THEN goto 9999;
+        IF NOT openfmtfile THEN EditAndHalt;
         IF NOT loadfmtfile THEN
           BEGIN
             wclose(fmtfile);
-            goto 9999;
+            EditAndHalt;
           END;
         wclose(fmtfile);
         WHILE (curinput.locfield<curinput.limitfield)AND(buffer[curinput.locfield
@@ -21626,8 +21633,6 @@ BEGIN
   history := 0;
   maincontrol;
   finalcleanup;
-  9998: closefilesandterminate;
-  9999:
-        IF wantedit THEN execeditor;
-  halt(history);
+  closefilesandterminate;
+  EditAndHalt;
 END.{:1332}
