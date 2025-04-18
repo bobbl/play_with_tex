@@ -220,8 +220,15 @@ to distinguish between INITEX and TEX.
 TeXVariation is 0 for TEX, 1 for INITEX and 2 for INITEX for the TRIP test
 
 @x
+@<Initialize whatever...@>=
+@<Set initial values of key variables@>@/
 @!init @<Initialize table entries (done by \.{INITEX} only)@>@;@+tini
 @y
+@d fpc_param_count==p @& a @& r @& a @& m @& c @& o @& u @& n @& t
+@d fpc_param_str==p @& a @& r @& a @& m @&s @& t @& r
+
+@<Initialize whatever...@>=
+@<Set initial values of key variables@>@/
 if fpc_param_count > 0 then begin
   FirstArg := fpc_param_str(1);
   if FirstArg = '-ini' then begin
@@ -665,8 +672,6 @@ by spaces into |buffer|. Like |input_ln| it updates |last| so that
 @d loc==cur_input.loc_field {location of first unread character in |buffer|}
 @d fpc_string == s@& h@& o@& r@& t @& s @& t @& r @& i@& n @& g
 @d fpc_length==l @& e @& n @& g @& t @& h
-@d fpc_param_count==p @& a @& r @& a @& m @& c @& o @& u @& n @& t
-@d fpc_param_str==p @& a @& r @& a @& m @&s @& t @& r
 
 @p procedure input_command_ln; {get the command line in |buffer|}
 var argc: integer; {argument counter}

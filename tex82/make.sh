@@ -49,27 +49,18 @@ check_ctan() {
 
 
 
-# Run tangle
-# Use freshly build tangle if available, oherwise the system version
-#
-# $1 .web source code
-# $2 .ch change file
-# $3 .p Pascal output
-# $4 .pool string pool output
-do_tangle() {
+# Build tangle from Pascal source, if necessary
+make_tangle() {
+    cd build
     if [ -f tangle ]
     then
-        ./tangle $1 $2 $3 $4
+        echo "Found tangle"
     else
-        if tangle $1 $2 tmp.p
-        then
-            mv tmp.p $3
-            mv tmp.pool $4
-        else
-            echon "No tangle found: compile or install it"
-            exit 101
-        fi
+        cp ../sources/tex-fpc/tangle.p .
+        fpc tangle.p
+        rm tangle.o tangle.p
     fi
+    cd ..
 }
 
 
@@ -82,7 +73,7 @@ build_tex_twobinaries()
 
     # compile tex.web to initex
     mkdir -p TeXformats
-    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/initex.ch \
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/initex.ch \
         initex.p TeXformats/tex.pool
     fpc -Fasysutils,baseunix,unix initex.p
 
@@ -93,7 +84,7 @@ build_tex_twobinaries()
     mv plain.fmt TeXformats/plain.fmt
 
     # compile tex.web to tex
-    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch \
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch \
         tex.p TeXformats/tex.pool
     fpc -Fasysutils,baseunix,unix tex.p
 
@@ -110,7 +101,7 @@ build_tex()
 
     # compile tex.web to tex
     mkdir -p TeXformats
-    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
         tex.p TeXformats/tex.pool
     fpc -Fasysutils,baseunix,unix tex.p
 
@@ -135,8 +126,8 @@ quick() {
         # compiled metric fonts for Computer Modern
     check_ctan fonts/ manual
         # compiled metric fonts for extra symbols
-    check_installation tangle
-        # install tangle
+    make_tangle
+        # build tangle if necessary
 
     # copy metric font files
     mkdir -p build/TeXfonts
@@ -276,7 +267,7 @@ trip() {
     relaxed_compare trip.pl tmp.pl
 
     # Step 2: build special TeX version
-    do_tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool > tmp.tangle
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool > tmp.tangle
     fpc -Fasysutils,baseunix,unix triptex.p > tmp.fpc
 
     # Step 3: First run of TeX
