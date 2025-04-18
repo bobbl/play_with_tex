@@ -16,76 +16,14 @@ other dependencies.
 
 
 
-Compile TeX - The Quick Way
----------------------------
+Quick compilation of the original TeX source code with Free Pascal
+------------------------------------------------------------------
 
-This is a short description how to compile TeX quickly. For an elaborate
-decription see the next chapter with the full compilation. The steps for the
-quick compilation are executed by running the make script:
+This is a short description how to compile TeX quickly without Metafont.
+How to build Metafont and the metric fonts is described in the next section.
+The steps for the quick compilation are executed by running the make script:
 
     ./make quick
-
-To speed up compilation, it takes the TANGLE program from your favourite TeX or
-Linux distribution. The compiled metric fonts can be downloaded from CTAN.
-
-### Step 3.0: Download .tfm font files
-
-Download the CTAN packages [cm-tfm](https://ctan.org/pkg/cm-tfm) and
-[manual](https://ctan.org/pkg/manual)
-
-    wget "https://mirrors.ctan.org/fonts/cm/tfm.zip"
-    wget "https://mirrors.ctan.org/fonts/manual.zip"
-
-extract the files
-
-    unzip tfm.zip
-    unzip manual.zip
-
-and copy the .tfm files to a new subdirectory `TeXfonts/`
-
-### Step 3.1: Compile INITEX from tex.web
-
-Use TANGLE and a change file from TeX-FPC to generate valid Free Pascal
-source code for INITEX, a special version of TeX:
-
-    tangle tex.web initex.ch initex.p
-
-This generates not only the source code file `initex.p`, but also the string
-pool file `initex.pool` that must be renamed to `TeXformats/tex.pool`.
-
-Compile the source code with FPC:
-
-    fpc -Fasysutils,baseunix,unix initex.p
-
-### Step 3.2: Make plain.fmt
-
-Copy `plain.tex` and `hyphen.tex` to the current directory and run INITEX:
-
-    ./initex plain \\dump
-
-Create a subdirectory `TeXformats/` and copy the generated `plain.fmt` to it.
-
-### Step 3.3: Compile TEX from tex.web
-
-Same commands as for INITEX, but a different change file:
-
-    tangle tex.web tex.ch tex.p
-    fpc -Fasysutils,baseunix,unix tex.p
-
-The resulting pool file `tex.pool` is identical to `TeXformats/tex.pool`,
-therefore renaming is not necessary.
-
-
-
-
-Full compilation of the original TeX source code with Free Pascal
------------------------------------------------------------------
-
-A complete POSIX shell script with all steps in this chapter can be found in 
-the make script `make.sh` in function `full()`. Run it with
-
-    ./make.sh full
-
 
 ### Step 1: Bootstraping TANGLE
 
@@ -101,13 +39,64 @@ from TeX-FPC that can be compiled with FPC:
 
     fpc tangle.p
 
+### Step 2: Compile TEX from tex.web
 
-### Step 2: Metafont
+Use TANGLE and a change file to generate valid Free Pascal source code for TeX
 
-TeX uses fonts in the Metafont format. Therefore Metafont and the fonts are
-compiled first.
+    ./tangle tex.web tex.ch tex.p tex.pool
 
-#### Step 2.1: Compile INIMF
+This generates not only the source code file `tex.p`, but also the string pool
+file `tex.pool` that must be moved to `TeXformats/tex.pool`. Compile the source
+code with FPC:
+
+    fpc -Fasysutils,baseunix,unix initex.p
+
+### Step 3: Download .tfm font files
+
+TeX uses fonts in the Metafont format. To speed up compilation, the compiled
+metric fonts can be downloaded from the CTAN packages
+[cm-tfm](https://ctan.org/pkg/cm-tfm) and [manual](https://ctan.org/pkg/manual):
+
+    wget "https://mirrors.ctan.org/fonts/cm/tfm.zip"
+    wget "https://mirrors.ctan.org/fonts/manual.zip"
+
+extract the files
+
+    unzip tfm.zip
+    unzip manual.zip
+
+and copy the .tfm files to a new subdirectory `TeXfonts/`
+
+### Step 4: Make plain.fmt
+
+For Plain TeX some basic macros are required. They are stored as a memory dump
+in `plain.fmt`. Without it TeX does not work as expected. To generate this
+memory dump, TeX must be executed in a special mode. In other installations, a
+special executable INITEX is used, that was compiled with a special change file.
+But here, the normal TEX executable is used with the program argument `-ini`.
+
+Copy `plain.tex` and `hyphen.tex` to the current directory and run INITEX:
+
+    ./tex -ini plain \\dump
+
+Create a subdirectory `TeXformats/` and copy the generated `plain.fmt` to it.
+
+
+
+
+
+Compile Metafont and the metric fonts
+-------------------------------------
+
+A complete POSIX shell script with all steps to build TeX and Metafont can be
+found in the make script `make.sh` in function `full()`. Run it with
+
+    ./make.sh full
+
+Steps 1, 2 and 4 are the same as in the quick section above. Only step 3 is
+more laborious:
+
+### Step 3.1: Compile INIMF
 
 INIMF is a special version of Metafont that is used to precompile the Metafont
 macro base. The source code `mf.web` is from Knuth, the change file `inimf.ch`
@@ -117,12 +106,11 @@ from TeX-FPC.
 
 TANGLE generates the FPC source code `inimf.p` and a file with the string pool
 that must be put in the subdirectory `MFbases/`.
-
 To compile the source code, some special parameters are required:
 
     fpc -Fasysutils,baseunix,unix initex.p
 
-#### Step 2.2: Make plain.base
+### Step 3.2: Make plain.base
 
 Copy `plain.mf` from Knuth and `local.mf` to the current directory and run INIMF:
 
@@ -130,14 +118,14 @@ Copy `plain.mf` from Knuth and `local.mf` to the current directory and run INIMF
 
 The resulting `plain.base` file must be copied to `MFbases/`.
 
-#### Step 2.3: Compile MF
+### Step 3.3: Compile MF
 
 Same as for INIMF, only the change file is slightly different
 
     ./tangle mf.web inimf.ch inimf.p MFbases/mf.pool
     fpc -Fasysutils,baseunix,unix initex.p
 
-#### Step 2.4: Make .tfm fonts from .mf files
+### Step 3.4: Make .tfm fonts from .mf files
 
 Run MF on every .mf font file that should be converted to .tfm
 
@@ -151,11 +139,6 @@ contains additional optional fonts.
 
 Copy the .tfm (*TeX font metric*) files to `TeXfonts/`. The other files can
 be removed.
-
-
-### Step 3: Compile TeX
-
-See steps 3.1 to 3.3 from the quick solution above.
 
 
 

@@ -126,15 +126,30 @@ quick() {
         # compiled metric fonts for Computer Modern
     check_ctan fonts/ manual
         # compiled metric fonts for extra symbols
+
+    # Step 1: bootstrap tangle
     make_tangle
-        # build tangle if necessary
 
-    # copy metric font files
-    mkdir -p build/TeXfonts
-    cp sources/tfm/*.tfm build/TeXfonts/
-    cp sources/manual/tfm/*.tfm build/TeXfonts/
+    # Step 2: compile tex.web to tex
+    mkdir -p build
+    cd build
+    mkdir -p TeXformats
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
+        tex.p TeXformats/tex.pool
+    fpc -Fasysutils,baseunix,unix tex.p
 
-    build_tex
+    # Step 3: copy metric font files
+    mkdir -p TeXfonts
+    cp ../sources/tfm/*.tfm TeXfonts/
+    cp ../sources/manual/tfm/*.tfm TeXfonts/
+
+    # Step 4: make plain.fmt with `tex -ini`
+    cp ../sources/dist/lib/plain.tex .
+    cp ../sources/dist/lib/hyphen.tex .
+    ./tex -ini plain \\dump
+    mv plain.fmt TeXformats/plain.fmt
+
+    cd ..
 }
 
 
@@ -156,22 +171,28 @@ full() {
     cp ../sources/tex-fpc/tangle.p .
     fpc tangle.p
 
-    # Step 2.1: compile mf.web to inimf
+    # Step 2: compile tex.web to tex
+    mkdir -p TeXformats
+    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
+        tex.p TeXformats/tex.pool
+    fpc -Fasysutils,baseunix,unix tex.p
+
+    # Step 3.1: compile mf.web to inimf
     mkdir -p MFbases
     ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/inimf.ch \
         inimf.p MFbases/mf.pool
     fpc -Fasysutils,baseunix,unix inimf.p
 
-    # Step 2.2: make plain.base
+    # Step 3.2: make plain.base
     cp ../sources/dist/lib/plain.mf .
     ./inimf plain input ../sources/local dump
     #mv plain.base MFbases/
 
-    # Step 2.3: compile mf.web to mf
+    # Step 3.3: compile mf.web to mf
     ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/mf.ch mf.p mf.pool
     fpc -Fasysutils,baseunix,unix mf.p
 
-    # Step 2.4: install .tfm-fonts for plain.tex
+    # Step 3.4: install .tfm-fonts for plain.tex
     mkdir -p TeXfonts
     cd TeXfonts
     cp ../../sources/dist/cm/* .
@@ -191,10 +212,13 @@ full() {
     rm *.mf *.log *.*gf
     cd ..
 
-    cd ..
+    # Step 4: make plain.fmt with `tex -ini`
+    cp ../sources/dist/lib/plain.tex .
+    cp ../sources/dist/lib/hyphen.tex .
+    ./tex -ini plain \\dump
+    mv plain.fmt TeXformats/plain.fmt
 
-    # Step 3: build TeX
-    build_tex
+    cd ..
 
 }
 
