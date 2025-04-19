@@ -56,7 +56,7 @@ make_tangle() {
     then
         echo "Found tangle"
     else
-        cp ../sources/tex-fpc/tangle.p .
+        cp ../tangle.p .
         fpc tangle.p
         rm tangle.o tangle.p
     fi
@@ -64,59 +64,7 @@ make_tangle() {
 }
 
 
-
-# old version: use two binaries INITEX and TEX
-build_tex_twobinaries()
-{
-    mkdir -p build
-    cd build
-
-    # compile tex.web to initex
-    mkdir -p TeXformats
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/initex.ch \
-        initex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix initex.p
-
-    # make plain.fmt
-    cp ../sources/dist/lib/plain.tex .
-    cp ../sources/dist/lib/hyphen.tex .
-    ./initex plain \\dump
-    mv plain.fmt TeXformats/plain.fmt
-
-    # compile tex.web to tex
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/tex.ch \
-        tex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix tex.p
-
-    cd ..
-}
-
-
-
-# new version: use one binary with optional -ini switch
-build_tex()
-{
-    mkdir -p build
-    cd build
-
-    # compile tex.web to tex
-    mkdir -p TeXformats
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
-        tex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix tex.p
-
-    # make plain.fmt with `tex -ini`
-    cp ../sources/dist/lib/plain.tex .
-    cp ../sources/dist/lib/hyphen.tex .
-    ./tex -ini plain \\dump
-    mv plain.fmt TeXformats/plain.fmt
-
-    cd ..
-}
-
-
-
-# Use precompiled fonts and tangle to build TeX very quickly
+# Use precompiled fonts to build TeX very quickly
 quick() {
     check_ctan systems/knuth/ dist
         # Knuth's distribution

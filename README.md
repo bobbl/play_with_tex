@@ -32,10 +32,9 @@ To translate them to Pascal, his program TANGLE is used. TANGLE expects a change
 file that describes the Pascal dialect that should be used. TeX-FPC provides
 these change files for FPC.
 
-However, TANGLE is written in WEB, so you need TANGLE to compile TANGLE. There
-are two solutions to this problem: either you use a compiled binary that is 
-provided by nearly every TeX or Linux distribution, or you take `tangle.p`
-from TeX-FPC that can be compiled with FPC:
+However, TANGLE is written in WEB, so you need TANGLE to compile TANGLE.
+Therefore, this repository not only contains the change file, but also the translated
+FPC source code of TANGLE that can be compiled with
 
     fpc tangle.p
 
