@@ -64,110 +64,91 @@ make_tangle() {
 }
 
 
+
 # Use precompiled fonts to build TeX very quickly
-quick() {
+build() {
     check_ctan systems/knuth/ dist
         # Knuth's distribution
     check_installation fpc
         # Free Pascal Compiler
-    check_ctan fonts/cm/ tfm
-        # compiled metric fonts for Computer Modern
-    check_ctan fonts/ manual
-        # compiled metric fonts for extra symbols
 
     # Step 1: bootstrap tangle
     make_tangle
 
-    # Step 2: compile tex.web to tex
+    # Step 2: compile tex.web to initex and (vir)tex
     mkdir -p build
     cd build
     mkdir -p TeXformats
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
-        tex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix tex.p
+    ./tangle ../sources/dist/tex/tex.web ../tex.ch tex.p TeXformats/tex.pool
+    fpc -dinitex tex.p -oinitex
+    fpc tex.p
+    cd ..
 
-    # Step 3: copy metric font files
-    mkdir -p TeXfonts
-    cp ../sources/tfm/*.tfm TeXfonts/
-    cp ../sources/manual/tfm/*.tfm TeXfonts/
+    if [ "$1" = "quick" ]
+    then
+        check_ctan fonts/cm/ tfm
+            # compiled metric fonts for Computer Modern
+        check_ctan fonts/ manual
+            # compiled metric fonts for extra symbols
 
-    # Step 4: make plain.fmt with `tex -ini`
+        # Step 3: copy metric font files
+        cd build
+        mkdir -p TeXfonts
+        cp ../sources/tfm/*.tfm TeXfonts/
+        cp ../sources/manual/tfm/*.tfm TeXfonts/
+
+    else
+        check_ctan systems/knuth/ local
+            # additional fonts in knuth/local/cm/
+
+        # Build Metafont, metric fonts and TeX with the help of tex-fpc and fpc.
+        # Following the steps described by Wolfgang Helbig in tex-fpc/README
+
+        # Step 3.1: compile mf.web to inimf
+        cd build
+        mkdir -p MFbases
+        ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/inimf.ch \
+            inimf.p MFbases/mf.pool
+        fpc -Fasysutils,baseunix,unix inimf.p
+
+        # Step 3.2: make plain.base
+        cp ../sources/dist/lib/plain.mf .
+        ./inimf plain input ../sources/local dump
+        #mv plain.base MFbases/
+
+        # Step 3.3: compile mf.web to mf
+        ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/mf.ch mf.p mf.pool
+        fpc -Fasysutils,baseunix,unix mf.p
+
+        # Step 3.4: install .tfm-fonts for plain.tex
+        mkdir -p TeXfonts
+        cd TeXfonts
+        cp ../../sources/dist/cm/* .
+        cp ../../sources/dist/lib/manfnt.mf .
+        cp ../../sources/local/cm/* . # additional fonts
+
+        mkdir -p MFbases
+        mv ../plain.base MFbases/
+
+        for mf in *.mf
+        do
+            f=$(basename $mf .mf)
+            ../mf "\\mode=localfont; batchmode; input $f"\
+                && echo $f.tfm installed \
+                || echo "Generation of $f.tfm failed"
+        done
+        rm *.mf *.log *.*gf
+        cd ..
+
+    fi
+
+    # Step 4: make plain.fmt with initex
     cp ../sources/dist/lib/plain.tex .
     cp ../sources/dist/lib/hyphen.tex .
-    ./tex -ini plain \\dump
+    ./initex plain \\dump
     mv plain.fmt TeXformats/plain.fmt
 
     cd ..
-}
-
-
-
-# Build Metafont, metric fonts and TeX with the help of tex-fpc and fpc.
-# Following the steps described by Wolfgang Helbig in tex-fpc/README
-full() {
-    check_ctan systems/knuth/ dist
-        # Knuth's distribution
-    #check_ctan systems/knuth/ local
-        # additional fonts in knuth/local/cm/
-    check_installation fpc
-        # Free Pascal Compiler
-
-    mkdir -p build
-    cd build
-
-    # Step 1: compile tangle.p
-    cp ../sources/tex-fpc/tangle.p .
-    fpc tangle.p
-
-    # Step 2: compile tex.web to tex
-    mkdir -p TeXformats
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/unitex.ch \
-        tex.p TeXformats/tex.pool
-    fpc -Fasysutils,baseunix,unix tex.p
-
-    # Step 3.1: compile mf.web to inimf
-    mkdir -p MFbases
-    ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/inimf.ch \
-        inimf.p MFbases/mf.pool
-    fpc -Fasysutils,baseunix,unix inimf.p
-
-    # Step 3.2: make plain.base
-    cp ../sources/dist/lib/plain.mf .
-    ./inimf plain input ../sources/local dump
-    #mv plain.base MFbases/
-
-    # Step 3.3: compile mf.web to mf
-    ./tangle ../sources/dist/mf/mf.web ../sources/tex-fpc/mf.ch mf.p mf.pool
-    fpc -Fasysutils,baseunix,unix mf.p
-
-    # Step 3.4: install .tfm-fonts for plain.tex
-    mkdir -p TeXfonts
-    cd TeXfonts
-    cp ../../sources/dist/cm/* .
-    cp ../../sources/dist/lib/manfnt.mf .
-    #cp ../../sources/local/cm/* . # additional fonts
-
-    mkdir -p MFbases
-    mv ../plain.base MFbases/
-
-    for mf in *.mf
-    do
-        f=$(basename $mf .mf)
-        ../mf "\\mode=localfont; batchmode; input $f"\
-        && echo $f.tfm installed \
-        || echo "Generation of $f.tfm failed"
-    done
-    rm *.mf *.log *.*gf
-    cd ..
-
-    # Step 4: make plain.fmt with `tex -ini`
-    cp ../sources/dist/lib/plain.tex .
-    cp ../sources/dist/lib/hyphen.tex .
-    ./tex -ini plain \\dump
-    mv plain.fmt TeXformats/plain.fmt
-
-    cd ..
-
 }
 
 
@@ -278,8 +259,8 @@ while [ $# -ne 0 ]
 do
     case $1 in
         help)           help ;;
-        quick)          quick ;;
-        full)           full ;;
+        quick)          build quick ;;
+        full)           build full ;;
         tripman)        tripman ;;
         trip)           trip ;;
 
