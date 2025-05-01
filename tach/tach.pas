@@ -3,8 +3,6 @@
 
 PROGRAM TEX;
 
-LABEL {6:}1,9998,9999;{:6}
-
 CONST {11:}MEMMAX = 30000;
   MEMMIN = 0;
   BUFSIZE = 500;
@@ -439,7 +437,6 @@ VAR {13:}BAD: INTEGER;
   FORMATIDENT: STRNUMBER;{:1299}{1305:}
   FMTFILE: WORDFILE;
 {:1305}{1331:}
-  READYALREADY: INTEGER;
 {:1331}{1342:}
   WRITEFILE: ARRAY[0..15] OF ALPHAFILE;
   WRITEOPEN: ARRAY[0..17] OF BOOLEAN;{:1342}{1345:}
@@ -1142,7 +1139,7 @@ PROCEDURE BEGINFILEREA;
 FORWARD;
 PROCEDURE OPENLOGFILE;
 FORWARD;
-PROCEDURE CLOSEFILESAN;
+PROCEDURE close_files_and_terminate;
 FORWARD;
 PROCEDURE CLEARFORERRO;
 FORWARD;
@@ -1150,10 +1147,6 @@ PROCEDURE GIVEERRHELP;
 FORWARD;{$IFDEF DEBUGGING}
 PROCEDURE DEBUGHELP;
 FORWARD;{$ENDIF}{:78}{81:}
-PROCEDURE JUMPOUT;
-BEGIN
-  GOTO 9998;
-END;
 {:81}{82:}
 PROCEDURE ERROR;
 
@@ -1226,7 +1219,7 @@ BEGIN
                     PRINT(266);
                     PRINTINT(LINE);
                     INTERACTION := 2;
-                    JUMPOUT;
+                    close_files_and_terminate;
                   END;
           72:{89:}
               BEGIN
@@ -1300,7 +1293,7 @@ BEGIN
           88:
               BEGIN
                 INTERACTION := 2;
-                JUMPOUT;
+                close_files_and_terminate;
               END;
           ELSE
         END;
@@ -1320,7 +1313,7 @@ BEGIN
     BEGIN
       PRINTNL(263);
       HISTORY := 3;
-      JUMPOUT;
+      close_files_and_terminate;
     END;{90:}
   IF INTERACTION>0 THEN SELECTOR := SELECTOR-1;
   IF USEERRHELP THEN
@@ -1358,7 +1351,7 @@ BEGIN
 {$IFDEF DEBUGGING}
     IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
     HISTORY := 3;
-    JUMPOUT;
+    close_files_and_terminate;
   END;
 END;{:93}{94:}
 PROCEDURE OVERFLOW(S:STRNUMBER;N:INTEGER);
@@ -1384,7 +1377,7 @@ BEGIN
 {$IFDEF DEBUGGING}
     IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
     HISTORY := 3;
-    JUMPOUT;
+    close_files_and_terminate;
   END;
 END;{:94}{95:}
 PROCEDURE CONFUSION(S:STRNUMBER);
@@ -1422,7 +1415,7 @@ BEGIN
     IF LOGOPENED THEN ERROR;{$IFDEF DEBUGGING}
     IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
     HISTORY := 3;
-    JUMPOUT;
+    close_files_and_terminate;
   END;
 END;
 {:95}{:4}{27:}{$I-}
@@ -1496,7 +1489,7 @@ BEGIN
                   BEGIN
                     WRITELN(
                             OUTPUT,'Buffer size exceeded!');
-                    GOTO 9999;
+                    halt(History);
                   END
               ELSE
                 BEGIN
@@ -1540,7 +1533,7 @@ BEGIN
                   BEGIN
                     WRITELN(
                             OUTPUT,'Buffer size exceeded!');
-                    GOTO 9999;
+                    halt(History);
                   END
               ELSE
                 BEGIN
@@ -19126,7 +19119,7 @@ BEGIN{1304:}
 {$IFDEF DEBUGGING}
         IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
         HISTORY := 3;
-        JUMPOUT;
+        close_files_and_terminate;
       END;
     END{:1304};{1328:}
   SELECTOR := 21;
@@ -21159,7 +21152,7 @@ BEGIN{1308:}
   LOADFMTFILE := FALSE;
   10:
 END;{:1303}{1330:}{1333:}
-PROCEDURE CLOSEFILESAN;
+PROCEDURE close_files_and_terminate;
 
 VAR K: INTEGER;
 BEGIN{1378:}
@@ -21305,6 +21298,7 @@ BEGIN{1378:}
           PRINTLN;
         END;
     END;
+  halt(History);
 END;
 {:1333}{1335:}
 PROCEDURE FINALCLEANUP;
@@ -21814,8 +21808,7 @@ END;{$ENDIF}
 {:1338}{:1330}{1332:}
 BEGIN
   HISTORY := 3;
-  REWRITE(OUTPUT);
-  IF READYALREADY=314159 THEN GOTO 1;{14:}
+  REWRITE(OUTPUT);{14:}
   BAD := 0;
   IF (HALFERRORLIN<30)OR(HALFERRORLIN>ERRORLINE-15)THEN BAD := 1;
   IF MAXPRINTLINE<60 THEN BAD := 2;
@@ -21848,16 +21841,15 @@ BEGIN
     BEGIN
       WRITELN(OUTPUT,
               'Ouch---my internal constants have been clobbered!','---case ',BAD:1);
-      GOTO 9999;
+      halt(History);
     END;
   INITIALIZE;{$IFDEF INITEX}
-  IF NOT GETSTRINGSST THEN GOTO 9999;
+  IF NOT GETSTRINGSST THEN halt(History);
   INITPRIM;
   INITSTRPTR := STRPTR;
   INITPOOLPTR := POOLPTR;
   FIXDATEANDTI;{$ENDIF}
-  READYALREADY := 314159;
-  1:{55:}SELECTOR := 17;
+{55:}SELECTOR := 17;
   TALLY := 0;
   TERMOFFSET := 0;
   FILEOFFSET := 0;
@@ -21899,7 +21891,7 @@ BEGIN
       CURINPUT.NAMEFIELD := 0;
       FORCEEOF := FALSE;
       ALIGNSTATE := 1000000;
-      IF NOT INITTERMINAL THEN GOTO 9999;
+      IF NOT INITTERMINAL THEN halt(History);
       CURINPUT.LIMITFIELD := LAST;
       FIRST := LAST+1;
     END{:331};
@@ -21907,11 +21899,11 @@ BEGIN
       BEGIN
         IF 
            FORMATIDENT<>0 THEN INITIALIZE;
-        IF NOT OPENFMTFILE THEN GOTO 9999;
+        IF NOT OPENFMTFILE THEN halt(History);
         IF NOT LOADFMTFILE THEN
           BEGIN
             WCLOSE(FMTFILE);
-            GOTO 9999;
+            halt(History);
           END;
         WCLOSE(FMTFILE);
         WHILE (CURINPUT.LOCFIELD<CURINPUT.LIMITFIELD)AND(BUFFER[CURINPUT.LOCFIELD
@@ -21932,6 +21924,5 @@ BEGIN
   HISTORY := 0;
   MAINCONTROL;
   FINALCLEANUP;
-  9998: CLOSEFILESAN;
-  9999: READYALREADY := 0;
+  close_files_and_terminate;
 END.{:1332}
