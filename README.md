@@ -33,8 +33,8 @@ file that describes the Pascal dialect that should be used. TeX-FPC provides
 these change files for FPC.
 
 However, TANGLE is written in WEB, so you need TANGLE to compile TANGLE.
-Therefore, this repository not only contains the change file, but also the translated
-FPC source code of TANGLE that can be compiled with
+Therefore, this repository not only contains the change file, but also the
+translated FPC source code of TANGLE that can be compiled with
 
     fpc tangle.p
 
@@ -46,9 +46,15 @@ Use TANGLE and a change file to generate valid Free Pascal source code for TeX
 
 This generates not only the source code file `tex.p`, but also the string pool
 file `tex.pool` that must be moved to `TeXformats/tex.pool`. Compile the source
-code with FPC:
+code with FPC
 
-    fpc -Fasysutils,baseunix,unix initex.p
+    fpc tex.p
+
+to obtain the regular version of TEX, sometimes called VIRTEX. For the
+generation of `plain.fmt` in step 4, a special version called INITEX is
+built by
+
+    fpc -dinitex tex.p -oinitex
 
 ### Step 3: Download .tfm font files
 
@@ -70,13 +76,11 @@ and copy the .tfm files to a new subdirectory `TeXfonts/`
 
 For Plain TeX some basic macros are required. They are stored as a memory dump
 in `plain.fmt`. Without it TeX does not work as expected. To generate this
-memory dump, TeX must be executed in a special mode. In other installations, a
-special executable INITEX is used, that was compiled with a special change file.
-But here, the normal TEX executable is used with the program argument `-ini`.
-
+memory dump, a special version of TeX called INITEX is used. It was built in
+step 2.
 Copy `plain.tex` and `hyphen.tex` to the current directory and run INITEX:
 
-    ./tex -ini plain \\dump
+    ./initex plain \\dump
 
 Create a subdirectory `TeXformats/` and copy the generated `plain.fmt` to it.
 

@@ -48,7 +48,7 @@ build() {
     mkdir -p build
     cd build
     cp ../tach.pas .
-    fpc -Fasysutils,baseunix,unix tach.pas
+    fpc tach.pas
     cd ..
 }
 
