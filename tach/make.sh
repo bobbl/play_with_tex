@@ -38,7 +38,8 @@ ref() {
     do
         ../../tex82/build/tex "$f"
         b=$(basename "$f" .tex)
-        mv "$b.dvi" "to/$b.dvi"
+        mv "from/$b.dvi" "to/$b.dvi"
+        mv "from/$b.log" "to/$b.log"
     done
 }
 
@@ -47,8 +48,19 @@ ref() {
 build() {
     mkdir -p build
     cd build
+    ln -fs ../../tex82/build/TeXfonts
+    mkdir -p TeXformats
+    cp ../tex.pool TeXformats/
     cp ../tach.pas .
+
+    fpc -dinitex tach.pas -oinitach
     fpc tach.pas
+
+    cp ../../tex82/sources/dist/lib/plain.tex .
+    cp ../../tex82/sources/dist/lib/hyphen.tex .
+
+    ./initach plain \\dump
+    cp plain.fmt TeXformats/
     cd ..
 }
 
@@ -58,19 +70,25 @@ check() {
     cd ref
 
     # links to additional files
-    ln -fs ../../tex82/build/TeXformats
+    ln -fs ../build/TeXformats
     ln -fs ../../tex82/build/TeXfonts
+
+    cd from
+    rm -f *.dvi *.log
+    cd ..
 
     for f in from/*.tex
     do
         b=$(basename "$f" .tex)
         echo "$b"
-        ../build/tach "$f" > /dev/null
+        ../build/tach "$f" > tmp.tach.log # || cat tmp.tach.log
 
-        #tail -c +43 "$b.dvi"    | od -An -tx1 -w1 -v > tmp.a
-        #tail -c +43 "to/$b.dvi" | od -An -tx1 -w1 -v > tmp.b
-        tail -c +43 "$b.dvi"    > tmp.a
-        tail -c +43 "to/$b.dvi" > tmp.b
+        diff from/$b.log to/$b.log
+
+        #tail -c +43 "from/$b.dvi" | od -An -tx1 -w1 -v > tmp.a
+        #tail -c +43 "to/$b.dvi"   | od -An -tx1 -w1 -v > tmp.b
+        tail -c +43 "from/$b.dvi" > tmp.a
+        tail -c +43 "to/$b.dvi"   > tmp.b
         diff tmp.a tmp.b
     done
 

@@ -227,6 +227,13 @@ name_length:=19; {we must set |name_length| for |file_search|}
 @z
 
 @x
+@!glue_ratio=real; {one-word representation of a glue expansion factor}
+@y
+@!glue_ratio=single; {one-word representation of a glue expansion factor}
+@z
+
+
+@x
 job_name_code: print(job_name);
 @y
 job_name_code: begin print(job_area);print(job_name);end;
