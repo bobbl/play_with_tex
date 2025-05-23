@@ -26,6 +26,16 @@ CONST {11:}MEMMAX = 30000;
   POOLNAME = 'TeXformats/tex.pool';
 {:11}
 
+  fixUnity = $10000; {1.0 in 15.16 fixed point notation}
+  fixTwo   = $20000; {2.0 in 15.16 fixeed point notation}
+
+  {|tag| field in a |char_info_word|}
+  tagNo   = 0; {vanilla character}
+  tagLig  = 1; {character has a ligature/kerning program}
+  tagList = 2; {character has a successor in a charlist}
+  tagExt  = 3; {character is extensible}
+
+
 TYPE {18:}ASCIICODE = 0..255;{:18}{25:}
   EIGHTBITS = 0..255;
   ALPHAFILE = TEXTFILE;
@@ -241,7 +251,6 @@ VAR {13:}BAD: Int32;
   DVIFILE: BYTEFILE;
   OUTPUTFILENA: STRNUMBER;
   LOGNAME: STRNUMBER;{:532}{539:}
-  TFMFILE: BYTEFILE;
 {:539}{549:}
   FONTINFO: ARRAY[FONTINDEX] OF MEMORYWORD;
   FMEMPTR: FONTINDEX;
@@ -1472,7 +1481,7 @@ END;
 FUNCTION INPUTLN(VAR F:ALPHAFILE;BYPASSEOLN:BOOLEAN): BOOLEAN;
 
 VAR LASTNONBLANK: 0..BUFSIZE;
-  ch: char;
+  ch: Char;
 BEGIN
   LAST := FIRST;
   IF EOF(F)THEN INPUTLN := FALSE
@@ -1499,9 +1508,7 @@ BEGIN
                   OVERFLOW(256,BUFSIZE);
                 END{:35};
             END;
-          {BUFFER[LAST] := XORD[F^];
-          GET(F);}
-          read(F, ch);
+          Read(F, ch);
           BUFFER[LAST] := XORD[ch];
           LAST := LAST+1;
           IF BUFFER[LAST-1]<>32 THEN LASTNONBLANK := LAST;
@@ -8408,7 +8415,89 @@ BEGIN
     FIRST := CURINPUT.LIMITFIELD+1;
     CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
   END{:538};
-END;{:537}{560:}
+END;{:537}
+
+{Read 16 bit bigendian from TFM file.
+ Return false if I/O error or if sign bit of value is set}
+function read_sixteen(var TFMFile: BYTEFILE; var Dest: HALFWORD) : boolean;
+var Lo, Hi: EIGHTBITS;
+begin
+  {$I-}
+  read(TFMFile, Hi, Lo);
+  {$I+}
+  if (IOResult = 0) and (Hi < 128) then begin
+    Dest := HALFWORD(Hi)*256 + Lo;
+    read_sixteen := true;
+  end else begin
+    read_sixteen := false;
+  end
+end;
+
+{Read 4 bytes from TFM file.
+ Return false if I/O error}
+function store_four_quaters(var TFMFile: BYTEFILE; var qw: FOURQUARTERS) : boolean;
+var a,b, c, d : EIGHTBITS;
+begin
+  {$I-}
+  read(TFMFile, a, b, c, d);
+  {$I+}
+  if IOResult = 0 then begin
+    qw.b0 := a;
+    qw.b1 := b;
+    qw.b2 := c;
+    qw.b3 := d;
+    store_four_quaters := true;
+  end else begin
+    store_four_quaters := false;
+  end
+end;
+
+
+(*
+@ A |fix_word| whose four bytes are $(a,b,c,d)$ from left to right represents
+the number
+$$x=\left\{\vcenter{\halign{$#$,\hfil\qquad&if $#$\hfil\cr
+b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=0;\cr
+-16+b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=255.\cr}}\right.$$
+(No other choices of |a| are allowed, since the magnitude of a number in
+design-size units must be less than 16.)  We want to multiply this
+quantity by the integer~|z|, which is known to be less than $2^{27}$.
+If $|z|<2^{23}$, the individual multiplications $b\cdot z$,
+$c\cdot z$, $d\cdot z$ cannot overflow; otherwise we will divide |z| by 2,
+4, 8, or 16, to obtain a multiplier less than $2^{23}$, and we can
+compensate for this later. If |z| has thereby been replaced by
+$|z|^\prime=|z|/2^e$, let $\beta=2^{4-e}$; we shall compute
+$$\lfloor(b+c\cdot2^{-8}+d\cdot2^{-16})\,z^\prime/\beta\rfloor$$
+if $a=0$, or the same quantity minus $\alpha=2^{4+e}z^\prime$ if $a=255$.
+This calculation must be done exactly, in order to guarantee portability
+of \TeX\ between computers.
+*)
+function store_scaled(var TFMFile: BYTEFILE;
+                      Alpha: SCALED;
+                      Beta: SCALED;
+                      Z: SCALED;
+                      var Result: SCALED) : boolean;
+var
+  a, b, c, d: EIGHTBITS;
+  sw: SCALED;
+begin
+  {$I-}
+  read(TFMFile, a, b, c, d);
+  {$I+}
+  store_scaled := false;
+  if IOResult = 0 then begin
+    sw := (((((d*Z) DIV 256)+(c*Z)) DIV 256)+(b*Z)) DIV Beta;
+    if a=0 then begin
+      Result := sw;
+      store_scaled := true;
+    end else if a=255 then begin
+      Result := sw - Alpha;
+      store_scaled := true;
+    end
+  end
+end;
+
+{560:}
 FUNCTION READFONTINFO(U:HALFWORD;
                       NOM,AIRE:STRNUMBER;S:SCALED): INTERNALFONT;
 
@@ -8427,182 +8516,51 @@ VAR K: FONTINDEX;
   Z: SCALED;
   ALPHA: Int32;
   BETA: 1..16;
+  TFMFILE: BYTEFILE;
 BEGIN
-  G := 0;{562:}{563:}
+  G := 0;
+  {562: @<Read and check the font data; |abort| if the .TFM file is
+        malformed; if there's no room for this font, say so and |goto
+        done|; otherwise |incr(font_ptr)| and |goto done|@>}
+  
+  {563: @<Open |tfm_file| for input@>}
   FILEOPENED := FALSE;
   IF AIRE=338 THEN PACKFILENAME(NOM,785,811)
   ELSE PACKFILENAME(NOM,AIRE,811
     );
   IF NOT BOPENIN(TFMFILE)THEN GOTO 11;
   FILEOPENED := TRUE{:563};
-{565:}
-  BEGIN
-    BEGIN
-      LF := TFMFILE^;
-      IF LF>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      LF := LF*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      LH := TFMFILE^;
-      IF LH>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      LH := LH*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      BC := TFMFILE^;
-      IF BC>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      BC := BC*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      EC := TFMFILE^;
-      IF EC>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      EC := EC*256+TFMFILE^;
-    END;
-    IF (BC>EC+1)OR(EC>255)THEN GOTO 11;
-    IF BC>255 THEN
-      BEGIN
-        BC := 1;
-        EC := 0;
-      END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NW := TFMFILE^;
-      IF NW>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NW := NW*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NH := TFMFILE^;
-      IF NH>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NH := NH*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      ND := TFMFILE^;
-      IF ND>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      ND := ND*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NI := TFMFILE^;
-      IF NI>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NI := NI*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NL := TFMFILE^;
-      IF NL>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NL := NL*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NK := TFMFILE^;
-      IF NK>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NK := NK*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NE := TFMFILE^;
-      IF NE>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NE := NE*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      NP := TFMFILE^;
-      IF NP>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      NP := NP*256+TFMFILE^;
-    END;
-    IF LF<>6+LH+(EC-BC+1)+NW+NH+ND+NI+NL+NK+NE+NP THEN GOTO 11;
-    IF (NW=0)OR(NH=0)OR(ND=0)OR(NI=0)THEN GOTO 11;
-  END{:565};
-{566:}
+
+  {565: @<Read the .TFM size fields@>}
+  if not read_sixteen(TFMFILE, LF) then goto 11;
+  if not read_sixteen(TFMFILE, LH) then goto 11;
+  if not read_sixteen(TFMFILE, BC) then goto 11;
+  if not read_sixteen(TFMFILE, EC) then goto 11;
+
+  IF (BC>EC+1)OR(EC>255)THEN GOTO 11;
+  IF BC>255 THEN BEGIN
+    BC := 1;
+    EC := 0;
+  END;
+
+  if not read_sixteen(TFMFILE, NW) then goto 11;
+  if not read_sixteen(TFMFILE, NH) then goto 11;
+  if not read_sixteen(TFMFILE, ND) then goto 11;
+  if not read_sixteen(TFMFILE, NI) then goto 11;
+  if not read_sixteen(TFMFILE, NL) then goto 11;
+  if not read_sixteen(TFMFILE, NK) then goto 11;
+  if not read_sixteen(TFMFILE, NE) then goto 11;
+  if not read_sixteen(TFMFILE, NP) then goto 11;
+
+  IF LF<>6+LH+(EC-BC+1)+NW+NH+ND+NI+NL+NK+NE+NP THEN GOTO 11;
+  IF (NW=0)OR(NH=0)OR(ND=0)OR(NI=0) THEN GOTO 11;
+  {:565};
+
+  {566: @<Use size fields to allocate font information@>}
   LF := LF-6-LH;
   IF NP<7 THEN LF := LF+7-NP;
-  IF (FONTPTR=FONTMAX)OR(FMEMPTR+LF>FONTMEMSIZE)THEN{567:}
-    BEGIN
+  IF (FONTPTR=FONTMAX)OR(FMEMPTR+LF>FONTMEMSIZE) THEN BEGIN
+    {567: @<Use size fields to allocate font information@>}
       BEGIN
         IF 
            INTERACTION=3 THEN;
@@ -8634,7 +8592,8 @@ BEGIN
       END;
       ERROR;
       GOTO 30;
-    END{:567};
+    {:567}
+  END;
   F := FONTPTR+1;
   CHARBASE[F] := FMEMPTR-BC;
   WIDTHBASE[F] := CHARBASE[F]+EC+1;
@@ -8644,142 +8603,67 @@ BEGIN
   LIGKERNBASE[F] := ITALICBASE[F]+NI;
   KERNBASE[F] := LIGKERNBASE[F]+NL-256*(128);
   EXTENBASE[F] := KERNBASE[F]+256*(128)+NK;
-  PARAMBASE[F] := EXTENBASE[F]+NE{:566};{568:}
-  BEGIN
-    IF LH<2 THEN GOTO 11;
-    BEGIN
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      A := TFMFILE^;
-      QW.B0 := A+0;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      B := TFMFILE^;
-      QW.B1 := B+0;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      C := TFMFILE^;
-      QW.B2 := C+0;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      D := TFMFILE^;
-      QW.B3 := D+0;
-      FONTCHECK[F] := QW;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    BEGIN
-      Z := TFMFILE^;
-      IF Z>127 THEN GOTO 11;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      Z := Z*256+TFMFILE^;
-    END;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    Z := Z*256+TFMFILE^;
-    BEGIN
-      IF EOF(TFMFILE)THEN GOTO 11;
-      GET(TFMFILE);
-    END;
-    Z := (Z*16)+(TFMFILE^DIV 16);
-    IF Z<65536 THEN GOTO 11;
-    WHILE LH>2 DO
-      BEGIN
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        LH := LH-1;
-      END;
-    FONTDSIZE[F] := Z;
-    IF S<>-1000 THEN
-      IF S>=0 THEN Z := S
+  PARAMBASE[F] := EXTENBASE[F]+NE;
+  {:566}
+ 
+  {568: @<Read the .TFM header@>}
+  IF LH<2 THEN GOTO 11;
+  if not store_four_quaters(TFMFILE, FONTCHECK[F]) then goto 11;
+  {$I-}
+  read(TFMFILE, A, B, C, D);
+  {$I+}
+  if IOResult <> 0 then goto 11;
+  if A > 127 then goto 11; {this rejects a negative design size}
+  Z := (A * $100000) + (B * $1000) + (C * 16) + (D div 16);
+  if Z < fixUnity then goto 11;
+
+  {ignore the rest of the header}
+  WHILE LH>2 DO BEGIN 
+    {$I-}
+    read(TFMFILE, A, B, C, D);
+    {$I+}
+    if IOResult <> 0 then goto 11;
+    LH := LH-1;
+  END;
+  FONTDSIZE[F] := Z;
+  IF S<>-1000 THEN BEGIN
+    IF S>=0 THEN Z := S
     ELSE Z := XNOVERD(Z,-S,1000);
-    FONTSIZE[F] := Z;
-  END{:568};
-{569:}
-  FOR K:=FMEMPTR TO WIDTHBASE[F]-1 DO
-    BEGIN
-      BEGIN
-        BEGIN
-          IF EOF(
-             TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        A := TFMFILE^;
-        QW.B0 := A+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        B := TFMFILE^;
-        QW.B1 := B+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        C := TFMFILE^;
-        QW.B2 := C+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        D := TFMFILE^;
-        QW.B3 := D+0;
-        FONTINFO[K].QQQQ := QW;
-      END;
-      IF (A>=NW)OR(B DIV 16>=NH)OR(B MOD 16>=ND)OR(C DIV 4>=NI)THEN GOTO 11;
-      CASE C MOD 4 OF 
-        1:
-           IF D>=NL THEN GOTO 11;
-        3:
-           IF D>=NE THEN GOTO 11;
-        2:{570:}
-           BEGIN
-             BEGIN
-               IF (D<BC)OR(D>EC)THEN GOTO 11
-             END;
-             WHILE D<K+BC-FMEMPTR DO
-               BEGIN
-                 QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-                 IF ((QW.B2-0)MOD 4)<>2 THEN GOTO 45;
-                 D := QW.B3-0;
-               END;
-             IF D=K+BC-FMEMPTR THEN GOTO 11;
+  END;
+  FONTSIZE[F] := Z;
+  {:568};
+
+  {569: @<Read character data@>}
+  FOR K:=FMEMPTR TO WIDTHBASE[F]-1 DO BEGIN
+    if not store_four_quaters(TFMFILE, QW) then goto 11;
+    FONTINFO[K].QQQQ := QW;
+    A := QW.B0;
+    B := QW.B1;
+    C := QW.B2;
+    D := QW.B3;
+    IF (A>=NW)OR(B DIV 16>=NH)OR(B MOD 16>=ND)OR(C DIV 4>=NI)THEN GOTO 11;
+    CASE C MOD 4 OF 
+      tagLig:  IF D>=NL THEN GOTO 11;
+      tagExt:  IF D>=NE THEN GOTO 11;
+      tagList: BEGIN
+                 {570:}
+                 IF (D<BC)OR(D>EC)THEN GOTO 11;
+                 WHILE D<K+BC-FMEMPTR DO BEGIN
+                   QW := FONTINFO[CHARBASE[F]+D].QQQQ;
+                   IF ((QW.B2-0)MOD 4)<>2 THEN GOTO 45;
+                   D := QW.B3-0;
+                 END;
+                 IF D=K+BC-FMEMPTR THEN GOTO 11;
              45:
-           END{:570};
-        ELSE
-      END;
-    END{:569};
-{571:}
-  BEGIN{572:}
+                 {:570}
+               END;
+    END;
+  END;
+  {:569}
+
+  {571: @<Read box dimensions@>}
+  BEGIN
+    {572: @<Replace |z| b< $|z|^\prime$ and compute $\alpha,\beta$@>}
     BEGIN
       ALPHA := 16;
       WHILE Z>=8388608 DO
@@ -8789,169 +8673,64 @@ BEGIN
         END;
       BETA := 256 DIV ALPHA;
       ALPHA := ALPHA*Z;
-    END{:572};
-    FOR K:=WIDTHBASE[F]TO LIGKERNBASE[F]-1 DO
-      BEGIN
-        BEGIN
-          IF EOF(TFMFILE)
-            THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        A := TFMFILE^;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        B := TFMFILE^;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        C := TFMFILE^;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        D := TFMFILE^;
-        SW := (((((D*Z)DIV 256)+(C*Z))DIV 256)+(B*Z))DIV BETA;
-        IF A=0 THEN FONTINFO[K].INT := SW
-        ELSE
-          IF A=255 THEN FONTINFO[K].INT := SW-
-                                           ALPHA
-        ELSE GOTO 11;
-      END;
+    END;
+    {:572}
+    FOR K:=WIDTHBASE[F]TO LIGKERNBASE[F]-1 DO BEGIN
+      if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
+    END;
     IF FONTINFO[WIDTHBASE[F]].INT<>0 THEN GOTO 11;
     IF FONTINFO[HEIGHTBASE[F]].INT<>0 THEN GOTO 11;
     IF FONTINFO[DEPTHBASE[F]].INT<>0 THEN GOTO 11;
     IF FONTINFO[ITALICBASE[F]].INT<>0 THEN GOTO 11;
-  END{:571};
-{573:}
+  END;
+  {:571}
+
+  {573: @<Read ligature/kern program@>}
   BCHLABEL := 32767;
   BCHAR := 256;
-  IF NL>0 THEN
-    BEGIN
-      FOR K:=LIGKERNBASE[F]TO KERNBASE[F]+256*(128)-1 DO
-        BEGIN
-          BEGIN
-            BEGIN
-              IF EOF(TFMFILE)THEN GOTO 11;
-              GET(TFMFILE);
-            END;
-            A := TFMFILE^;
-            QW.B0 := A+0;
-            BEGIN
-              IF EOF(TFMFILE)THEN GOTO 11;
-              GET(TFMFILE);
-            END;
-            B := TFMFILE^;
-            QW.B1 := B+0;
-            BEGIN
-              IF EOF(TFMFILE)THEN GOTO 11;
-              GET(TFMFILE);
-            END;
-            C := TFMFILE^;
-            QW.B2 := C+0;
-            BEGIN
-              IF EOF(TFMFILE)THEN GOTO 11;
-              GET(TFMFILE);
-            END;
-            D := TFMFILE^;
-            QW.B3 := D+0;
-            FONTINFO[K].QQQQ := QW;
-          END;
-          IF A>128 THEN
-            BEGIN
-              IF 256*C+D>=NL THEN GOTO 11;
-              IF A=255 THEN
-                IF K=LIGKERNBASE[F]THEN BCHAR := B;
-            END
-          ELSE
-            BEGIN
-              IF B<>BCHAR THEN
-                BEGIN
-                  BEGIN
-                    IF (B<BC)OR(B>EC)THEN GOTO 11
-                  END;
-                  QW := FONTINFO[CHARBASE[F]+B].QQQQ;
-                  IF NOT(QW.B0>0)THEN GOTO 11;
-                END;
-              IF C<128 THEN
-                BEGIN
-                  BEGIN
-                    IF (D<BC)OR(D>EC)THEN GOTO 11
-                  END;
-                  QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-                  IF NOT(QW.B0>0)THEN GOTO 11;
-                END
-              ELSE
-                IF 256*(C-128)+D>=NK THEN GOTO 11;
-              IF A<128 THEN
-                IF K-LIGKERNBASE[F]+A+1>=NL THEN GOTO 11;
-            END;
+  IF NL>0 THEN BEGIN
+    FOR K:=LIGKERNBASE[F]TO KERNBASE[F]+256*(128)-1 DO BEGIN
+      if not store_four_quaters(TFMFILE, QW) then goto 11;
+      FONTINFO[K].QQQQ := QW;
+      A := QW.B0;
+      B := QW.B1;
+      C := QW.B2;
+      D := QW.B3;
+      IF A>128 THEN BEGIN
+        IF 256*C+D>=NL THEN GOTO 11;
+        IF A=255 THEN
+          IF K=LIGKERNBASE[F]THEN BCHAR := B;
+      END ELSE BEGIN
+        IF B<>BCHAR THEN BEGIN
+          IF (B<BC)OR(B>EC)THEN GOTO 11;
+          QW := FONTINFO[CHARBASE[F]+B].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
         END;
-      IF A=255 THEN BCHLABEL := 256*C+D;
+        IF C<128 THEN BEGIN
+          IF (D<BC)OR(D>EC)THEN GOTO 11;
+          QW := FONTINFO[CHARBASE[F]+D].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END ELSE IF 256*(C-128)+D>=NK THEN GOTO 11;
+        IF A<128 THEN
+          IF K-LIGKERNBASE[F]+A+1>=NL THEN GOTO 11;
+      END;
     END;
-  FOR K:=KERNBASE[F]+256*(128)TO EXTENBASE[F]-1 DO
-    BEGIN
-      BEGIN
-        IF EOF(
-           TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      A := TFMFILE^;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      B := TFMFILE^;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      C := TFMFILE^;
-      BEGIN
-        IF EOF(TFMFILE)THEN GOTO 11;
-        GET(TFMFILE);
-      END;
-      D := TFMFILE^;
-      SW := (((((D*Z)DIV 256)+(C*Z))DIV 256)+(B*Z))DIV BETA;
-      IF A=0 THEN FONTINFO[K].INT := SW
-      ELSE
-        IF A=255 THEN FONTINFO[K].INT := SW-
-                                         ALPHA
-      ELSE GOTO 11;
-    END;{:573};
-{574:}
-  FOR K:=EXTENBASE[F]TO PARAMBASE[F]-1 DO
-    BEGIN
-      BEGIN
-        BEGIN
-          IF EOF(
-             TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        A := TFMFILE^;
-        QW.B0 := A+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        B := TFMFILE^;
-        QW.B1 := B+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        C := TFMFILE^;
-        QW.B2 := C+0;
-        BEGIN
-          IF EOF(TFMFILE)THEN GOTO 11;
-          GET(TFMFILE);
-        END;
-        D := TFMFILE^;
-        QW.B3 := D+0;
-        FONTINFO[K].QQQQ := QW;
-      END;
+    IF A=255 THEN BCHLABEL := 256*C+D;
+  END;
+  FOR K:=KERNBASE[F]+256*(128)TO EXTENBASE[F]-1 DO BEGIN
+    if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
+  END;
+  {:573}
+
+{574: @<Read extensible character recipes@>}
+  FOR K:=EXTENBASE[F]TO PARAMBASE[F]-1 DO BEGIN
+    if not store_four_quaters(TFMFILE, QW) then goto 11;
+    FONTINFO[K].QQQQ := QW;
+    A := QW.B0;
+    B := QW.B1;
+    C := QW.B2;
+    D := QW.B3;
+
       IF A<>0 THEN
         BEGIN
           BEGIN
@@ -8983,68 +8762,29 @@ BEGIN
         QW := FONTINFO[CHARBASE[F]+D].QQQQ;
         IF NOT(QW.B0>0)THEN GOTO 11;
       END;
-    END{:574};
-{575:}
-  BEGIN
-    FOR K:=1 TO NP DO
-      IF K=1 THEN
-        BEGIN
-          BEGIN
-            IF EOF(TFMFILE)
-              THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          SW := TFMFILE^;
-          IF SW>127 THEN SW := SW-256;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          SW := SW*256+TFMFILE^;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          SW := SW*256+TFMFILE^;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          FONTINFO[PARAMBASE[F]].INT := (SW*16)+(TFMFILE^DIV 16);
-        END
-      ELSE
-        BEGIN
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          A := TFMFILE^;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          B := TFMFILE^;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          C := TFMFILE^;
-          BEGIN
-            IF EOF(TFMFILE)THEN GOTO 11;
-            GET(TFMFILE);
-          END;
-          D := TFMFILE^;
-          SW := (((((D*Z)DIV 256)+(C*Z))DIV 256)+(B*Z))DIV BETA;
-          IF A=0 THEN FONTINFO[PARAMBASE[F]+K-1].INT := SW
-          ELSE
-            IF A=255 THEN
-              FONTINFO[PARAMBASE[F]+K-1].INT := SW-ALPHA
-          ELSE GOTO 11;
-        END;
-    FOR K:=NP+1 TO 7 DO
-      FONTINFO[PARAMBASE[F]+K-1].INT := 0;
-  END{:575};
-{576:}
+  END;
+  {:574}
+
+  {575: @<Read font parameters@>}
+  FOR K:=1 TO NP DO BEGIN
+    IF K=1 THEN BEGIN
+      {$I-}
+      read(TFMFILE, A, B, C, D);
+      {$I+}
+      if IOResult <> 0 then goto 11;
+      if A > 127 then SW := SCALED(A) - 256 else SW := A;
+      SW := (SW * $100000) + (B * $1000) + (C*16) + (D div 16);
+      FONTINFO[PARAMBASE[F]].INT := SW;
+    END ELSE BEGIN
+      if not store_scaled(TFMFILE, ALPHA, BETA, Z, SW) then goto 11;
+      FONTINFO[PARAMBASE[F]+K-1].INT := SW;
+    END;
+  END;
+  FOR K:=NP+1 TO 7 DO
+    FONTINFO[PARAMBASE[F]+K-1].INT := 0;
+  {:575}
+
+  {576: @<Make final adjustments and |goto done|@>}
   IF NP>=7 THEN FONTPARAMS[F] := NP
   ELSE FONTPARAMS[F] := 7;
   HYPHENCHAR[F] := EQTB[5309].INT;
@@ -9075,8 +8815,12 @@ BEGIN
   FMEMPTR := FMEMPTR+LF;
   FONTPTR := F;
   G := F;
-  GOTO 30{:576}{:562};
-  11:{561:}
+  GOTO 30
+  {:576}
+  {:562};
+
+  11: {label bad_tfm}
+  {561: @<Report that the font won't be loaded@>}
       BEGIN
         IF INTERACTION=3 THEN;
         PRINTNL(262);
@@ -9107,11 +8851,16 @@ BEGIN
     HELPLINE[1] := 809;
     HELPLINE[0] := 810;
   END;
-  ERROR{:561};
+  ERROR;
+  {:561}
+
   30:
       IF FILEOPENED THEN BCLOSE(TFMFILE);
   READFONTINFO := G;
-END;{:560}{581:}
+END;
+{:560}
+
+{581:}
 PROCEDURE CHARWARNING(F:INTERNALFONT;
                       C:EIGHTBITS);
 BEGIN
