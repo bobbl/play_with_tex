@@ -26,8 +26,100 @@ CONST {11:}MEMMAX = 30000;
   POOLNAME = 'TeXformats/tex.pool';
 {:11}
 
+
+{Like the preceding parameters, the following quantities can be changed
+at compile time to extend or reduce \TeX's capacity. But if they are changed,
+it is necessary to rerun the initialization program \INITEX
+to generate new tables for the production \TeX\ program.
+One can't simply make helter-skelter changes to the following constants,
+since certain rather complex initialization
+numbers are computed from them. They are defined here using
+\WEB\ macros, instead of being put into \PASCAL\'s |const| list, in order to
+emphasize this distinction.}
+
+  mem_bot = 0;
+    {smallest index in the |mem| array dumped by \INITEX\;
+     must not be less than |mem_min|}
+  mem_top = 30000;
+    {largest index in the |mem| array dumped by \INITEX\;
+     must be substantially larger than |mem_bot| and not greater than |mem_max|}
+  font_base = 0;
+    {smallest internal font number; must not be less than |min_quarterword|}
+  hash_size = 2100;
+    {maximum number of control sequences; it should be at most about
+     |(mem_max-mem_min)/10|}
+  hash_prime = 1777;
+    {a prime number equal to about 85\pct! of |hash_size|}
+  hyph_size = 307;
+    {another prime; the number of .\hyphenation exceptions}
+
+
+
+{Many locations in |eqtb| have symbolic names. The purpose of the next
+paragraphs is to define these names, and to set up the initial values of the
+equivalents.
+
+In the first region we have 256 equivalents for ``active characters'' that
+act as control sequences, followed by 256 equivalents for single-character
+control sequences.
+
+Then comes region~2, which corresponds to the hash table that we will
+define later.  The maximum address in this region is used for a dummy
+control sequence that is perpetually undefined. There also are several
+locations for control sequences that are perpetually defined
+(since they are used in error recovery).}
+
+  active_base = 1;
+    {beginning of region 1, for active character equivalents}
+  single_base = active_base+256;
+    {equivalents of one-character control sequences}
+  null_cs = single_base+256;
+    {equivalent of \csname\endcsname}
+  hash_base = null_cs+1;
+    {beginning of region 2, for the hash table}
+  frozen_control_sequence = hash_base+hash_size;
+    {for error recovery}
+  fcb = frozen_control_sequence;
+  frozen_protection   = fcb;    {inaccessible but definable}
+  frozen_cr           = fcb+1;  {permanent \cr}
+  frozen_end_group    = fcb+2;  {permanent \endgroup}
+  frozen_right        = fcb+3;  {permanent \right}
+  frozen_fi           = fcb+4;  {permanent \fi}
+  frozen_end_template = fcb+5;  {permanent \endtemplate}
+  frozen_endv         = fcb+6;  {second permanent \endtemplate}
+  frozen_relax        = fcb+7;  {permanent \relax}
+  end_write           = fcb+8;  {permanent \endwrite}
+  frozen_dont_expand  = fcb+9;  {permanent \notexpanded}
+  frozen_null_font    = fcb+10; {permanent \nullfont}
+  font_id_base = frozen_null_font-font_base;
+    {begins table of 257 permanent font identifiers}
+  undefined_control_sequence = frozen_null_font+257;
+    {dummy location}
+  glue_base=undefined_control_sequence+1;
+    {beginning of region 3}
+
+  min_quarterword = 0;          {smallest allowable value in a |quarterword|}
+  max_quarterword = 255;        {largest allowable value in a |quarterword|}
+  min_halfword = 0;             {smallest allowable value in a |halfword|}
+  max_halfword = 65535;         {largest allowable value in a |halfword|}
+
+  non_char = 256;               {a |halfword| code that can't match a real character}
+  non_address = 0;              {a spurious |bchar_label|}
+
+
+
+
+  eqtb_size = 6106;
+
+  lo_mem_stat_max = 19;
+  hi_mem_stat_min = 29987;
+  cs_token_flag = 4095;
+  batch_mode = 0;
+  error_stop_mode = 3;
+
+
   fixUnity = $10000; {1.0 in 15.16 fixed point notation}
-  fixTwo   = $20000; {2.0 in 15.16 fixeed point notation}
+  fixTwo   = $20000; {2.0 in 15.16 fixed point notation}
 
   {|tag| field in a |char_info_word|}
   tagNo   = 0; {vanilla character}
@@ -8722,7 +8814,7 @@ BEGIN
   END;
   {:573}
 
-{574: @<Read extensible character recipes@>}
+  {574: @<Read extensible character recipes@>}
   FOR K:=EXTENBASE[F]TO PARAMBASE[F]-1 DO BEGIN
     if not store_four_quaters(TFMFILE, QW) then goto 11;
     FONTINFO[K].QQQQ := QW;
@@ -20342,570 +20434,305 @@ BEGIN
   40: CURINPUT.LOCFIELD := J;
   OPENFMTFILE := TRUE;
   10:
-END;{:524}
+END;
+{:524}
+
+{FIXME: catch I/O error}
+function UndumpMemoryWord(var FmtFile: WORDFILE) : MEMORYWORD;
+var mw: MEMORYWORD;
+begin
+  read(FmtFile, mw);
+  UndumpMemoryWord := mw;
+end;
+
+procedure too_small(ParameterName: array of char);
+var i: Integer;
+begin
+  write(output, '---! Must increase the ');
+  for i := 1 to length(ParameterName) do write(output, ParameterName[i]);
+  writeln(output);
+end;
+
+function undump(var FmtFile: WORDFILE;
+                LimitLow: Int32;
+                LimitHigh: Int32;
+                var Result: Int32) : boolean;
+var i: Int32;
+begin
+  i := UndumpMemoryWord(FmtFile).INT;
+  if (i >= LimitLow) and (i <= LimitHigh) then begin
+    Result := i;
+    undump := true;
+  end else begin
+    undump := false;
+  end;
+end;
+
+function undump_size(var FmtFile: WORDFILE;
+                     LimitLow: Int32;
+                     LimitHigh: Int32;
+                     ParameterName: array of char;
+                     var Result: Int32) : boolean;
+var i: Int32;
+begin
+  i := UndumpMemoryWord(FmtFile).INT;
+  undump_size := false;
+  if i >= LimitLow then begin
+    if i <= LimitHigh then begin
+      Result := i;
+      undump_size := true;
+    end else begin
+      too_small(ParameterName);
+    end;
+  end;
+end;
+
+procedure undump_four_ASCII(var FmtFile: WORDFILE;
+                            IndexInStrPool: Int32);
+var qqqq: FOURQUARTERS;
+begin
+  qqqq := UndumpMemoryWord(FmtFile).QQQQ;
+  STRPOOL[IndexInStrPool]   := qqqq.B0;
+  STRPOOL[IndexInStrPool+1] := qqqq.B1;
+  STRPOOL[IndexInStrPool+2] := qqqq.B2;
+  STRPOOL[IndexInStrPool+3] := qqqq.B3;
+end;
+
 FUNCTION LOADFMTFILE: BOOLEAN;
-
-LABEL 6666,10;
-
+LABEL 6666;
 VAR J,K: Int32;
   P,Q: HALFWORD;
   X: Int32;
   W: FOURQUARTERS;
-BEGIN{1308:}
-  X := FMTFILE^.INT;
+BEGIN
+  {1308: @<Undump constants for consistency check@>}
+  X := UndumpMemoryWord(FmtFile).INT;
   IF X<>69577846 THEN GOTO 6666;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
+  X := UndumpMemoryWord(FmtFile).INT;
+  IF X<>mem_bot THEN GOTO 6666;
+  X := UndumpMemoryWord(FmtFile).INT;
+  IF X<>mem_top THEN GOTO 6666;
+  X := UndumpMemoryWord(FmtFile).INT;
+  IF X<>eqtb_size THEN GOTO 6666;
+  X := UndumpMemoryWord(FmtFile).INT;
+  IF X<>hash_prime THEN GOTO 6666;
+  X := UndumpMemoryWord(FmtFile).INT;
+  IF X<>hyph_size THEN GOTO 6666
+  {:1308};
+
+  {1310: @<Undump the string pool@>}
+  if not undump_size(FMTFILE, 0, POOLSIZE, 'string pool size', X) then goto 6666;
+  POOLPTR := X;
+  if not undump_size(FMTFILE, 0, MAXSTRINGS, 'max strings', X) then goto 6666;
+  STRPTR := X;
+  FOR K:=0 TO STRPTR DO BEGIN
+    if not undump(FMTFILE, 0, POOLPTR, X) then goto 6666;
+    STRSTART[K] := X;
   END;
-  IF X<>0 THEN GOTO 6666;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
-  END;
-  IF X<>30000 THEN GOTO 6666;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
-  END;
-  IF X<>6106 THEN GOTO 6666;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
-  END;
-  IF X<>1777 THEN GOTO 6666;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
-  END;
-  IF X<>307 THEN GOTO 6666{:1308};
-{1310:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<0 THEN GOTO 6666;
-    IF X>POOLSIZE THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','string pool size');
-        GOTO 6666;
-      END
-    ELSE POOLPTR := X;
-  END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<0 THEN GOTO 6666;
-    IF X>MAXSTRINGS THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','max strings');
-        GOTO 6666;
-      END
-    ELSE STRPTR := X;
-  END;
-  FOR K:=0 TO STRPTR DO
-    BEGIN
-      BEGIN
-        GET(FMTFILE);
-        X := FMTFILE^.INT;
-      END;
-      IF (X<0)OR(X>POOLPTR)THEN GOTO 6666
-      ELSE STRSTART[K] := X;
-    END;
   K := 0;
-  WHILE K+4<POOLPTR DO
-    BEGIN
-      BEGIN
-        GET(FMTFILE);
-        W := FMTFILE^.QQQQ;
-      END;
-      STRPOOL[K] := W.B0-0;
-      STRPOOL[K+1] := W.B1-0;
-      STRPOOL[K+2] := W.B2-0;
-      STRPOOL[K+3] := W.B3-0;
-      K := K+4;
-    END;
+  WHILE K+4<POOLPTR DO BEGIN
+    undump_four_ASCII(FMTFILE, K);
+    K := K+4;
+  END;
+  {FIXME: avoid special treatment of last word}
   K := POOLPTR-4;
-  BEGIN
-    GET(FMTFILE);
-    W := FMTFILE^.QQQQ;
-  END;
-  STRPOOL[K] := W.B0-0;
-  STRPOOL[K+1] := W.B1-0;
-  STRPOOL[K+2] := W.B2-0;
-  STRPOOL[K+3] := W.B3-0;
+  undump_four_ASCII(FMTFILE, K);
   INITSTRPTR := STRPTR;
-  INITPOOLPTR := POOLPTR{:1310};{1312:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<1019)OR(X>29986)THEN GOTO 6666
-    ELSE LOMEMMAX := X;
-  END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<20)OR(X>LOMEMMAX)THEN GOTO 6666
-    ELSE ROVER := X;
-  END;
-  P := 0;
+  INITPOOLPTR := POOLPTR;
+  {:1310}
+
+  {1312: @<Undump the dynamic memory@>}
+  if not undump(FMTFILE, lo_mem_stat_max+1000, hi_mem_stat_min-1, X) then
+    goto 6666;
+  LOMEMMAX := X;
+  if not undump(FMTFILE, lo_mem_stat_max+1, LOMEMMAX, X) then goto 6666;
+  ROVER := X;
+  P := mem_bot;
   Q := ROVER;
   REPEAT
-    FOR K:=P TO Q+1 DO
-      BEGIN
-        GET(FMTFILE);
-        MEM[K] := FMTFILE^;
-      END;
+    FOR K:=P TO Q+1 DO BEGIN
+      MEM[K] := UndumpMemoryWord(FMTFILE);
+    END;
     P := Q+MEM[Q].HH.LH;
     IF (P>LOMEMMAX)OR((Q>=MEM[Q+1].HH.RH)AND(MEM[Q+1].HH.RH<>ROVER))THEN GOTO
       6666;
     Q := MEM[Q+1].HH.RH;
   UNTIL Q=ROVER;
-  FOR K:=P TO LOMEMMAX DO
-    BEGIN
-      GET(FMTFILE);
-      MEM[K] := FMTFILE^;
-    END;
-  IF MEMMIN<-2 THEN
-    BEGIN
-      P := MEM[ROVER+1].HH.LH;
-      Q := MEMMIN+1;
-      MEM[MEMMIN].HH.RH := 0;
-      MEM[MEMMIN].HH.LH := 0;
-      MEM[P+1].HH.RH := Q;
-      MEM[ROVER+1].HH.LH := Q;
-      MEM[Q+1].HH.RH := ROVER;
-      MEM[Q+1].HH.LH := P;
-      MEM[Q].HH.RH := 65535;
-      MEM[Q].HH.LH := -0-Q;
-    END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<LOMEMMAX+1)OR(X>29987)THEN GOTO 6666
-    ELSE HIMEMMIN := X;
+  FOR K:=P TO LOMEMMAX DO MEM[K] := UndumpMemoryWord(FMTFILE);
+  IF MEMMIN<-2 THEN BEGIN
+    P := MEM[ROVER+1].HH.LH;
+    Q := MEMMIN+1;
+    MEM[MEMMIN].HH.RH := 0;
+    MEM[MEMMIN].HH.LH := 0;
+    MEM[P+1].HH.RH := Q;
+    MEM[ROVER+1].HH.LH := Q;
+    MEM[Q+1].HH.RH := ROVER;
+    MEM[Q+1].HH.LH := P;
+    MEM[Q].HH.RH := 65535;
+    MEM[Q].HH.LH := -0-Q;
   END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<0)OR(X>30000)THEN GOTO 6666
-    ELSE AVAIL := X;
+  if not undump(FMTFILE, LOMEMMAX+1, hi_mem_stat_min, X) then goto 6666;
+  HIMEMMIN := X;
+  if not undump(FMTFILE, 0, mem_top, X) then goto 6666;
+  AVAIL := X;
+  MEMEND := mem_top;
+  FOR K:=HIMEMMIN TO MEMEND DO BEGIN
+    MEM[K] := UndumpMemoryWord(FMTFILE);
   END;
-  MEMEND := 30000;
-  FOR K:=HIMEMMIN TO MEMEND DO
-    BEGIN
-      GET(FMTFILE);
-      MEM[K] := FMTFILE^;
-    END;
-  BEGIN
-    GET(FMTFILE);
-    VARUSED := FMTFILE^.INT;
-  END;
-  BEGIN
-    GET(FMTFILE);
-    DYNUSED := FMTFILE^.INT;
-  END{:1312};{1314:}{1317:}
-  K := 1;
+  VARUSED := UndumpMemoryWord(FMTFILE).INT;
+  DYNUSED := UndumpMemoryWord(FMTFILE).INT;
+  {:1312}
+
+  {1314: @<Undump the table of equivalents@>}
+  {1317: @<Undump regions 1 to 6 of |eqtb|@>}
+  K := active_base;
   REPEAT
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
+    X := UndumpMemoryWord(FMTFILE).INT;
+    IF (X<1)OR(K+X>eqtb_size+1)THEN GOTO 6666;
+    FOR J:=K TO K+X-1 DO BEGIN
+      EQTB[J] := UndumpMemoryWord(FMTFILE);
     END;
-    IF (X<1)OR(K+X>6107)THEN GOTO 6666;
-    FOR J:=K TO K+X-1 DO
-      BEGIN
-        GET(FMTFILE);
-        EQTB[J] := FMTFILE^;
-      END;
     K := K+X;
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<0)OR(K+X>6107)THEN GOTO 6666;
-    FOR J:=K TO K+X-1 DO
-      EQTB[J] := EQTB[K-1];
+    X := UndumpMemoryWord(FMTFILE).INT;
+    IF (X<0)OR(K+X>eqtb_size+1)THEN GOTO 6666;
+    FOR J:=K TO K+X-1 DO EQTB[J] := EQTB[K-1];
     K := K+X;
-  UNTIL K>6106{:1317};
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<514)OR(X>2614)THEN GOTO 6666
-    ELSE PARLOC := X;
-  END;
-  PARTOKEN := 4095+PARLOC;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<514)OR(X>2614)THEN GOTO 6666
-    ELSE WRITELOC := X;
-  END;
-{1319:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<514)OR(X>2614)THEN GOTO 6666
-    ELSE HASHUSED := X;
-  END;
-  P := 513;
+  UNTIL K>eqtb_size;
+  {:1317}
+
+  if not undump(FMTFILE, hash_base, frozen_control_sequence, X) then goto 6666;
+  PARLOC := X;
+  PARTOKEN := cs_token_flag+PARLOC;
+  if not undump(FMTFILE, hash_base, frozen_control_sequence, X) then goto 6666;
+  WRITELOC := X;
+
+  {1319: @<Undump the hash table@>}
+  if not undump(FMTFILE, hash_base, frozen_control_sequence, X) then goto 6666;
+  HASHUSED := X;
+  P := hash_base-1;
   REPEAT
-    BEGIN
-      BEGIN
-        GET(FMTFILE);
-        X := FMTFILE^.INT;
-      END;
-      IF (X<P+1)OR(X>HASHUSED)THEN GOTO 6666
-      ELSE P := X;
-    END;
-    BEGIN
-      GET(FMTFILE);
-      HASH[P] := FMTFILE^.HH;
-    END;
+    if not undump(FMTFILE, P+1, HASHUSED, X) then goto 6666;
+    P := X;
+    HASH[P] := UndumpMemoryWord(FMTFILE).HH;
   UNTIL P=HASHUSED;
-  FOR P:=HASHUSED+1 TO 2880 DO
-    BEGIN
-      GET(FMTFILE);
-      HASH[P] := FMTFILE^.HH;
-    END;
-  BEGIN
-    GET(FMTFILE);
-    CSCOUNT := FMTFILE^.INT;
-  END{:1319}{:1314};
-{1321:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<7 THEN GOTO 6666;
-    IF X>FONTMEMSIZE THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','font mem size');
-        GOTO 6666;
-      END
-    ELSE FMEMPTR := X;
+  FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
+    HASH[P] := UndumpMemoryWord(FMTFILE).HH;
   END;
-  FOR K:=0 TO FMEMPTR-1 DO
-    BEGIN
-      GET(FMTFILE);
-      FONTINFO[K] := FMTFILE^;
-    END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<0 THEN GOTO 6666;
-    IF X>FONTMAX THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','font max');
-        GOTO 6666;
-      END
-    ELSE FONTPTR := X;
+  CSCOUNT := UndumpMemoryWord(FMTFILE).INT;
+  {:1319}
+  {:1314}
+
+  {1321: @<Undump the font information@>}
+  if not undump_size(FMTFILE, 7, FONTMEMSIZE, 'font mem size', X) then goto 6666;
+  FMEMPTR := X;
+  FOR K:=0 TO FMEMPTR-1 DO FONTINFO[K] := UndumpMemoryWord(FMTFILE);
+  if not undump_size(FMTFILE, font_base, FONTMAX, 'font max', X) then goto 6666;
+  FONTPTR := X;
+  FOR K:=0 TO FONTPTR DO BEGIN
+    {1323: @<Undump the array info for internal font number |k|@>}
+    FONTCHECK[K] := UndumpMemoryWord(FMTFILE).QQQQ;
+    FONTSIZE[K] := UndumpMemoryWord(FMTFILE).INT;
+    FONTDSIZE[K] := UndumpMemoryWord(FMTFILE).INT;
+    if not undump(FMTFILE, min_halfword, max_halfword, X) then goto 6666;
+    FONTPARAMS[K] := X;
+    HYPHENCHAR[K] := UndumpMemoryWord(FMTFILE).INT;
+    SKEWCHAR[K] := UndumpMemoryWord(FMTFILE).INT;
+    if not undump(FMTFILE, 0, STRPTR, X) then goto 6666;
+    FONTNAME[K] := X;
+    if not undump(FMTFILE, 0, STRPTR, X) then goto 6666;
+    FONTAREA[K] := X;
+    if not undump(FMTFILE, 0, 255, X) then goto 6666;
+    FONTBC[K] := X;
+    if not undump(FMTFILE, 0, 255, X) then goto 6666;
+    FONTEC[K] := X;
+    CHARBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    WIDTHBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    HEIGHTBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    DEPTHBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    ITALICBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    LIGKERNBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    KERNBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    EXTENBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    PARAMBASE[K] := UndumpMemoryWord(FMTFILE).INT;
+    if not undump(FMTFILE, min_halfword, LOMEMMAX, X) then goto 6666;
+    FONTGLUE[K] := X;
+    if not undump(FMTFILE, 0, FMEMPTR-1, X) then goto 6666;
+    BCHARLABEL[K] := X;
+    if not undump(FMTFILE, min_quarterword, non_char, X) then goto 6666;
+    FONTBCHAR[K] := X;
+    if not undump(FMTFILE, min_quarterword, non_char, X) then goto 6666;
+    FONTFALSEBCH[K] := X;
+    {:1323}
   END;
-  FOR K:=0 TO FONTPTR DO{1323:}
-    BEGIN
-      BEGIN
-        GET(FMTFILE);
-        FONTCHECK[K] := FMTFILE^.QQQQ;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        FONTSIZE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        FONTDSIZE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>65535)THEN GOTO 6666
-        ELSE FONTPARAMS[K] := X;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        HYPHENCHAR[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        SKEWCHAR[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>STRPTR)THEN GOTO 6666
-        ELSE FONTNAME[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>STRPTR)THEN GOTO 6666
-        ELSE FONTAREA[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>255)THEN GOTO 6666
-        ELSE FONTBC[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>255)THEN GOTO 6666
-        ELSE FONTEC[K] := X;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        CHARBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        WIDTHBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        HEIGHTBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        DEPTHBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        ITALICBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        LIGKERNBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        KERNBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        EXTENBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        GET(FMTFILE);
-        PARAMBASE[K] := FMTFILE^.INT;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>LOMEMMAX)THEN GOTO 6666
-        ELSE FONTGLUE[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>FMEMPTR-1)THEN GOTO 6666
-        ELSE BCHARLABEL[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>256)THEN GOTO 6666
-        ELSE FONTBCHAR[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>256)THEN GOTO 6666
-        ELSE FONTFALSEBCH[K] := X;
-      END;
-    END{:1323}{:1321};{1325:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<0)OR(X>307)THEN GOTO 6666
-    ELSE HYPHCOUNT := X;
+  {:1321}
+
+  {1325: @<Undump the hyphenation tables@>}
+  if not undump(FMTFILE, 0, hyph_size, X) then goto 6666;
+  HYPHCOUNT := X;
+  FOR K:=1 TO HYPHCOUNT DO BEGIN
+    if not undump(FMTFILE, 0, hyph_size, J) then goto 6666;
+    if not undump(FMTFILE, 0, STRPTR, X) then goto 6666;
+    HYPHWORD[J] := X;
+    if not undump(FMTFILE, min_halfword, max_halfword, X) then goto 6666;
+    HYPHLIST[J] := X;
   END;
-  FOR K:=1 TO HYPHCOUNT DO
-    BEGIN
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>307)THEN GOTO 6666
-        ELSE J := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>STRPTR)THEN GOTO 6666
-        ELSE HYPHWORD[J] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>65535)THEN GOTO 6666
-        ELSE HYPHLIST[J] := X;
-      END;
-    END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<0 THEN GOTO 6666;
-    IF X>TRIESIZE THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','trie size');
-        GOTO 6666;
-      END
-    ELSE J := X;
-  END;{$IFDEF INITEX}
-  TRIEMAX := J;{$ENDIF}
-  FOR K:=0 TO J DO
-    BEGIN
-      GET(FMTFILE);
-      TRIE[K] := FMTFILE^.HH;
-    END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF X<0 THEN GOTO 6666;
-    IF X>TRIEOPSIZE THEN
-      BEGIN;
-        WRITELN(OUTPUT,'---! Must increase the ','trie op size');
-        GOTO 6666;
-      END
-    ELSE J := X;
-  END;{$IFDEF INITEX}
-  TRIEOPPTR := J;{$ENDIF}
-  FOR K:=1 TO J DO
-    BEGIN
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>63)THEN GOTO 6666
-        ELSE HYFDISTANCE[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>63)THEN GOTO 6666
-        ELSE HYFNUM[K] := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>255)THEN GOTO 6666
-        ELSE HYFNEXT[K] := X;
-      END;
-    END;
-{$IFDEF INITEX}
-  FOR K:=0 TO 255 DO
-    TRIEUSED[K] := 0;{$ENDIF}
+  if not undump_size(FMTFILE, 0, TRIESIZE, 'trie size', J) then goto 6666;
+  {$IFDEF INITEX}
+  TRIEMAX := J;
+  {$ENDIF}
+  FOR K:=0 TO J DO TRIE[K] := UndumpMemoryWord(FMTFILE).HH;
+  if not undump_size(FMTFILE, 0, TRIEOPSIZE, 'trie op size', J) then goto 6666;
+  {$IFDEF INITEX}
+  TRIEOPPTR := J;
+  {$ENDIF}
+  FOR K:=1 TO J DO BEGIN
+    if not undump(FMTFILE, 0, 63, X) then goto 6666;
+    HYFDISTANCE[K] := X;
+    if not undump(FMTFILE, 0, 63, X) then goto 6666;
+    HYFNUM[K] := X;
+    if not undump(FMTFILE, min_quarterword, max_quarterword, X) then goto 6666;
+    HYFNEXT[K] := X;
+  END;
+
+  {$IFDEF INITEX}
+  FOR K:=0 TO 255 DO TRIEUSED[K] := min_quarterword;
+  {$ENDIF}
   K := 256;
-  WHILE J>0 DO
-    BEGIN
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<0)OR(X>K-1)THEN GOTO 6666
-        ELSE K := X;
-      END;
-      BEGIN
-        BEGIN
-          GET(FMTFILE);
-          X := FMTFILE^.INT;
-        END;
-        IF (X<1)OR(X>J)THEN GOTO 6666
-        ELSE X := X;
-      END;
-{$IFDEF INITEX}
-      TRIEUSED[K] := X+0;{$ENDIF}
-      J := J-X;
-      OPSTART[K] := J-0;
-    END;
-{$IFDEF INITEX}
-  TRIENOTREADY := FALSE{$ENDIF}{:1325};
-{1327:}
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<0)OR(X>3)THEN GOTO 6666
-    ELSE INTERACTION := X;
+  WHILE J>0 DO BEGIN
+    if not undump(FMTFILE, 0, K-1, K) then goto 6666;
+    if not undump(FMTFILE, 1, J, X) then goto 6666;
+    {$IFDEF INITEX}
+    TRIEUSED[K] := X;
+    {$ENDIF}
+    J := J-X;
+    OPSTART[K] := J;
   END;
-  BEGIN
-    BEGIN
-      GET(FMTFILE);
-      X := FMTFILE^.INT;
-    END;
-    IF (X<0)OR(X>STRPTR)THEN GOTO 6666
-    ELSE FORMATIDENT := X;
-  END;
-  BEGIN
-    GET(FMTFILE);
-    X := FMTFILE^.INT;
-  END;
-  IF (X<>69069)THEN GOTO 6666{:1327};
+  {$IFDEF INITEX}
+  TRIENOTREADY := FALSE;
+  {$ENDIF}
+  {:1325}
+
+  {1327: @<Undump a couple more things and the closing check word@>}
+  if not undump(FMTFILE, batch_mode, error_stop_mode, X) then goto 6666;
+  INTERACTION := X;
+  if not undump(FMTFILE, 0, STRPTR, X) then goto 6666;
+  FORMATIDENT := X;
+  X := UndumpMemoryWord(FMTFILE).INT;
+  IF (X<>69069)THEN GOTO 6666;
+  {:1327}
+
   LOADFMTFILE := TRUE;
-  GOTO 10;
-  6666:;
+  exit;
+
+6666:
   WRITELN(OUTPUT,'(Fatal format file error; I''m stymied)');
   LOADFMTFILE := FALSE;
-  10:
-END;{:1303}{1330:}{1333:}
-PROCEDURE close_files_and_terminate;
+END;
+{:1303}
 
+{1330:}
+{1333:}
+PROCEDURE close_files_and_terminate;
 VAR K: Int32;
 BEGIN{1378:}
   FOR K:=0 TO 15 DO
@@ -21649,8 +21476,7 @@ BEGIN
     END{:331};
     IF (FORMATIDENT=0)OR(BUFFER[CURINPUT.LOCFIELD]=38)THEN
       BEGIN
-        IF 
-           FORMATIDENT<>0 THEN INITIALIZE;
+        IF FORMATIDENT<>0 THEN INITIALIZE;
         IF NOT OPENFMTFILE THEN halt(History);
         IF NOT LOADFMTFILE THEN
           BEGIN
