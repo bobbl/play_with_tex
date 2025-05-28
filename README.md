@@ -148,11 +148,36 @@ be removed.
 
 
 
-Modify the Pascal source  code - tach
--------------------------------------
+Convert to modern Pascal - tach
+-------------------------------
 
 The initial version of tach is a pretty printed version of `tex.p`:
 
     ptop -c ptop.cfg ../tex82/build/tex.p tach.p
 
+Translate from ISO Pascal to Free Pascal to enable modern language features
+like e.g. string processing.
 
+  - [x] Remove global GOTOs
+  - [x] Replace GET/PUT file I/O by READ/WRITE
+  - [x] Adjust size of integer and real datatypes, including rounding
+
+Simplify code by using build-in string processing instead of Knuth's string pool
+routines
+
+  - [x] Integrate string pool in source code
+  - [ ] Replace string pool indices by constant strings
+
+Miscellaneous
+
+  - [ ] Remove warnings
+  - [ ] Remove all GOTOs
+  - [ ] Reduce global variables
+  - [ ] Use dynamic memory management for large arrays
+  - [ ] Re-introduce /WEB/ constants in source code
+  - [ ] Program argument instead of conditional compilation for /INITEX/
+
+Long term ideas
+
+  - UTF-8 instead of character translation tables
+  - 
