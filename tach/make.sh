@@ -85,8 +85,16 @@ check() {
 
         diff from/$b.log to/$b.log
 
+        #dvitype "from/$b.dvi" | head -n 30000 > tmp.a
+        #dvitype "to/$b.dvi"   | head -n 30000 > tmp.b
+        #meld tmp.a tmp.b
+
         #tail -c +43 "from/$b.dvi" | od -An -tx1 -w1 -v > tmp.a
         #tail -c +43 "to/$b.dvi"   | od -An -tx1 -w1 -v > tmp.b
+
+        #dvitype "from/$b.dvi" > tmp.a
+        #dvitype "to/$b.dvi"   > tmp.b
+
         tail -c +43 "from/$b.dvi" > tmp.a
         tail -c +43 "to/$b.dvi"   > tmp.b
         diff tmp.a tmp.b

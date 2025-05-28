@@ -1,4 +1,4 @@
-{4:}{9:}{$MODE ISO}{$C-,A+,D-}{$IFDEF DEBUGGING}{$C+,D+}{$ENDIF}
+{4:}{9:}{$C-,A+,D-}{$IFDEF DEBUGGING}{$C+,D+}{$ENDIF}
 {:9}
 
 PROGRAM TEX;
@@ -602,6 +602,17 @@ VAR {13:}BAD: Int32;
   WRITEOPEN: ARRAY[0..17] OF BOOLEAN;{:1342}{1345:}
   WRITELOC: HALFWORD;
 {:1345}
+
+
+{Free Pascal uses "round half to even" (bankers' rounding) in round(),
+ but ISO Pascal requires "round half away from zero" (commercial rounding)}
+function ISORound(x: Double) : Int32;
+begin
+  if x >= 0.0 then ISORound := trunc(x+0.5)
+              else ISORound := trunc(x-0.5);
+end;
+
+
 PROCEDURE INITIALIZE;
 
 VAR {19:}I: Int32;{:19}{163:}
@@ -2224,7 +2235,7 @@ BEGIN
   PRINTCHAR(32);
   PRINTSCALED(W.INT);
   PRINTCHAR(32);
-  PRINTSCALED(ROUND(65536*W.GR));
+  PRINTSCALED(ISORound(65536*W.GR));
   PRINTLN;
   PRINTINT(W.HH.LH);
   PRINTCHAR(61);
@@ -3043,7 +3054,7 @@ PROCEDURE SHOWNODELIST(P:Int32);
 LABEL 10;
 
 VAR N: Int32;
-  G: REAL;
+  G: Double;
 BEGIN
   IF (POOLPTR-STRSTART[STRPTR])>DEPTHTHRESHO THEN
     BEGIN
@@ -3120,7 +3131,7 @@ BEGIN
                               ELSE PRINT(328);
                               PRINTGLUE(20000*65536,MEM[P+5].HH.B1,0);
                             END
-                        ELSE PRINTGLUE(ROUND(65536*G),MEM[P+5].HH.B1,0);
+                        ELSE PRINTGLUE(ISORound(65536*G),MEM[P+5].HH.B1,0);
                       END{:186};
                     IF MEM[P+4].INT<>0 THEN
                       BEGIN
@@ -9529,8 +9540,8 @@ VAR BASELINE: SCALED;
   LX: SCALED;
   OUTERDOINGLE: BOOLEAN;
   EDGE: SCALED;
-  GLUETEMP: REAL;
-  CURGLUE: REAL;
+  GLUETEMP: Double;
+  CURGLUE: Double;
   CURG: SCALED;
 BEGIN
   CURG := 0;
@@ -9655,7 +9666,7 @@ BEGIN
                                 ELSE
                                   IF GLUETEMP<
                                      -1000000000.0 THEN GLUETEMP := -1000000000.0;
-                                CURG := ROUND(GLUETEMP);
+                                CURG := ISORound(GLUETEMP);
                               END;
                           END
                         ELSE
@@ -9668,7 +9679,7 @@ BEGIN
                               ELSE
                                 IF GLUETEMP<
                                    -1000000000.0 THEN GLUETEMP := -1000000000.0;
-                              CURG := ROUND(GLUETEMP);
+                              CURG := ISORound(GLUETEMP);
                             END;
                       END;
                     RULEWD := RULEWD+CURG;
@@ -9758,8 +9769,7 @@ BEGIN
               BEGIN
                 IF CURH<>DVIH THEN
                   BEGIN
-                    MOVEMENT(
-                             CURH-DVIH,143);
+                    MOVEMENT(CURH-DVIH,143);
                     DVIH := CURH;
                   END;
                 CURV := BASELINE+RULEDP;
@@ -9803,8 +9813,8 @@ VAR LEFTEDGE: SCALED;
   LX: SCALED;
   OUTERDOINGLE: BOOLEAN;
   EDGE: SCALED;
-  GLUETEMP: REAL;
-  CURGLUE: REAL;
+  GLUETEMP: Double;
+  CURGLUE: Double;
   CURG: SCALED;
 BEGIN
   CURG := 0;
@@ -9877,7 +9887,7 @@ BEGIN
                               ELSE
                                 IF GLUETEMP<
                                    -1000000000.0 THEN GLUETEMP := -1000000000.0;
-                              CURG := ROUND(GLUETEMP);
+                              CURG := ISORound(GLUETEMP);
                             END;
                         END
                       ELSE
@@ -9890,7 +9900,7 @@ BEGIN
                             ELSE
                               IF GLUETEMP<
                                  -1000000000.0 THEN GLUETEMP := -1000000000.0;
-                            CURG := ROUND(GLUETEMP);
+                            CURG := ISORound(GLUETEMP);
                           END;
                     END;
                   RULEHT := RULEHT+CURG;
@@ -9974,8 +9984,7 @@ BEGIN
             BEGIN
               IF CURH<>DVIH THEN
                 BEGIN
-                  MOVEMENT(
-                           CURH-DVIH,143);
+                  MOVEMENT(CURH-DVIH,143);
                   DVIH := CURH;
                 END;
               IF CURV<>DVIV THEN
@@ -12531,14 +12540,14 @@ BEGIN
                   T := T+MEM[V+1].INT;
                   IF MEM[P+5].HH.B0=1 THEN
                     BEGIN
-                      IF MEM[V].HH.B0=MEM[P+5].HH.B1 THEN T := T+
-                                                               ROUND(MEM[P+6].GR*MEM[V+2].INT);
+                      IF MEM[V].HH.B0=MEM[P+5].HH.B1
+                        THEN T := T+ISORound(MEM[P+6].GR*MEM[V+2].INT);
                     END
                   ELSE
                     IF MEM[P+5].HH.B0=2 THEN
                       BEGIN
                         IF MEM[V].HH.B1=MEM[P+5].HH.B1
-                          THEN T := T-ROUND(MEM[P+6].GR*MEM[V+3].INT);
+                          THEN T := T-ISORound(MEM[P+6].GR*MEM[V+3].INT);
                       END;
                   S := MEM[S].HH.RH;
                   MEM[U].HH.RH := NEWNULLBOX;
@@ -16823,7 +16832,7 @@ BEGIN
 END;{:1119}{1123:}
 PROCEDURE MAKEACCENT;
 
-VAR S,T: REAL;
+VAR S,T: Double;
   P,Q,R: HALFWORD;
   F: INTERNALFONT;
   A,H,X,W,DELTA: SCALED;
@@ -16860,7 +16869,7 @@ BEGIN
               P := HPACK(P,0,1);
               MEM[P+4].INT := X-H;
             END;
-          DELTA := ROUND((W-A)/2.0+H*T-X*S);
+          DELTA := ISORound((W-A)/2.0+H*T-X*S);
           R := NEWKERN(DELTA);
           MEM[R].HH.B1 := 2;
           MEM[CURLIST.TAILFIELD].HH.RH := R;
