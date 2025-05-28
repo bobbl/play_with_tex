@@ -98,6 +98,65 @@ locations for control sequences that are perpetually defined
   glue_base=undefined_control_sequence+1;
     {beginning of region 3}
 
+
+
+{Region 3 of |eqtb| contains the 256 \skip registers, as well as the
+glue parameters defined here. It is important that the ``muskip''
+parameters have larger numbers than the others.}
+
+  line_skip_code = 0;                   {interline glue if |baseline_skip| is infeasible}
+  baseline_skip_code=1;                 {desired glue between baselines}
+  par_skip_code=2;                      {extra glue just above a paragraph}
+  above_display_skip_code = 3;          {extra glue just above displayed math}
+  below_display_skip_code = 4;          {extra glue just below displayed math}
+  above_display_short_skip_code = 5;    {glue above displayed math following short lines}
+  below_display_short_skip_code = 6;    {glue below displayed math following short lines}
+  left_skip_code = 7;                   {glue at left of justified lines}
+  right_skip_code = 8;                  {glue at right of justified lines}
+  top_skip_code = 9;                    {glue at top of main pages}
+  split_top_skip_code = 10;             {glue at top of split pages}
+  tab_skip_code = 11;                   {glue between aligned entries}
+  space_skip_code = 12;                 {glue between words (if not |zero_glue|)}
+  xspace_skip_code = 13;                {glue after sentences (if not |zero_glue|)}
+  par_fill_skip_code = 14;              {glue on last line of paragraph}
+  thin_mu_skip_code = 15;               {thin space in math formula}
+  med_mu_skip_code = 16;                {medium space in math formula}
+  thick_mu_skip_code = 17;              {thick space in math formula}
+  glue_pars = 18;                       {total number of glue parameters}
+  skip_base = glue_base+glue_pars;      {table of 256 ``skip'' registers}
+  mu_skip_base = skip_base+256;         {table of 256 ``muskip'' registers}
+  local_base = mu_skip_base+256;        {beginning of region 4}
+
+{Region 4 of |eqtb| contains the local quantities defined here. The
+bulk of this region is taken up by five tables that are indexed by eight-bit
+characters; these tables are important to both the syntactic and semantic
+portions of \TeX. There are also a bunch of special things like font and
+token parameters, as well as the tables of \Toks and \box
+registers.}
+
+  par_shape_loc      = local_base;      {specifies paragraph shape}
+  output_routine_loc = local_base+1;    {points to token list for \Output}
+  every_par_loc      = local_base+2;    {points to token list for \everypar}
+  every_math_loc     = local_base+3;    {points to token list for \everymath}
+  every_display_loc  = local_base+4;    {points to token list for \everydisplay}
+  every_hbox_loc     = local_base+5;    {points to token list for \everyhbox}
+  every_vbox_loc     = local_base+6;    {points to token list for \everyvbox}
+  every_job_loc      = local_base+7;    {points to token list for \everyjob}
+  every_cr_loc       = local_base+8;    {points to token list for \everycr}
+  err_help_loc       = local_base+9;    {points to token list for \errhelp}
+  toks_base          = local_base+10;   {table of 256 token list registers}
+  box_base       = toks_base+256;       {table of 256 box registers}
+  cur_font_loc   = box_base+256;        {internal font number outside math mode}
+  math_font_base = cur_font_loc+1;      {table of 48 math font numbers}
+  cat_code_base  = math_font_base+48;   {table of 256 command codes (the ``catcodes'')}
+  lc_code_base   = cat_code_base+256;   {table of 256 lowercase mappings}
+  uc_code_base   = lc_code_base+256;    {table of 256 uppercase mappings}
+  sf_code_base   = uc_code_base+256;    {table of 256 spacefactor mappings}
+  math_code_base = sf_code_base+256;    {table of 256 math mode mappings}
+  int_base       = math_code_base+256;  {beginning of region 5}
+
+
+
   min_quarterword = 0;          {smallest allowable value in a |quarterword|}
   max_quarterword = 255;        {largest allowable value in a |quarterword|}
   min_halfword = 0;             {smallest allowable value in a |halfword|}
@@ -18936,16 +18995,27 @@ BEGIN
         END;
   ERROR;
 END;
-{:1293}{1302:}{$IFDEF INITEX}
-PROCEDURE STOREFMTFILE;
+{:1293}
 
+procedure dump_int(var f: WORDFILE; i: Int32);
+var mw: MEMORYWORD;
+begin
+  mw.INT := i;
+  write(f, mw);
+end;
+
+
+{1302:}
+{$IFDEF INITEX}
+PROCEDURE STOREFMTFILE(var f: WORDFILE);
 LABEL 41,42,31,32;
-
 VAR J,K,L: Int32;
   P,Q: HALFWORD;
   X: Int32;
   W: FOURQUARTERS;
-BEGIN{1304:}
+  mw: MEMORYWORD;
+BEGIN
+  {1304:}
   IF SAVEPTR<>0 THEN
     BEGIN
       BEGIN
@@ -18960,12 +19030,16 @@ BEGIN{1304:}
       BEGIN
         IF INTERACTION=3 THEN INTERACTION := 2;
         IF LOGOPENED THEN ERROR;
-{$IFDEF DEBUGGING}
-        IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
+        {$IFDEF DEBUGGING}
+        IF INTERACTION>0 THEN DEBUGHELP;
+        {$ENDIF}
         HISTORY := 3;
         close_files_and_terminate;
       END;
-    END{:1304};{1328:}
+    END;
+  {:1304}
+  
+  {1328:}
   SELECTOR := 21;
   PRINT(1272);
   PRINT(JOBNAME);
@@ -18992,90 +19066,60 @@ BEGIN{1304:}
     POOLPTR := STRSTART[STRPTR];
   END;
   PRINTNL(338);
-  SLOWPRINT(FORMATIDENT){:1328};{1307:}
-  BEGIN
-    FMTFILE^.INT := 69577846;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 0;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 30000;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 6106;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 1777;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 307;
-    PUT(FMTFILE);
-  END{:1307};
-{1309:}
-  BEGIN
-    FMTFILE^.INT := POOLPTR;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := STRPTR;
-    PUT(FMTFILE);
-  END;
-  FOR K:=0 TO STRPTR DO
-    BEGIN
-      FMTFILE^.INT := STRSTART[K];
-      PUT(FMTFILE);
-    END;
+  SLOWPRINT(FORMATIDENT);
+  {:1328}
+
+  {1307: @<Dump constants for consistency check@>}
+  dump_int(f, 69577846);
+  dump_int(f, mem_bot);
+  dump_int(f, mem_top);
+  dump_int(f, eqtb_size);
+  dump_int(f, hash_prime);
+  dump_int(f, hyph_size);
+  {:1307}
+
+  {1309: @<Dump the string pool@>}
+  dump_int(f, POOLPTR);
+  dump_int(f, STRPTR);
+
+  FOR K:=0 TO STRPTR DO dump_int(f, STRSTART[K]);
   K := 0;
-  WHILE K+4<POOLPTR DO
-    BEGIN
+  WHILE K+4<POOLPTR DO BEGIN
+
       W.B0 := STRPOOL[K]+0;
       W.B1 := STRPOOL[K+1]+0;
       W.B2 := STRPOOL[K+2]+0;
       W.B3 := STRPOOL[K+3]+0;
-      BEGIN
-        FMTFILE^.QQQQ := W;
-        PUT(FMTFILE);
-      END;
+      mw.QQQQ := W;
+      write(f, mw);
+
       K := K+4;
-    END;
+  END;
   K := POOLPTR-4;
+
   W.B0 := STRPOOL[K]+0;
   W.B1 := STRPOOL[K+1]+0;
   W.B2 := STRPOOL[K+2]+0;
   W.B3 := STRPOOL[K+3]+0;
-  BEGIN
-    FMTFILE^.QQQQ := W;
-    PUT(FMTFILE);
-  END;
+  mw.QQQQ := W;
+  write(f, mw);
+
   PRINTLN;
   PRINTINT(STRPTR);
-  PRINT(1260);
-  PRINTINT(POOLPTR){:1309};{1311:}
+  PRINT(1260); {" strings of total length "}
+  PRINTINT(POOLPTR);
+  {:1309}
+
+  {1311: @<Dump the dynamic memory@>}
   SORTAVAIL;
   VARUSED := 0;
-  BEGIN
-    FMTFILE^.INT := LOMEMMAX;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := ROVER;
-    PUT(FMTFILE);
-  END;
+  dump_int(f, LOMEMMAX);
+  dump_int(f, ROVER);
   P := 0;
   Q := ROVER;
   X := 0;
   REPEAT
-    FOR K:=P TO Q+1 DO
-      BEGIN
-        FMTFILE^ := MEM[K];
-        PUT(FMTFILE);
-      END;
+    FOR K:=P TO Q+1 DO write(f, MEM[K]);
     X := X+Q+2-P;
     VARUSED := VARUSED+Q-P;
     P := Q+MEM[Q].HH.LH;
@@ -19083,340 +19127,185 @@ BEGIN{1304:}
   UNTIL Q=ROVER;
   VARUSED := VARUSED+LOMEMMAX-P;
   DYNUSED := MEMEND+1-HIMEMMIN;
-  FOR K:=P TO LOMEMMAX DO
-    BEGIN
-      FMTFILE^ := MEM[K];
-      PUT(FMTFILE);
-    END;
+  FOR K:=P TO LOMEMMAX DO write(f, MEM[K]);
   X := X+LOMEMMAX+1-P;
-  BEGIN
-    FMTFILE^.INT := HIMEMMIN;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := AVAIL;
-    PUT(FMTFILE);
-  END;
-  FOR K:=HIMEMMIN TO MEMEND DO
-    BEGIN
-      FMTFILE^ := MEM[K];
-      PUT(FMTFILE);
-    END;
+  dump_int(f, HIMEMMIN);
+  dump_int(f, AVAIL);
+  FOR K:=HIMEMMIN TO MEMEND DO write(f, MEM[K]);
   X := X+MEMEND+1-HIMEMMIN;
   P := AVAIL;
-  WHILE P<>0 DO
-    BEGIN
+  WHILE P<>0 DO BEGIN
       DYNUSED := DYNUSED-1;
       P := MEM[P].HH.RH;
-    END;
-  BEGIN
-    FMTFILE^.INT := VARUSED;
-    PUT(FMTFILE);
   END;
-  BEGIN
-    FMTFILE^.INT := DYNUSED;
-    PUT(FMTFILE);
-  END;
+  dump_int(f, VARUSED);
+  dump_int(f, DYNUSED);
   PRINTLN;
   PRINTINT(X);
   PRINT(1261);
   PRINTINT(VARUSED);
   PRINTCHAR(38);
-  PRINTINT(DYNUSED){:1311};
-{1313:}{1315:}
-  K := 1;
+  PRINTINT(DYNUSED);
+  {:1311}
+
+  {1313: @<Dump the table of equivalents@>}
+  {1315: @<Dump regions 1 to 4 of |eqtb|@>}
+  K := active_base;
   REPEAT
     J := K;
-    WHILE J<5262 DO
+    WHILE J<int_base-1 DO
       BEGIN
         IF (EQTB[J].HH.RH=EQTB[J+1].HH.RH)AND(EQTB[J].HH.B0
            =EQTB[J+1].HH.B0)AND(EQTB[J].HH.B1=EQTB[J+1].HH.B1)THEN GOTO 41;
         J := J+1;
       END;
-    L := 5263;
+    L := int_base;
     GOTO 31;
     41: J := J+1;
     L := J;
-    WHILE J<5262 DO
+    WHILE J<int_base-1 DO
       BEGIN
         IF (EQTB[J].HH.RH<>EQTB[J+1].HH.RH)OR(EQTB[J].HH.B0
            <>EQTB[J+1].HH.B0)OR(EQTB[J].HH.B1<>EQTB[J+1].HH.B1)THEN GOTO 31;
         J := J+1;
       END;
-    31:
-        BEGIN
-          FMTFILE^.INT := L-K;
-          PUT(FMTFILE);
-        END;
-    WHILE K<L DO
-      BEGIN
-        BEGIN
-          FMTFILE^ := EQTB[K];
-          PUT(FMTFILE);
-        END;
+    31: dump_int(f, L-K);
+    WHILE K<L DO BEGIN
+        write(f, EQTB[K]);
         K := K+1;
-      END;
-    K := J+1;
-    BEGIN
-      FMTFILE^.INT := K-L;
-      PUT(FMTFILE);
     END;
-  UNTIL K=5263{:1315};
-{1316:}
+    K := J+1;
+    dump_int(f, K-L);
+  UNTIL K=int_base;
+  {:1315}
+
+  {1316: @<Dump regions 5 and 6 of |eqtb|@>}
   REPEAT
     J := K;
-    WHILE J<6106 DO
+    WHILE J<eqtb_size DO
       BEGIN
         IF EQTB[J].INT=EQTB[J+1].INT THEN GOTO 42;
         J := J+1;
       END;
-    L := 6107;
+    L := eqtb_size+1;
     GOTO 32;
     42: J := J+1;
     L := J;
-    WHILE J<6106 DO
+    WHILE J<eqtb_size DO
       BEGIN
         IF EQTB[J].INT<>EQTB[J+1].INT THEN GOTO 32;
         J := J+1;
       END;
     32:
-        BEGIN
-          FMTFILE^.INT := L-K;
-          PUT(FMTFILE);
-        END;
-    WHILE K<L DO
-      BEGIN
-        BEGIN
-          FMTFILE^ := EQTB[K];
-          PUT(FMTFILE);
-        END;
-        K := K+1;
-      END;
+    dump_int(f, L-K);
+    WHILE K<L DO BEGIN
+      write(f, EQTB[K]);
+      K := K+1;
+    END;
     K := J+1;
-    BEGIN
-      FMTFILE^.INT := K-L;
-      PUT(FMTFILE);
+    dump_int(f, K-L);
+  UNTIL K>eqtb_size;
+  {:1316}
+
+  dump_int(f, PARLOC);
+  dump_int(f, WRITELOC);
+
+  {1318: @<Dump the hash table@>}
+  dump_int(f, HASHUSED);
+  CSCOUNT := frozen_control_sequence-1-HASHUSED;
+  FOR P:=hash_base TO HASHUSED DO BEGIN
+    IF HASH[P].RH<>0 THEN BEGIN
+      dump_int(f, P);
+      mw.hh := HASH[P];
+      write(f, mw);
+      CSCOUNT := CSCOUNT+1;
     END;
-  UNTIL K>6106{:1316};
-  BEGIN
-    FMTFILE^.INT := PARLOC;
-    PUT(FMTFILE);
   END;
-  BEGIN
-    FMTFILE^.INT := WRITELOC;
-    PUT(FMTFILE);
+  FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
+    mw.HH := HASH[P];
+    write(f, mw);
   END;
-{1318:}
-  BEGIN
-    FMTFILE^.INT := HASHUSED;
-    PUT(FMTFILE);
-  END;
-  CSCOUNT := 2613-HASHUSED;
-  FOR P:=514 TO HASHUSED DO
-    IF HASH[P].RH<>0 THEN
-      BEGIN
-        BEGIN
-          FMTFILE^.INT 
-          := P;
-          PUT(FMTFILE);
-        END;
-        BEGIN
-          FMTFILE^.HH := HASH[P];
-          PUT(FMTFILE);
-        END;
-        CSCOUNT := CSCOUNT+1;
-      END;
-  FOR P:=HASHUSED+1 TO 2880 DO
-    BEGIN
-      FMTFILE^.HH := HASH[P];
-      PUT(FMTFILE);
-    END;
-  BEGIN
-    FMTFILE^.INT := CSCOUNT;
-    PUT(FMTFILE);
-  END;
+  dump_int(f, CSCOUNT);
   PRINTLN;
   PRINTINT(CSCOUNT);
-  PRINT(1262){:1318}{:1313};
-{1320:}
-  BEGIN
-    FMTFILE^.INT := FMEMPTR;
-    PUT(FMTFILE);
-  END;
-  FOR K:=0 TO FMEMPTR-1 DO
-    BEGIN
-      FMTFILE^ := FONTINFO[K];
-      PUT(FMTFILE);
+  PRINT(1262);
+  {:1318}
+  {:1313}
+
+  {1320:}
+  dump_int(f, FMEMPTR);
+  FOR K:=0 TO FMEMPTR-1 DO write(f, FONTINFO[K]);
+  dump_int(f, FONTPTR);
+  FOR K:=0 TO FONTPTR DO BEGIN
+    {1322:}
+    mw.QQQQ := FONTCHECK[K];
+    write(f, mw);
+    dump_int(f, FONTSIZE[K]);
+    dump_int(f, FONTDSIZE[K]);
+    dump_int(f, FONTPARAMS[K]);
+    dump_int(f, HYPHENCHAR[K]);
+    dump_int(f, SKEWCHAR[K]);
+    dump_int(f, FONTNAME[K]);
+    dump_int(f, FONTAREA[K]);
+    dump_int(f, FONTBC[K]);
+    dump_int(f, FONTEC[K]);
+    dump_int(f, CHARBASE[K]);
+    dump_int(f, WIDTHBASE[K]);
+    dump_int(f, HEIGHTBASE[K]);
+    dump_int(f, DEPTHBASE[K]);
+    dump_int(f, ITALICBASE[K]);
+    dump_int(f, LIGKERNBASE[K]);
+    dump_int(f, KERNBASE[K]);
+    dump_int(f, EXTENBASE[K]);
+    dump_int(f, PARAMBASE[K]);
+    dump_int(f, FONTGLUE[K]);
+    dump_int(f, BCHARLABEL[K]);
+    dump_int(f, FONTBCHAR[K]);
+    dump_int(f, FONTFALSEBCH[K]);
+    PRINTNL(1265);
+    PRINTESC(HASH[2624+K].RH);
+    PRINTCHAR(61);
+    PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
+    IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
+      PRINT(741);
+      PRINTSCALED(FONTSIZE[K]);
+      PRINT(397);
     END;
-  BEGIN
-    FMTFILE^.INT := FONTPTR;
-    PUT(FMTFILE);
+    {:1322}
   END;
-  FOR K:=0 TO FONTPTR DO{1322:}
-    BEGIN
-      BEGIN
-        FMTFILE^.QQQQ := FONTCHECK[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTSIZE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTDSIZE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTPARAMS[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := HYPHENCHAR[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := SKEWCHAR[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTNAME[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTAREA[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTBC[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTEC[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := CHARBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := WIDTHBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := HEIGHTBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := DEPTHBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := ITALICBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := LIGKERNBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := KERNBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := EXTENBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := PARAMBASE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTGLUE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := BCHARLABEL[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTBCHAR[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := FONTFALSEBCH[K];
-        PUT(FMTFILE);
-      END;
-      PRINTNL(1265);
-      PRINTESC(HASH[2624+K].RH);
-      PRINTCHAR(61);
-      PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
-      IF FONTSIZE[K]<>FONTDSIZE[K]THEN
-        BEGIN
-          PRINT(741);
-          PRINTSCALED(FONTSIZE[K]);
-          PRINT(397);
-        END;
-    END{:1322};
   PRINTLN;
   PRINTINT(FMEMPTR-7);
   PRINT(1263);
   PRINTINT(FONTPTR-0);
   PRINT(1264);
-  IF FONTPTR<>1 THEN PRINTCHAR(115){:1320};
-{1324:}
-  BEGIN
-    FMTFILE^.INT := HYPHCOUNT;
-    PUT(FMTFILE);
+  IF FONTPTR<>1 THEN PRINTCHAR(115);
+  {:1320}
+
+  {1324:}
+  dump_int(f, HYPHCOUNT);
+  FOR K:=0 TO 307 DO BEGIN
+    IF HYPHWORD[K]<>0 THEN BEGIN
+      dump_int(f, K);
+      dump_int(f, HYPHWORD[K]);
+      dump_int(f, HYPHLIST[K]);
+    END;
   END;
-  FOR K:=0 TO 307 DO
-    IF HYPHWORD[K]<>0 THEN
-      BEGIN
-        BEGIN
-          FMTFILE^.INT := K;
-          PUT(FMTFILE);
-        END;
-        BEGIN
-          FMTFILE^.INT := HYPHWORD[K];
-          PUT(FMTFILE);
-        END;
-        BEGIN
-          FMTFILE^.INT := HYPHLIST[K];
-          PUT(FMTFILE);
-        END;
-      END;
   PRINTLN;
   PRINTINT(HYPHCOUNT);
   PRINT(1266);
   IF HYPHCOUNT<>1 THEN PRINTCHAR(115);
   IF TRIENOTREADY THEN INITTRIE;
-  BEGIN
-    FMTFILE^.INT := TRIEMAX;
-    PUT(FMTFILE);
+  dump_int(f, TRIEMAX);
+  FOR K:=0 TO TRIEMAX DO BEGIN
+    mw.HH := TRIE[K];
+    write(f, mw);
   END;
-  FOR K:=0 TO TRIEMAX DO
-    BEGIN
-      FMTFILE^.HH := TRIE[K];
-      PUT(FMTFILE);
-    END;
-  BEGIN
-    FMTFILE^.INT := TRIEOPPTR;
-    PUT(FMTFILE);
+  dump_int(f, TRIEOPPTR);
+  FOR K:=1 TO TRIEOPPTR DO BEGIN
+    dump_int(f, HYFDISTANCE[K]);
+    dump_int(f, HYFNUM[K]);
+    dump_int(f, HYFNEXT[K]);
   END;
-  FOR K:=1 TO TRIEOPPTR DO
-    BEGIN
-      BEGIN
-        FMTFILE^.INT := HYFDISTANCE[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := HYFNUM[K];
-        PUT(FMTFILE);
-      END;
-      BEGIN
-        FMTFILE^.INT := HYFNEXT[K];
-        PUT(FMTFILE);
-      END;
-    END;
   PRINTNL(1267);
   PRINTINT(TRIEMAX);
   PRINT(1268);
@@ -19425,39 +19314,34 @@ BEGIN{1304:}
   IF TRIEOPPTR<>1 THEN PRINTCHAR(115);
   PRINT(1270);
   PRINTINT(TRIEOPSIZE);
-  FOR K:=255 DOWNTO 0 DO
-    IF TRIEUSED[K]>0 THEN
-      BEGIN
-        PRINTNL(800);
-        PRINTINT(TRIEUSED[K]-0);
-        PRINT(1271);
-        PRINTINT(K);
-        BEGIN
-          FMTFILE^.INT := K;
-          PUT(FMTFILE);
-        END;
-        BEGIN
-          FMTFILE^.INT := TRIEUSED[K]-0;
-          PUT(FMTFILE);
-        END;
-      END{:1324};{1326:}
-  BEGIN
-    FMTFILE^.INT := INTERACTION;
-    PUT(FMTFILE);
+  FOR K:=255 DOWNTO 0 DO BEGIN
+    IF TRIEUSED[K]>0 THEN BEGIN
+      PRINTNL(800);
+      PRINTINT(TRIEUSED[K]);
+      PRINT(1271);
+      PRINTINT(K);
+      dump_int(f, K);
+      dump_int(f, TRIEUSED[K]);
+    END;
   END;
-  BEGIN
-    FMTFILE^.INT := FORMATIDENT;
-    PUT(FMTFILE);
-  END;
-  BEGIN
-    FMTFILE^.INT := 69069;
-    PUT(FMTFILE);
-  END;
-  EQTB[5294].INT := 0{:1326};
-{1329:}
-  WCLOSE(FMTFILE){:1329};
-END;{$ENDIF}
-{:1302}{1348:}{1349:}
+  {:1324}
+
+  {1326:}
+  dump_int(f, INTERACTION);
+  dump_int(f, FORMATIDENT);
+  dump_int(f, 69069);
+  EQTB[5294].INT := 0;
+  {:1326}
+
+  {1329:}
+  WCLOSE(FMTFILE)
+  {:1329};
+END;
+{$ENDIF}
+{:1302}
+
+{1348:}
+{1349:}
 PROCEDURE NEWWHATSIT(S:SMALLNUMBER;W:SMALLNUMBER);
 
 VAR P: HALFWORD;
@@ -20945,7 +20829,7 @@ BEGIN
       FOR C:=0 TO 4 DO
         IF CURMARK[C]<>0 THEN DELETETOKENR(CURMARK[C]);
       IF LASTGLUE<>65535 THEN DELETEGLUERE(LASTGLUE);
-      STOREFMTFILE;
+      STOREFMTFILE(FMTFILE);
       GOTO 10;
 {$ENDIF}
       PRINTNL(1283);
