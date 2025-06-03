@@ -153,7 +153,7 @@ Convert to modern Pascal - tach
 
 The initial version of tach is a pretty printed version of `tex.p`:
 
-    ptop -c ptop.cfg ../tex82/build/tex.p tach.p
+    ptop -c ptop.cfg ../tex82/build/tex.p tach.pas
 
 Translate from ISO Pascal to Free Pascal to enable modern language features
 like e.g. string processing.

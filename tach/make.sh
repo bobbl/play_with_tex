@@ -60,6 +60,8 @@ build() {
     cp ../../tex82/sources/dist/lib/hyphen.tex .
 
     ./initach plain \\dump
+    # echo "plain \\dump" | ./initach
+
     cp plain.fmt TeXformats/
     cd ..
 }

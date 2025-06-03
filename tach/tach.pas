@@ -285,6 +285,7 @@ VAR {13:}BAD: Int32;
   HISTORY: 0..3;
   ERRORCOUNT: -1..100;{:76}{79:}
   HELPLINE: ARRAY[0..5] OF STRNUMBER;
+  help_line: array[0..5] of string;
   HELPPTR: 0..6;
   USEERRHELP: BOOLEAN;{:79}{96:}
   INTERRUPT: Int32;
@@ -1056,6 +1057,7 @@ PROCEDURE PRINTCHAR(S:ASCIICODE);
 
 LABEL 10;
 BEGIN
+  {if @<Character |s| is the current new-line character@> then}
   IF {244:}S=EQTB[5312].INT{:244}THEN
     IF SELECTOR<20 THEN
       BEGIN
@@ -1107,53 +1109,82 @@ BEGIN
   END;
   TALLY := TALLY+1;
   10:
-END;{:58}{59:}
-PROCEDURE PRINT(S:Int32);
+END;{:58}
 
-LABEL 10;
 
-VAR J: POOLPOINTER;
+
+{59:}
+procedure print_str(const s: string);
+var i: integer;
+begin
+  for i := 1 to length(s) do PRINTCHAR(ord(s[i]));
+end;
+
+PROCEDURE PRINT(S: StrNumber);
+VAR
+  J: POOLPOINTER;
   NL: Int32;
 BEGIN
   IF S>=STRPTR THEN S := 259
-  ELSE
-    IF S<256 THEN
-      IF S<0 THEN S := 259
-  ELSE
-    BEGIN
-      IF SELECTOR>20 THEN
-        BEGIN
-          PRINTCHAR(S);
-          GOTO 10;
-        END;
+  ELSE IF S<256 THEN
+    IF S<0 THEN S := 259
+    ELSE BEGIN
+      IF SELECTOR>20 THEN BEGIN
+        PRINTCHAR(S);
+        exit;
+      END;
       IF ({244:}S=EQTB[5312].INT{:244})THEN
-        IF SELECTOR<20 THEN
-          BEGIN
-            PRINTLN;
-            GOTO 10;
-          END;
+        IF SELECTOR<20 THEN BEGIN
+          PRINTLN;
+          exit;
+        END;
       NL := EQTB[5312].INT;
       EQTB[5312].INT := -1;
       J := STRSTART[S];
-      WHILE J<STRSTART[S+1] DO
-        BEGIN
-          PRINTCHAR(STRPOOL[J]);
-          J := J+1;
-        END;
+      WHILE J<STRSTART[S+1] DO BEGIN
+        PRINTCHAR(STRPOOL[J]);
+        J := J+1;
+      END;
       EQTB[5312].INT := NL;
-      GOTO 10;
+      exit;
     END;
   J := STRSTART[S];
-  WHILE J<STRSTART[S+1] DO
-    BEGIN
-      PRINTCHAR(STRPOOL[J]);
-      J := J+1;
-    END;
-  10:
+  WHILE J<STRSTART[S+1] DO BEGIN
+    PRINTCHAR(STRPOOL[J]);
+    J := J+1;
+  END;
 END;
-{:59}{60:}
-PROCEDURE SLOWPRINT(S:Int32);
+{:59}
 
+{60:}
+{print and escape control characters}
+procedure slow_print_str(s: string);
+const
+  Hex: array [0..15] of char = '0123456789abcdef';
+var
+  i: integer;
+  ch: byte;
+  t: string[4];
+begin
+  for i := 1 to length(s) do begin
+    ch := ord(s[i]);
+    if ch < 32 then begin
+      t := '^^A';
+      t[3] := chr(ch + 64);
+      print_str(t);
+    end else if ch < 127 then begin
+      PRINTCHAR(ch);
+    end else if ch = 127 then begin
+      print_str('^^?');
+    end else begin
+      t := '^^00';
+      t[3] := Hex[i shr 4];
+      t[4] := Hex[i and 15];
+    end;
+  end;
+end;
+
+PROCEDURE SLOWPRINT(S:Int32);
 VAR J: POOLPOINTER;
 BEGIN
   IF (S>=STRPTR)OR(S<256)THEN PRINT(S)
@@ -1167,23 +1198,44 @@ BEGIN
         END;
     END;
 END;
-{:60}{62:}
+{:60}
+
+{62:}
+procedure print_nl_str(s: string);
+begin
+  IF ((TERMOFFSET>0)AND(ODD(SELECTOR))) OR
+     ((FILEOFFSET>0)AND(SELECTOR>=18)) THEN PRINTLN;
+  print_str(s);
+end;
+
 PROCEDURE PRINTNL(S:STRNUMBER);
 BEGIN
   IF ((TERMOFFSET>0)AND(ODD(SELECTOR)))OR((FILEOFFSET>0)AND(SELECTOR
      >=18))THEN PRINTLN;
   PRINT(S);
 END;
-{:62}{63:}
-PROCEDURE PRINTESC(S:STRNUMBER);
+{:62}
 
+{63:}
+procedure print_esc_str(s: string);
+var C: int32;
+begin
+  C := EQTB[5308].INT{:243};
+  IF (C>=0) AND (C<256) THEN PRINT(C);
+  slow_print_str(s);
+end;
+
+PROCEDURE PRINTESC(S:STRNUMBER);
 VAR C: Int32;
 BEGIN{243:}
   C := EQTB[5308].INT{:243};
   IF C>=0 THEN
     IF C<256 THEN PRINT(C);
   SLOWPRINT(S);
-END;{:63}{64:}
+END;
+{:63}
+
+{64:}
 PROCEDURE PRINTTHEDIGS(K:EIGHTBITS);
 BEGIN
   WHILE K>0 DO
@@ -1229,31 +1281,29 @@ PROCEDURE PRINTCS(P:Int32);
 BEGIN
   IF P<514 THEN
     IF P>=257 THEN
-      IF P=513 THEN
-        BEGIN
-          PRINTESC(504);
-          PRINTESC(505);
-          PRINTCHAR(32);
-        END
-  ELSE
-    BEGIN
-      PRINTESC(P-257);
-      IF EQTB[3983+P-257].HH.RH=11 THEN PRINTCHAR(32);
-    END
-  ELSE
-    IF P<1 THEN PRINTESC(506)
-  ELSE PRINT(P-1)
+      IF P=513 THEN BEGIN
+        print_esc_str('csname');
+        print_esc_str('endcsname');
+        PRINTCHAR(32);
+      END ELSE BEGIN
+        PRINTESC(P-257);
+        IF EQTB[3983+P-257].HH.RH=11 THEN PRINTCHAR(32);
+      END
+    ELSE
+      IF P<1 THEN 
+        print_esc_str('IMPOSSIBLE.')
+      ELSE
+        PRINT(P-1)
   ELSE
     IF P>=2881 THEN
-      PRINTESC(506)
-  ELSE
-    IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR)THEN PRINTESC(
-                                                         507)
-  ELSE
-    BEGIN
-      PRINTESC(HASH[P].RH);
-      PRINTCHAR(32);
-    END;
+      print_esc_str('IMPOSSIBLE.')
+    ELSE
+      IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) THEN
+        PRINTESC(507)
+      ELSE BEGIN
+        PRINTESC(HASH[P].RH);
+        PRINTCHAR(32);
+      END;
 END;
 {:262}{263:}
 PROCEDURE SPRINTCS(P:HALFWORD);
@@ -1265,8 +1315,8 @@ BEGIN
                            P-257)
   ELSE
     BEGIN
-      PRINTESC(504);
-      PRINTESC(505);
+      print_esc_str('csname');
+      print_esc_str('endcsname');
     END
   ELSE PRINTESC(HASH[P].RH);
 END;
@@ -1280,11 +1330,11 @@ END;
 {:518}{699:}
 PROCEDURE PRINTSIZE(S:Int32);
 BEGIN
-  IF S=0 THEN PRINTESC(412)
+  IF S=0 THEN print_esc_str('textfont')
   ELSE
-    IF S=16 THEN PRINTESC(413)
+    IF S=16 THEN print_esc_str('scriptfont')
   ELSE
-    PRINTESC(414);
+    print_esc_str('scriptscriptfont');
 END;{:699}{1355:}
 PROCEDURE PRINTWRITEWH(S:STRNUMBER;
                        P:HALFWORD);
@@ -1336,7 +1386,7 @@ BEGIN
               GOTO 10;
         CLEARFORERRO;
         BEGIN;
-          PRINT(264);
+          print_str('? ');
           TERMINPUT;
         END;
         IF LAST=FIRST THEN GOTO 10;
@@ -1369,8 +1419,8 @@ BEGIN
                                              OKTOINTERRUP := TRUE;
                                              BEGIN
                                                HELPPTR := 2;
-                                               HELPLINE[1] := 279;
-                                               HELPLINE[0] := 280;
+                                               help_line[1] := 'I have just deleted some text, as you asked.';
+                                               help_line[0] := 'You can now delete more, or insert, or whatever.';
                                              END;
                                              SHOWCONTEXT;
                                              GOTO 22;
@@ -1384,9 +1434,9 @@ BEGIN
               IF BASEPTR>0 THEN
                 IF INPUTSTACK[BASEPTR].NAMEFIELD>=256 THEN
                   BEGIN
-                    PRINTNL(265);
+                    print_nl_str('You want to edit file ');
                     SLOWPRINT(INPUTSTACK[BASEPTR].NAMEFIELD);
-                    PRINT(266);
+                    print_str(' at line ');
                     PRINTINT(LINE);
                     INTERACTION := 2;
                     close_files_and_terminate;
@@ -1403,21 +1453,21 @@ BEGIN
                     IF HELPPTR=0 THEN
                       BEGIN
                         HELPPTR := 2;
-                        HELPLINE[1] := 281;
-                        HELPLINE[0] := 282;
+                        help_line[1] := 'Sorry, I don''t know how to help in this situation.';
+                        help_line[0] := 'Maybe you should try asking a human?';
                       END;
                     REPEAT
                       HELPPTR := HELPPTR-1;
-                      PRINT(HELPLINE[HELPPTR]);
+                      print_str(help_line[HELPPTR]);
                       PRINTLN;
                     UNTIL HELPPTR=0;
                   END;
                 BEGIN
                   HELPPTR := 4;
-                  HELPLINE[3] := 283;
-                  HELPLINE[2] := 282;
-                  HELPLINE[1] := 284;
-                  HELPLINE[0] := 285;
+                  help_line[3] := 'Sorry, I already gave what help I could...';
+                  help_line[2] := 'Maybe you should try asking a human?';
+                  help_line[1] := 'An error might have occurred before I noticed any problems.';
+                  help_line[0] := '``If all else fails, read the instructions.''''';
                 END;
                 GOTO 22;
               END{:89};
@@ -1432,7 +1482,7 @@ BEGIN
                 ELSE
                   BEGIN
                     BEGIN;
-                      PRINT(278);
+                      print_str('insert>');
                       TERMINPUT;
                     END;
                     CURINPUT.LOCFIELD := FIRST;
@@ -1445,17 +1495,17 @@ BEGIN
                     BEGIN
                       ERRORCOUNT := 0;
                       INTERACTION := 0+C-81;
-                      PRINT(273);
+                      print_str('OK, entering ');
                       CASE C OF 
                         81:
                             BEGIN
-                              PRINTESC(274);
+                              print_esc_str('batchmode');
                               SELECTOR := SELECTOR-1;
                             END;
-                        82: PRINTESC(275);
-                        83: PRINTESC(276);
+                        82: print_esc_str('nonstopmode');
+                        83: print_esc_str('scrollmode');
                       END;
-                      PRINT(277);
+                      print_str('...');
                       PRINTLN;
                       FLUSH(OUTPUT);
                       GOTO 10;
@@ -1469,19 +1519,19 @@ BEGIN
         END;
 {85:}
         BEGIN
-          PRINT(267);
-          PRINTNL(268);
-          PRINTNL(269);
+          print_str('Type <return> to proceed, S to scroll future error messages,');
+          print_nl_str('R to run without stopping, Q to run quietly,');
+          print_nl_str('I to insert something, ');
           IF BASEPTR>0 THEN
-            IF INPUTSTACK[BASEPTR].NAMEFIELD>=256 THEN PRINT(270);
-          IF DELETIONSALL THEN PRINTNL(271);
-          PRINTNL(272);
+            IF INPUTSTACK[BASEPTR].NAMEFIELD>=256 THEN print_str('E to edit your file,');
+          IF DELETIONSALL THEN print_nl_str('1 or ... or 9 to ignore the next 1 to 9 tokens of input,');
+          print_nl_str('H for help, X to quit.');
         END{:85}{:84};
       END{:83};
   ERRORCOUNT := ERRORCOUNT+1;
   IF ERRORCOUNT=100 THEN
     BEGIN
-      PRINTNL(263);
+      print_nl_str('(That makes 100 errors; please try again.)');
       HISTORY := 3;
       close_files_and_terminate;
     END;{90:}
@@ -1495,100 +1545,83 @@ BEGIN
     WHILE HELPPTR>0 DO
       BEGIN
         HELPPTR := HELPPTR-1;
-        PRINTNL(HELPLINE[HELPPTR]);
+        print_nl_str(help_line[HELPPTR]);
       END;
   PRINTLN;
   IF INTERACTION>0 THEN SELECTOR := SELECTOR+1;
   PRINTLN{:90};
   10:
 END;
-{:82}{93:}
-PROCEDURE FATALERROR(S:STRNUMBER);
+{:82}
+
+procedure succumb;
+BEGIN
+  IF INTERACTION=3 THEN INTERACTION := 2;
+  IF LOGOPENED THEN ERROR;
+  {$IFDEF DEBUGGING}
+  IF INTERACTION>0 THEN DEBUGHELP;
+  {$ENDIF}
+  HISTORY := 3;
+  close_files_and_terminate;
+END;
+
+
+{93:}
+procedure fatal_error(const s: string);
+begin
+  NORMALIZESEL;
+  print_nl_str('! ');
+  print_str('Emergency stop');
+  HELPPTR := 1;
+  help_line[0] := s;
+  succumb;
+END;
+{:93}
+
+{94:}
+procedure overflow(const s: string; n: Int32);
 BEGIN
   NORMALIZESEL;
-  BEGIN
-    IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(287);
-  END;
-  BEGIN
-    HELPPTR := 1;
-    HELPLINE[0] := S;
-  END;
-  BEGIN
-    IF INTERACTION=3 THEN INTERACTION := 2;
-    IF LOGOPENED THEN ERROR;
-{$IFDEF DEBUGGING}
-    IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
-    HISTORY := 3;
-    close_files_and_terminate;
-  END;
-END;{:93}{94:}
-PROCEDURE OVERFLOW(S:STRNUMBER;N:Int32);
-BEGIN
-  NORMALIZESEL;
-  BEGIN
-    IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(288);
-  END;
-  PRINT(S);
+  print_nl_str('! ');
+  print_str('TeX capacity exceeded, sorry [');
+  print_str(s);
   PRINTCHAR(61);
-  PRINTINT(N);
+  PRINTINT(n);
   PRINTCHAR(93);
-  BEGIN
-    HELPPTR := 2;
-    HELPLINE[1] := 289;
-    HELPLINE[0] := 290;
-  END;
-  BEGIN
-    IF INTERACTION=3 THEN INTERACTION := 2;
-    IF LOGOPENED THEN ERROR;
-{$IFDEF DEBUGGING}
-    IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
-    HISTORY := 3;
-    close_files_and_terminate;
-  END;
-END;{:94}{95:}
-PROCEDURE CONFUSION(S:STRNUMBER);
+  HELPPTR := 2;
+  help_line[1] := 'If you really absolutely need more capacity,';
+  help_line[0] := 'you can ask a wizard to enlarge me.';
+  succumb;
+END;
+{:94}
+
+{95:}
+PROCEDURE confusion_str(s: string);
 BEGIN
   NORMALIZESEL;
-  IF HISTORY<2 THEN
-    BEGIN
-      BEGIN
-        IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(291);
-      END;
-      PRINT(S);
+  print_nl_str('! ');
+  IF HISTORY<2 THEN BEGIN
+      print_str('This can''t happen (');
+      print_str(s);
       PRINTCHAR(41);
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 292;
+        help_line[0] := 'I''m broken. Please show this to someone who can fix can fix';
       END;
-    END
-  ELSE
-    BEGIN
-      BEGIN
-        IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(293);
-      END;
+  END ELSE BEGIN
+      print_str('I can''t go on meeting you like this');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 294;
-        HELPLINE[0] := 295;
+        help_line[1] := 'One of your faux pas seems to have wounded me deeply...';
+        help_line[0] := 'in fact, I''m barely conscious. Please fix it and try again.';
       END;
     END;
-  BEGIN
-    IF INTERACTION=3 THEN INTERACTION := 2;
-    IF LOGOPENED THEN ERROR;{$IFDEF DEBUGGING}
-    IF INTERACTION>0 THEN DEBUGHELP;{$ENDIF}
-    HISTORY := 3;
-    close_files_and_terminate;
-  END;
+  succumb;
 END;
-{:95}{:4}{27:}{$I-}
+{:95}
+{:4}
+
+{27:}{$I-}
 FUNCTION AOPENIN(VAR F:ALPHAFILE): BOOLEAN;
 BEGIN
   ASSIGN(F,NAMEOFFILE);
@@ -1666,7 +1699,7 @@ BEGIN
                 BEGIN
                   CURINPUT.LOCFIELD := FIRST;
                   CURINPUT.LIMITFIELD := LAST-1;
-                  OVERFLOW(256,BUFSIZE);
+                  overflow('buffer size', BUFSIZE);
                 END{:35};
             END;
           Read(F, ch);
@@ -1710,7 +1743,7 @@ BEGIN
                 BEGIN
                   CURINPUT.LOCFIELD := FIRST;
                   CURINPUT.LIMITFIELD := LAST-1;
-                  OVERFLOW(256,BUFSIZE);
+                  overflow('buffer size', BUFSIZE);
                 END{:35};
             END;
           BUFFER[LAST] := XORD[ARGS[I]];
@@ -1759,7 +1792,7 @@ BEGIN
 END;{:37}{43:}
 FUNCTION MAKESTRING: STRNUMBER;
 BEGIN
-  IF STRPTR=MAXSTRINGS THEN OVERFLOW(258,MAXSTRINGS-INITSTRPTR);
+  IF STRPTR=MAXSTRINGS THEN overflow('number of strings', MAXSTRINGS-INITSTRPTR);
   STRPTR := STRPTR+1;
   STRSTART[STRPTR] := POOLPTR;
   MAKESTRING := STRPTR-1;
@@ -2974,7 +3007,7 @@ PROCEDURE TERMINPUT;
 VAR K: 0..BUFSIZE;
 BEGIN
   FLUSH(OUTPUT);
-  IF NOT INPUTLN(INPUT,TRUE)THEN FATALERROR(261);
+  IF NOT INPUTLN(INPUT,TRUE)THEN fatal_error('End of file on the terminal!');
   TERMOFFSET := 0;
   SELECTOR := SELECTOR-1;
   IF LAST<>FIRST THEN FOR K:=FIRST TO LAST-1 DO
@@ -2984,7 +3017,7 @@ BEGIN
 END;{:71}{91:}
 PROCEDURE INTERROR(N:Int32);
 BEGIN
-  PRINT(286);
+  print_str(' (');
   PRINTINT(N);
   PRINTCHAR(41);
   ERROR;
@@ -3006,14 +3039,14 @@ BEGIN
       IF (SELECTOR=18)OR(SELECTOR=16)THEN SELECTOR := SELECTOR+1;
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(296);
+        print_nl_str('! ');
+        print_str('Interruption');
       END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 297;
-        HELPLINE[1] := 298;
-        HELPLINE[0] := 299;
+        help_line[2] := 'You rang?';
+        help_line[1] := 'Try to insert an instruction for me (e.g., `I\showlists''),';
+        help_line[0] := 'unless you just want to quit by typing `X''.';
       END;
       DELETIONSALL := FALSE;
       ERROR;
@@ -3208,7 +3241,7 @@ BEGIN
 {293:}
       IF (P<HIMEMMIN)OR(P>MEMEND)THEN
         BEGIN
-          PRINTESC(309);
+          print_esc_str('CLOBBERED.');
           GOTO 10;
         END;
       IF MEM[P].HH.LH>=4095 THEN PRINTCS(MEM[P].HH.LH-4095)
@@ -3217,7 +3250,7 @@ BEGIN
           M := MEM[P
                ].HH.LH DIV 256;
           C := MEM[P].HH.LH MOD 256;
-          IF MEM[P].HH.LH<0 THEN PRINTESC(555)
+          IF MEM[P].HH.LH<0 THEN print_esc_str('BAD.')
           ELSE{294:}
             CASE M OF 
               1,2,3,4,7,8,10,
@@ -3245,13 +3278,13 @@ BEGIN
                     PRINTCHAR(N);
                     IF N>57 THEN GOTO 10;
                   END;
-              14: PRINT(556);
-              ELSE PRINTESC(555)
+              14: print_str('->');
+              ELSE print_esc_str('BAD.')
             END{:294};
         END{:293};
       P := MEM[P].HH.RH;
     END;
-  IF P<>0 THEN PRINTESC(554);
+  IF P<>0 THEN print_esc_str('ETC.');
   10:
 END;{:292}{306:}
 PROCEDURE RUNAWAY;
@@ -3260,26 +3293,26 @@ VAR P: HALFWORD;
 BEGIN
   IF SCANNERSTATU>1 THEN
     BEGIN
-      PRINTNL(569);
+      print_nl_str('Runaway ');
       CASE SCANNERSTATU OF 
         2:
            BEGIN
-             PRINT(570);
+             print_str('definition');
              P := DEFREF;
            END;
         3:
            BEGIN
-             PRINT(571);
+             print_str('argument');
              P := 29997;
            END;
         4:
            BEGIN
-             PRINT(572);
+             print_str('preamble');
              P := 29996;
            END;
         5:
            BEGIN
-             PRINT(573);
+             print_str('text');
              P := DEFREF;
            END;
       END;
@@ -3308,7 +3341,7 @@ BEGIN
       IF HIMEMMIN<=LOMEMMAX THEN
         BEGIN
           RUNAWAY;
-          OVERFLOW(300,MEMMAX+1-MEMMIN);
+          overflow('main memory size', MEMMAX+1-MEMMIN);
         END;
     END;
   MEM[P].HH.RH := 0;{$IFDEF STATS}
@@ -3398,7 +3431,7 @@ BEGIN
         ROVER := Q;
         GOTO 20;
       END{:126};
-  OVERFLOW(300,MEMMAX+1-MEMMIN);
+  overflow('main memory size', MEMMAX+1-MEMMIN);
   40: MEM[R].HH.RH := 0;{$IFDEF STATS}
   VARUSED := VARUSED+S;{$ENDIF}
   GETNODE := R;
@@ -3625,7 +3658,7 @@ BEGIN
         IF FREE[P]THEN CLOBBERED := TRUE;
       IF CLOBBERED THEN
         BEGIN
-          PRINTNL(301);
+          print_nl_str('AVAIL list clobbered at ');
           PRINTINT(Q);
           GOTO 31;
         END;
@@ -3648,7 +3681,7 @@ BEGIN
          (MEM[MEM[P+1].HH.RH+1].HH.LH<>P)THEN CLOBBERED := TRUE;
     IF CLOBBERED THEN
       BEGIN
-        PRINTNL(302);
+        print_nl_str('Double-AVAIL list clobbered at ');
         PRINTINT(Q);
         GOTO 32;
       END;
@@ -3656,7 +3689,7 @@ BEGIN
       BEGIN
         IF FREE[Q]THEN
           BEGIN
-            PRINTNL(303);
+            print_nl_str('Doubly free location at ');
             PRINTINT(Q);
             GOTO 32;
           END;
@@ -3671,7 +3704,7 @@ BEGIN
     BEGIN
       IF (MEM[P].HH.RH=65535)THEN
         BEGIN
-          PRINTNL(304)
+          print_nl_str('Bad flag at ')
           ;
           PRINTINT(P);
         END;
@@ -3682,7 +3715,7 @@ BEGIN
     END{:170};
   IF PRINTLOCS THEN{171:}
     BEGIN
-      PRINTNL(305);
+      print_nl_str('New busy locs:');
       FOR P:=MEMMIN TO LOMEMMAX DO
         IF NOT FREE[P]AND((P>WASLOMAX)OR WASFREE[P]
            )THEN
@@ -3715,13 +3748,13 @@ BEGIN
     BEGIN
       IF MEM[Q].HH.RH=P THEN
         BEGIN
-          PRINTNL(306);
+          print_nl_str('LINK(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
       IF MEM[Q].HH.LH=P THEN
         BEGIN
-          PRINTNL(307);
+          print_nl_str('INFO(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
@@ -3737,7 +3770,7 @@ BEGIN
         END;
       IF MEM[Q].HH.LH=P THEN
         BEGIN
-          PRINTNL(307);
+          print_nl_str('INFO(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
@@ -3759,7 +3792,7 @@ BEGIN
                         IF SAVESTACK[Q].
                            HH.RH=P THEN
                           BEGIN
-                            PRINTNL(546);
+                            print_nl_str('SAVE(');
                             PRINTINT(Q);
                             PRINTCHAR(41);
                           END;
@@ -3769,7 +3802,7 @@ BEGIN
     BEGIN
       IF HYPHLIST[Q]=P THEN
         BEGIN
-          PRINTNL(940);
+          print_nl_str('HYPH(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
@@ -3801,7 +3834,7 @@ BEGIN
         END
       ELSE{175:}
         CASE MEM[P].HH.B0 OF 
-          0,1,3,8,4,5,13: PRINT(308);
+          0,1,3,8,4,5,13: print_str('[]');
           2: PRINTCHAR(124);
           10:
               IF MEM[P+1].HH.LH<>0 THEN PRINTCHAR(32);
@@ -3826,7 +3859,7 @@ END;
 {:174}{176:}
 PROCEDURE PRINTFONTAND(P:Int32);
 BEGIN
-  IF P>MEMEND THEN PRINTESC(309)
+  IF P>MEMEND THEN print_esc_str('CLOBBERED.')
   ELSE
     BEGIN
       IF (MEM[P].HH.B0<0)OR(MEM[
@@ -3840,7 +3873,7 @@ END;
 PROCEDURE PRINTMARK(P:Int32);
 BEGIN
   PRINTCHAR(123);
-  IF (P<HIMEMMIN)OR(P>MEMEND)THEN PRINTESC(309)
+  IF (P<HIMEMMIN)OR(P>MEMEND)THEN print_esc_str('CLOBBERED.')
   ELSE SHOWTOKENLIS(MEM[P].HH.
                     RH,0,MAXPRINTLINE-10);
   PRINTCHAR(125);
@@ -3854,7 +3887,7 @@ END;
 PROCEDURE PRINTGLUE(D:SCALED;ORDER:Int32;S:STRNUMBER);
 BEGIN
   PRINTSCALED(D);
-  IF (ORDER<0)OR(ORDER>3)THEN PRINT(310)
+  IF (ORDER<0)OR(ORDER>3)THEN print_str('foul')
   ELSE
     IF ORDER>0 THEN
       BEGIN
@@ -3879,12 +3912,12 @@ BEGIN
       IF S<>0 THEN PRINT(S);
       IF MEM[P+2].INT<>0 THEN
         BEGIN
-          PRINT(312);
+          print_str(' plus ');
           PRINTGLUE(MEM[P+2].INT,MEM[P].HH.B0,S);
         END;
       IF MEM[P+3].INT<>0 THEN
         BEGIN
-          PRINT(313);
+          print_str(' minus ');
           PRINTGLUE(MEM[P+3].INT,MEM[P].HH.B1,S);
         END;
     END;
@@ -3892,7 +3925,7 @@ END;
 {:178}{179:}{691:}
 PROCEDURE PRINTFAMANDC(P:HALFWORD);
 BEGIN
-  PRINTESC(464);
+  print_esc_str('fam');
   PRINTINT(MEM[P].HH.B0);
   PRINTCHAR(32);
   PRINT(MEM[P].HH.B1-0);
@@ -3914,7 +3947,7 @@ BEGIN
   IF (POOLPTR-STRSTART[STRPTR])>=DEPTHTHRESHO THEN
     BEGIN
       IF MEM[P].HH
-         .RH<>0 THEN PRINT(314);
+         .RH<>0 THEN print_str(' []');
     END
   ELSE
     BEGIN
@@ -3936,7 +3969,7 @@ BEGIN
              BEGIN
                PRINTLN;
                PRINTCURRENT;
-               PRINT(860);
+               print_str('{}');
              END
            ELSE SHOWINFO;
         ELSE
@@ -3948,36 +3981,36 @@ END;
 PROCEDURE PRINTSTYLE(C:Int32);
 BEGIN
   CASE C DIV 2 OF 
-    0: PRINTESC(861);
-    1: PRINTESC(862);
-    2: PRINTESC(863);
-    3: PRINTESC(864);
-    ELSE PRINT(865)
+    0: print_esc_str('displaystyle');
+    1: print_esc_str('textstyle');
+    2: print_esc_str('scriptstyle');
+    3: print_esc_str('scriptscriptstyle');
+    ELSE print_str('Unknown style!')
   END;
 END;
 {:694}{225:}
 PROCEDURE PRINTSKIPPAR(N:Int32);
 BEGIN
   CASE N OF 
-    0: PRINTESC(376);
-    1: PRINTESC(377);
-    2: PRINTESC(378);
-    3: PRINTESC(379);
-    4: PRINTESC(380);
-    5: PRINTESC(381);
-    6: PRINTESC(382);
-    7: PRINTESC(383);
-    8: PRINTESC(384);
-    9: PRINTESC(385);
-    10: PRINTESC(386);
-    11: PRINTESC(387);
-    12: PRINTESC(388);
-    13: PRINTESC(389);
-    14: PRINTESC(390);
-    15: PRINTESC(391);
-    16: PRINTESC(392);
-    17: PRINTESC(393);
-    ELSE PRINT(394)
+    0: print_esc_str('lineskip');
+    1: print_esc_str('baselineskip');
+    2: print_esc_str('parskip');
+    3: print_esc_str('abovedisplayskip');
+    4: print_esc_str('belowdisplayskip');
+    5: print_esc_str('abovedisplayshortskip');
+    6: print_esc_str('belowdisplayshortskip');
+    7: print_esc_str('leftskip');
+    8: print_esc_str('rightskip');
+    9: print_esc_str('topskip');
+    10: print_esc_str('splittopskip');
+    11: print_esc_str('tabskip');
+    12: print_esc_str('spaceskip');
+    13: print_esc_str('xspaceskip');
+    14: print_esc_str('parfillskip');
+    15: print_esc_str('thinmuskip');
+    16: print_esc_str('medmuskip');
+    17: print_esc_str('thickmuskip');
+    ELSE print_str('[unknown glue parameter!]')
   END;
 END;{:225}{:179}{182:}
 PROCEDURE SHOWNODELIST(P:Int32);
@@ -3990,7 +4023,7 @@ BEGIN
   IF (POOLPTR-STRSTART[STRPTR])>DEPTHTHRESHO THEN
     BEGIN
       IF P>0 THEN
-        PRINT(314);
+        print_str(' []');
       GOTO 10;
     END;
   N := 0;
@@ -4000,13 +4033,13 @@ BEGIN
       PRINTCURRENT;
       IF P>MEMEND THEN
         BEGIN
-          PRINT(315);
+          print_str('Bad link, display aborted.');
           GOTO 10;
         END;
       N := N+1;
       IF N>BREADTHMAX THEN
         BEGIN
-          PRINT(316);
+          print_str('etc.');
           GOTO 10;
         END;
 {183:}
@@ -4020,12 +4053,12 @@ BEGIN
                 ELSE
                   IF MEM[P].HH.B0=
                      1 THEN PRINTESC(118)
-                ELSE PRINTESC(318);
-                PRINT(319);
+                ELSE print_esc_str('unset');
+                print_str('box(');
                 PRINTSCALED(MEM[P+3].INT);
                 PRINTCHAR(43);
                 PRINTSCALED(MEM[P+2].INT);
-                PRINT(320);
+                print_str(')x');
                 PRINTSCALED(MEM[P+1].INT);
                 IF MEM[P].HH.B0=13 THEN{185:}
                   BEGIN
@@ -4034,16 +4067,16 @@ BEGIN
                         PRINT(
                               286);
                         PRINTINT(MEM[P].HH.B1+1);
-                        PRINT(322);
+                        print_str(' columns)');
                       END;
                     IF MEM[P+6].INT<>0 THEN
                       BEGIN
-                        PRINT(323);
+                        print_str(', stretch ');
                         PRINTGLUE(MEM[P+6].INT,MEM[P+5].HH.B1,0);
                       END;
                     IF MEM[P+4].INT<>0 THEN
                       BEGIN
-                        PRINT(324);
+                        print_str(', shrink ');
                         PRINTGLUE(MEM[P+4].INT,MEM[P+5].HH.B0,0);
                       END;
                   END{:185}
@@ -4052,21 +4085,21 @@ BEGIN
                     G := MEM[P+6].GR;
                     IF (G<>0.0)AND(MEM[P+5].HH.B0<>0)THEN
                       BEGIN
-                        PRINT(325);
-                        IF MEM[P+5].HH.B0=2 THEN PRINT(326);
-                        IF ABS(MEM[P+6].INT)<1048576 THEN PRINT(327)
+                        print_str(', glue set ');
+                        IF MEM[P+5].HH.B0=2 THEN print_str('- ');
+                        IF ABS(MEM[P+6].INT)<1048576 THEN print_str('?.?')
                         ELSE
                           IF ABS(G)>20000.0 THEN
                             BEGIN
                               IF G>0.0 THEN PRINTCHAR(62)
-                              ELSE PRINT(328);
+                              ELSE print_str('< -');
                               PRINTGLUE(20000*65536,MEM[P+5].HH.B1,0);
                             END
                         ELSE PRINTGLUE(ISORound(65536*G),MEM[P+5].HH.B1,0);
                       END{:186};
                     IF MEM[P+4].INT<>0 THEN
                       BEGIN
-                        PRINT(321);
+                        print_str(', shifted ');
                         PRINTSCALED(MEM[P+4].INT);
                       END;
                   END;
@@ -4081,24 +4114,24 @@ BEGIN
               END{:184};
           2:{187:}
              BEGIN
-               PRINTESC(329);
+               print_esc_str('rule(');
                PRINTRULEDIM(MEM[P+3].INT);
                PRINTCHAR(43);
                PRINTRULEDIM(MEM[P+2].INT);
-               PRINT(320);
+               print_str(')x');
                PRINTRULEDIM(MEM[P+1].INT);
              END{:187};
           3:{188:}
              BEGIN
-               PRINTESC(330);
+               print_esc_str('insert');
                PRINTINT(MEM[P].HH.B1-0);
-               PRINT(331);
+               print_str(', natural size ');
                PRINTSCALED(MEM[P+3].INT);
-               PRINT(332);
+               print_str('; split(');
                PRINTSPEC(MEM[P+4].HH.RH,0);
                PRINTCHAR(44);
                PRINTSCALED(MEM[P+2].INT);
-               PRINT(333);
+               print_str('); float cost ');
                PRINTINT(MEM[P+1].INT);
                BEGIN
                  BEGIN
@@ -4125,30 +4158,30 @@ BEGIN
                2: PRINTWRITEWH(1286,P);
                3:
                   BEGIN
-                    PRINTESC(1287);
+                    print_esc_str('special');
                     PRINTMARK(MEM[P+1].HH.RH);
                   END;
                4:
                   BEGIN
-                    PRINTESC(1289);
+                    print_esc_str('setlanguage');
                     PRINTINT(MEM[P+1].HH.RH);
-                    PRINT(1292);
+                    print_str(' (hyphenmin ');
                     PRINTINT(MEM[P+1].HH.B0);
                     PRINTCHAR(44);
                     PRINTINT(MEM[P+1].HH.B1);
                     PRINTCHAR(41);
                   END;
-               ELSE PRINT(1293)
+               ELSE print_str('whatsit?')
              END{:1356};
           10:{189:}
               IF MEM[P].HH.B1>=100 THEN{190:}
                 BEGIN
-                  PRINTESC(338);
+                  print_esc_str('');
                   IF MEM[P].HH.B1=101 THEN PRINTCHAR(99)
                   ELSE
                     IF MEM[P].HH.B1=102 THEN
                       PRINTCHAR(120);
-                  PRINT(339);
+                  print_str('leaders ');
                   PRINTSPEC(MEM[P+1].HH.LH,0);
                   BEGIN
                     BEGIN
@@ -4161,15 +4194,15 @@ BEGIN
                 END{:190}
               ELSE
                 BEGIN
-                  PRINTESC(334);
+                  print_esc_str('glue');
                   IF MEM[P].HH.B1<>0 THEN
                     BEGIN
                       PRINTCHAR(40);
                       IF MEM[P].HH.B1<98 THEN PRINTSKIPPAR(MEM[P].HH.B1-1)
                       ELSE
                         IF MEM[P].HH.B1
-                           =98 THEN PRINTESC(335)
-                      ELSE PRINTESC(336);
+                           =98 THEN print_esc_str('nonscript')
+                      ELSE print_esc_str('mskip');
                       PRINTCHAR(41);
                     END;
                   IF MEM[P].HH.B1<>98 THEN
@@ -4183,32 +4216,32 @@ BEGIN
           11:{191:}
               IF MEM[P].HH.B1<>99 THEN
                 BEGIN
-                  PRINTESC(340);
+                  print_esc_str('kern');
                   IF MEM[P].HH.B1<>0 THEN PRINTCHAR(32);
                   PRINTSCALED(MEM[P+1].INT);
-                  IF MEM[P].HH.B1=2 THEN PRINT(341);
+                  IF MEM[P].HH.B1=2 THEN print_str(' (for accent)');
                 END
               ELSE
                 BEGIN
-                  PRINTESC(342);
+                  print_esc_str('mkern');
                   PRINTSCALED(MEM[P+1].INT);
-                  PRINT(337);
+                  print_str('mu');
                 END{:191};
           9:{192:}
              BEGIN
-               PRINTESC(343);
-               IF MEM[P].HH.B1=0 THEN PRINT(344)
-               ELSE PRINT(345);
+               print_esc_str('math');
+               IF MEM[P].HH.B1=0 THEN print_str('on')
+               ELSE print_str('off');
                IF MEM[P+1].INT<>0 THEN
                  BEGIN
-                   PRINT(346);
+                   print_str(', surrounded ');
                    PRINTSCALED(MEM[P+1].INT);
                  END;
              END{:192};
           6:{193:}
              BEGIN
                PRINTFONTAND(P+1);
-               PRINT(347);
+               print_str(' (ligature ');
                IF MEM[P].HH.B1>1 THEN PRINTCHAR(124);
                FONTINSHORTD := MEM[P+1].HH.B0;
                SHORTDISPLAY(MEM[P+1].HH.RH);
@@ -4217,15 +4250,15 @@ BEGIN
              END{:193};
           12:{194:}
               BEGIN
-                PRINTESC(348);
+                print_esc_str('penalty ');
                 PRINTINT(MEM[P+1].INT);
               END{:194};
           7:{195:}
              BEGIN
-               PRINTESC(349);
+               print_esc_str('discretionary');
                IF MEM[P].HH.B1>0 THEN
                  BEGIN
-                   PRINT(350);
+                   print_str(' replacing ');
                    PRINTINT(MEM[P].HH.B1);
                  END;
                BEGIN
@@ -4245,12 +4278,12 @@ BEGIN
              END{:195};
           4:{196:}
              BEGIN
-               PRINTESC(351);
+               print_esc_str('mark');
                PRINTMARK(MEM[P+1].INT);
              END{:196};
           5:{197:}
              BEGIN
-               PRINTESC(352);
+               print_esc_str('vadjust');
                BEGIN
                  BEGIN
                    STRPOOL[POOLPTR] := 46;
@@ -4263,7 +4296,7 @@ BEGIN
           14: PRINTSTYLE(MEM[P].HH.B1);
           15:{695:}
               BEGIN
-                PRINTESC(525);
+                print_esc_str('mathchoice');
                 BEGIN
                   STRPOOL[POOLPTR] := 68;
                   POOLPTR := POOLPTR+1;
@@ -4293,42 +4326,42 @@ BEGIN
                                                         BEGIN
                                                           CASE MEM[P].HH.
                                                                B0 OF 
-                                                            16: PRINTESC(866);
-                                                            17: PRINTESC(867);
-                                                            18: PRINTESC(868);
-                                                            19: PRINTESC(869);
-                                                            20: PRINTESC(870);
-                                                            21: PRINTESC(871);
-                                                            22: PRINTESC(872);
-                                                            23: PRINTESC(873);
-                                                            27: PRINTESC(874);
-                                                            26: PRINTESC(875);
-                                                            29: PRINTESC(539);
+                                                            16: print_esc_str('mathord');
+                                                            17: print_esc_str('mathop');
+                                                            18: print_esc_str('mathbin');
+                                                            19: print_esc_str('mathrel');
+                                                            20: print_esc_str('mathopen');
+                                                            21: print_esc_str('mathclose');
+                                                            22: print_esc_str('mathpunct');
+                                                            23: print_esc_str('mathinner');
+                                                            27: print_esc_str('overline');
+                                                            26: print_esc_str('underline');
+                                                            29: print_esc_str('vcenter');
                                                             24:
                                                                 BEGIN
-                                                                  PRINTESC(533);
+                                                                  print_esc_str('radical');
                                                                   PRINTDELIMIT(P+4);
                                                                 END;
                                                             28:
                                                                 BEGIN
-                                                                  PRINTESC(508);
+                                                                  print_esc_str('accent');
                                                                   PRINTFAMANDC(P+4);
                                                                 END;
                                                             30:
                                                                 BEGIN
-                                                                  PRINTESC(876);
+                                                                  print_esc_str('left');
                                                                   PRINTDELIMIT(P+1);
                                                                 END;
                                                             31:
                                                                 BEGIN
-                                                                  PRINTESC(877);
+                                                                  print_esc_str('right');
                                                                   PRINTDELIMIT(P+1);
                                                                 END;
                                                           END;
                                                           IF MEM[P].HH.B1<>0 THEN
-                                                            IF MEM[P].HH.B1=1 THEN PRINTESC(878)
+                                                            IF MEM[P].HH.B1=1 THEN print_esc_str('limits')
                                                           ELSE
-                                                            PRINTESC(879);
+                                                            print_esc_str('nolimits');
                                                           IF MEM[P].HH.B0<30 THEN PRINTSUBSIDI(P+1,
                                                                                                46);
                                                           PRINTSUBSIDI(P+2,94);
@@ -4336,27 +4369,27 @@ BEGIN
                                                         END{:696};
           25:{697:}
               BEGIN
-                PRINTESC(880);
-                IF MEM[P+1].INT=1073741824 THEN PRINT(881)
+                print_esc_str('fraction, thickness ');
+                IF MEM[P+1].INT=1073741824 THEN print_str('= default')
                 ELSE PRINTSCALED(MEM[P+1].INT)
                 ;
                 IF (MEM[P+4].QQQQ.B0<>0)OR(MEM[P+4].QQQQ.B1<>0)OR(MEM[P+4].QQQQ.B2<>0)OR(
                    MEM[P+4].QQQQ.B3<>0)THEN
                   BEGIN
-                    PRINT(882);
+                    print_str(', left-delimiter ');
                     PRINTDELIMIT(P+4);
                   END;
                 IF (MEM[P+5].QQQQ.B0<>0)OR(MEM[P+5].QQQQ.B1<>0)OR(MEM[P+5].QQQQ.B2<>0)OR(
                    MEM[P+5].QQQQ.B3<>0)THEN
                   BEGIN
-                    PRINT(883);
+                    print_str(', right-delimiter ');
                     PRINTDELIMIT(P+5);
                   END;
                 PRINTSUBSIDI(P+2,92);
                 PRINTSUBSIDI(P+3,47);
               END{:697};
 {:690}
-          ELSE PRINT(317)
+          ELSE print_str('Unknown node type!')
         END{:183};
       P := MEM[P].HH.RH;
     END;
@@ -4433,7 +4466,7 @@ BEGIN
                           GOTO 30;
                         END;
                    2,4: FREENODE(P,2);
-                   ELSE CONFUSION(1295)
+                   ELSE confusion_str('ext3')
                  END;
                  GOTO 30;
                END{:1358};
@@ -4499,7 +4532,7 @@ BEGIN
                   GOTO 30;
                 END;
 {:698}
-            ELSE CONFUSION(353)
+            ELSE confusion_str('flushing')
           END;
           FREENODE(P,2);
           30:
@@ -4562,7 +4595,7 @@ BEGIN
                       R := GETNODE(2);
                       WORDS := 2;
                     END;
-               ELSE CONFUSION(1294)
+               ELSE confusion_str('ext2')
              END{:1357};
           10:
               BEGIN
@@ -4599,7 +4632,7 @@ BEGIN
                R := GETNODE(2);
                MEM[R+1].INT := COPYNODELIST(MEM[P+1].INT);
              END;
-          ELSE CONFUSION(354)
+          ELSE confusion_str('copying')
         END{:206};
       WHILE WORDS>0 DO
         BEGIN
@@ -4625,19 +4658,19 @@ PROCEDURE PRINTMODE(M:Int32);
 BEGIN
   IF M>0 THEN
     CASE M DIV(101) OF 
-      0: PRINT(355);
-      1: PRINT(356);
-      2: PRINT(357);
+      0: print_str('vertical');
+      1: print_str('horizontal');
+      2: print_str('display math');
     END
   ELSE
-    IF M=0 THEN PRINT(358)
+    IF M=0 THEN print_str('no')
   ELSE
     CASE (-M)DIV(101) OF 
-      0: PRINT(359);
-      1: PRINT(360);
-      2: PRINT(343);
+      0: print_str('internal vertical');
+      1: print_str('restricted horizontal');
+      2: print_str('math');
     END;
-  PRINT(361);
+  print_str(' mode');
 END;
 {:211}{216:}
 PROCEDURE PUSHNEST;
@@ -4645,7 +4678,7 @@ BEGIN
   IF NESTPTR>MAXNESTSTACK THEN
     BEGIN
       MAXNESTSTACK := NESTPTR;
-      IF NESTPTR=NESTSIZE THEN OVERFLOW(362,NESTSIZE);
+      IF NESTPTR=NESTSIZE THEN overflow('semantic nest size', NESTSIZE);
     END;
   NEST[NESTPTR] := CURLIST;
   NESTPTR := NESTPTR+1;
@@ -4676,49 +4709,49 @@ VAR P: 0..NESTSIZE;
   T: Int32;
 BEGIN
   NEST[NESTPTR] := CURLIST;
-  PRINTNL(338);
+  print_nl_str('');
   PRINTLN;
   FOR P:=NESTPTR DOWNTO 0 DO
     BEGIN
       M := NEST[P].MODEFIELD;
       A := NEST[P].AUXFIELD;
-      PRINTNL(363);
+      print_nl_str('### ');
       PRINTMODE(M);
-      PRINT(364);
+      print_str(' entered at line ');
       PRINTINT(ABS(NEST[P].MLFIELD));
       IF M=102 THEN
         IF NEST[P].PGFIELD<>8585216 THEN
           BEGIN
-            PRINT(365);
+            print_str(' (language');
             PRINTINT(NEST[P].PGFIELD MOD 65536);
-            PRINT(366);
+            print_str(':hyphenmin');
             PRINTINT(NEST[P].PGFIELD DIV 4194304);
             PRINTCHAR(44);
             PRINTINT((NEST[P].PGFIELD DIV 65536)MOD 64);
             PRINTCHAR(41);
           END;
-      IF NEST[P].MLFIELD<0 THEN PRINT(367);
+      IF NEST[P].MLFIELD<0 THEN print_str(' (\output routine)');
       IF P=0 THEN
         BEGIN{986:}
           IF 29998<>PAGETAIL THEN
             BEGIN
-              PRINTNL(980);
-              IF OUTPUTACTIVE THEN PRINT(981);
+              print_nl_str('### current page:');
+              IF OUTPUTACTIVE THEN print_str(' (held over for next output)');
               SHOWBOX(MEM[29998].HH.RH);
               IF PAGECONTENTS>0 THEN
                 BEGIN
-                  PRINTNL(982);
+                  print_nl_str('total height ');
                   PRINTTOTALS;
-                  PRINTNL(983);
+                  print_nl_str(' goal height ');
                   PRINTSCALED(PAGESOFAR[0]);
                   R := MEM[30000].HH.RH;
                   WHILE R<>30000 DO
                     BEGIN
                       PRINTLN;
-                      PRINTESC(330);
+                      print_esc_str('insert');
                       T := MEM[R].HH.B1-0;
                       PRINTINT(T);
-                      PRINT(984);
+                      print_str(' adds ');
                       IF EQTB[5318+T].INT=1000 THEN T := MEM[R+3].INT
                       ELSE T := XOVERN(MEM[R+3].
                                 INT,1000)*EQTB[5318+T].INT;
@@ -4731,47 +4764,47 @@ BEGIN
                             Q := MEM[Q].HH.RH;
                             IF (MEM[Q].HH.B0=3)AND(MEM[Q].HH.B1=MEM[R].HH.B1)THEN T := T+1;
                           UNTIL Q=MEM[R+1].HH.LH;
-                          PRINT(985);
+                          print_str(', #');
                           PRINTINT(T);
-                          PRINT(986);
+                          print_str(' might split');
                         END;
                       R := MEM[R].HH.RH;
                     END;
                 END;
             END{:986};
-          IF MEM[29999].HH.RH<>0 THEN PRINTNL(368);
+          IF MEM[29999].HH.RH<>0 THEN print_nl_str('### recent contributions:');
         END;
       SHOWBOX(MEM[NEST[P].HEADFIELD].HH.RH);
 {219:}
       CASE ABS(M)DIV(101) OF 
         0:
            BEGIN
-             PRINTNL(369);
-             IF A.INT<=-65536000 THEN PRINT(370)
+             print_nl_str('prevdepth ');
+             IF A.INT<=-65536000 THEN print_str('ignored')
              ELSE PRINTSCALED(A.INT);
              IF NEST[P].PGFIELD<>0 THEN
                BEGIN
-                 PRINT(371);
+                 print_str(', prevgraf ');
                  PRINTINT(NEST[P].PGFIELD);
-                 PRINT(372);
+                 print_str(' line');
                  IF NEST[P].PGFIELD<>1 THEN PRINTCHAR(115);
                END;
            END;
         1:
            BEGIN
-             PRINTNL(373);
+             print_nl_str('spacefactor ');
              PRINTINT(A.HH.LH);
              IF M>0 THEN
                IF A.HH.RH>0 THEN
                  BEGIN
-                   PRINT(374);
+                   print_str(', current language ');
                    PRINTINT(A.HH.RH);
                  END;
            END;
         2:
            IF A.INT<>0 THEN
              BEGIN
-               PRINT(375);
+               print_str('this will begin denominator of:');
                SHOWBOX(A.INT);
              END;
       END{:219};
@@ -4780,62 +4813,62 @@ END;{:218}{237:}
 PROCEDURE PRINTPARAM(N:Int32);
 BEGIN
   CASE N OF 
-    0: PRINTESC(420);
-    1: PRINTESC(421);
-    2: PRINTESC(422);
-    3: PRINTESC(423);
-    4: PRINTESC(424);
-    5: PRINTESC(425);
-    6: PRINTESC(426);
-    7: PRINTESC(427);
-    8: PRINTESC(428);
-    9: PRINTESC(429);
-    10: PRINTESC(430);
-    11: PRINTESC(431);
-    12: PRINTESC(432);
-    13: PRINTESC(433);
-    14: PRINTESC(434);
-    15: PRINTESC(435);
-    16: PRINTESC(436);
-    17: PRINTESC(437);
-    18: PRINTESC(438);
-    19: PRINTESC(439);
-    20: PRINTESC(440);
-    21: PRINTESC(441);
-    22: PRINTESC(442);
-    23: PRINTESC(443);
-    24: PRINTESC(444);
-    25: PRINTESC(445);
-    26: PRINTESC(446);
-    27: PRINTESC(447);
-    28: PRINTESC(448);
-    29: PRINTESC(449);
-    30: PRINTESC(450);
-    31: PRINTESC(451);
-    32: PRINTESC(452);
-    33: PRINTESC(453);
-    34: PRINTESC(454);
-    35: PRINTESC(455);
-    36: PRINTESC(456);
-    37: PRINTESC(457);
-    38: PRINTESC(458);
-    39: PRINTESC(459);
-    40: PRINTESC(460);
-    41: PRINTESC(461);
-    42: PRINTESC(462);
-    43: PRINTESC(463);
-    44: PRINTESC(464);
-    45: PRINTESC(465);
-    46: PRINTESC(466);
-    47: PRINTESC(467);
-    48: PRINTESC(468);
-    49: PRINTESC(469);
-    50: PRINTESC(470);
-    51: PRINTESC(471);
-    52: PRINTESC(472);
-    53: PRINTESC(473);
-    54: PRINTESC(474);
-    ELSE PRINT(475)
+    0: print_esc_str('pretolerance');
+    1: print_esc_str('tolerance');
+    2: print_esc_str('linepenalty');
+    3: print_esc_str('hyphenpenalty');
+    4: print_esc_str('exhyphenpenalty');
+    5: print_esc_str('clubpenalty');
+    6: print_esc_str('widowpenalty');
+    7: print_esc_str('displaywidowpenalty');
+    8: print_esc_str('brokenpenalty');
+    9: print_esc_str('binoppenalty');
+    10: print_esc_str('relpenalty');
+    11: print_esc_str('predisplaypenalty');
+    12: print_esc_str('postdisplaypenalty');
+    13: print_esc_str('interlinepenalty');
+    14: print_esc_str('doublehyphendemerits');
+    15: print_esc_str('finalhyphendemerits');
+    16: print_esc_str('adjdemerits');
+    17: print_esc_str('mag');
+    18: print_esc_str('delimiterfactor');
+    19: print_esc_str('looseness');
+    20: print_esc_str('time');
+    21: print_esc_str('day');
+    22: print_esc_str('month');
+    23: print_esc_str('year');
+    24: print_esc_str('showboxbreadth');
+    25: print_esc_str('showboxdepth');
+    26: print_esc_str('hbadness');
+    27: print_esc_str('vbadness');
+    28: print_esc_str('pausing');
+    29: print_esc_str('tracingonline');
+    30: print_esc_str('tracingmacros');
+    31: print_esc_str('tracingstats');
+    32: print_esc_str('tracingparagraphs');
+    33: print_esc_str('tracingpages');
+    34: print_esc_str('tracingoutput');
+    35: print_esc_str('tracinglostchars');
+    36: print_esc_str('tracingcommands');
+    37: print_esc_str('tracingrestores');
+    38: print_esc_str('uchyph');
+    39: print_esc_str('outputpenalty');
+    40: print_esc_str('maxdeadcycles');
+    41: print_esc_str('hangafter');
+    42: print_esc_str('floatingpenalty');
+    43: print_esc_str('globaldefs');
+    44: print_esc_str('fam');
+    45: print_esc_str('escapechar');
+    46: print_esc_str('defaulthyphenchar');
+    47: print_esc_str('defaultskewchar');
+    48: print_esc_str('endlinechar');
+    49: print_esc_str('newlinechar');
+    50: print_esc_str('language');
+    51: print_esc_str('lefthyphenmin');
+    52: print_esc_str('righthyphenmin');
+    53: print_esc_str('holdinginserts');
+    54: print_esc_str('errorcontextlines');
+    ELSE print_str('[unknown integer parameter!]')
   END;
 END;{:237}{241:}
 PROCEDURE FIXDATEANDTI;
@@ -4860,7 +4893,7 @@ BEGIN
 END;
 PROCEDURE ENDDIAGNOSTI(BLANKLINE:BOOLEAN);
 BEGIN
-  PRINTNL(338);
+  print_nl_str('');
   IF BLANKLINE THEN PRINTLN;
   SELECTOR := OLDSETTING;
 END;
@@ -4868,28 +4901,28 @@ END;
 PROCEDURE PRINTLENGTHP(N:Int32);
 BEGIN
   CASE N OF 
-    0: PRINTESC(478);
-    1: PRINTESC(479);
-    2: PRINTESC(480);
-    3: PRINTESC(481);
-    4: PRINTESC(482);
-    5: PRINTESC(483);
-    6: PRINTESC(484);
-    7: PRINTESC(485);
-    8: PRINTESC(486);
-    9: PRINTESC(487);
-    10: PRINTESC(488);
-    11: PRINTESC(489);
-    12: PRINTESC(490);
-    13: PRINTESC(491);
-    14: PRINTESC(492);
-    15: PRINTESC(493);
-    16: PRINTESC(494);
-    17: PRINTESC(495);
-    18: PRINTESC(496);
-    19: PRINTESC(497);
-    20: PRINTESC(498);
-    ELSE PRINT(499)
+    0: print_esc_str('parindent');
+    1: print_esc_str('mathsurround');
+    2: print_esc_str('lineskiplimit');
+    3: print_esc_str('hsize');
+    4: print_esc_str('vsize');
+    5: print_esc_str('maxdepth');
+    6: print_esc_str('splitmaxdepth');
+    7: print_esc_str('boxmaxdepth');
+    8: print_esc_str('hfuzz');
+    9: print_esc_str('vfuzz');
+    10: print_esc_str('delimitershortfall');
+    11: print_esc_str('nulldelimiterspace');
+    12: print_esc_str('scriptspace');
+    13: print_esc_str('predisplaysize');
+    14: print_esc_str('displaywidth');
+    15: print_esc_str('displayindent');
+    16: print_esc_str('overfullrule');
+    17: print_esc_str('hangindent');
+    18: print_esc_str('hoffset');
+    19: print_esc_str('voffset');
+    20: print_esc_str('emergencystretch');
+    ELSE print_str('[unknown dimen parameter!]')
   END;
 END;
 {:247}{252:}{298:}
@@ -4899,48 +4932,48 @@ BEGIN
   CASE CMD OF 
     1:
        BEGIN
-         PRINT(557);
+         print_str('begin-group character ');
          PRINT(CHRCODE);
        END;
     2:
        BEGIN
-         PRINT(558);
+         print_str('end-group character ');
          PRINT(CHRCODE);
        END;
     3:
        BEGIN
-         PRINT(559);
+         print_str('math shift character ');
          PRINT(CHRCODE);
        END;
     6:
        BEGIN
-         PRINT(560);
+         print_str('macro parameter character ');
          PRINT(CHRCODE);
        END;
     7:
        BEGIN
-         PRINT(561);
+         print_str('superscript character ');
          PRINT(CHRCODE);
        END;
     8:
        BEGIN
-         PRINT(562);
+         print_str('subscript character ');
          PRINT(CHRCODE);
        END;
-    9: PRINT(563);
+    9: print_str('end of alignment template');
     10:
         BEGIN
-          PRINT(564);
+          print_str('blank space ');
           PRINT(CHRCODE);
         END;
     11:
         BEGIN
-          PRINT(565);
+          print_str('the letter ');
           PRINT(CHRCODE);
         END;
     12:
         BEGIN
-          PRINT(566);
+          print_str('the character ');
           PRINT(CHRCODE);
         END;
 {227:}
@@ -4950,39 +4983,39 @@ BEGIN
              IF 
                 CHRCODE<3156 THEN
                BEGIN
-                 PRINTESC(395);
+                 print_esc_str('skip');
                  PRINTINT(CHRCODE-2900);
                END
            ELSE
              BEGIN
-               PRINTESC(396);
+               print_esc_str('muskip');
                PRINTINT(CHRCODE-3156);
              END;
 {:227}{231:}
     72:
         IF CHRCODE>=3422 THEN
           BEGIN
-            PRINTESC(407);
+            print_esc_str('toks');
             PRINTINT(CHRCODE-3422);
           END
         ELSE
           CASE CHRCODE OF 
-            3413: PRINTESC(398);
-            3414: PRINTESC(399);
-            3415: PRINTESC(400);
-            3416: PRINTESC(401);
-            3417: PRINTESC(402);
-            3418: PRINTESC(403);
-            3419: PRINTESC(404);
-            3420: PRINTESC(405);
-            ELSE PRINTESC(406)
+            3413: print_esc_str('output');
+            3414: print_esc_str('everypar');
+            3415: print_esc_str('everymath');
+            3416: print_esc_str('everydisplay');
+            3417: print_esc_str('everyhbox');
+            3418: print_esc_str('everyvbox');
+            3419: print_esc_str('everyjob');
+            3420: print_esc_str('everycr');
+            ELSE print_esc_str('errhelp')
           END;
 {:231}{239:}
     73:
         IF CHRCODE<5318 THEN PRINTPARAM(CHRCODE-5263)
         ELSE
           BEGIN
-            PRINTESC(476);
+            print_esc_str('count');
             PRINTINT(CHRCODE-5318);
           END;
 {:239}{249:}
@@ -4990,389 +5023,389 @@ BEGIN
         IF CHRCODE<5851 THEN PRINTLENGTHP(CHRCODE-5830)
         ELSE
           BEGIN
-            PRINTESC(500);
+            print_esc_str('dimen');
             PRINTINT(CHRCODE-5851);
           END;{:249}{266:}
-    45: PRINTESC(508);
-    90: PRINTESC(509);
-    40: PRINTESC(510);
-    41: PRINTESC(511);
-    77: PRINTESC(519);
-    61: PRINTESC(512);
-    42: PRINTESC(531);
-    16: PRINTESC(513);
-    107: PRINTESC(504);
-    88: PRINTESC(518);
-    15: PRINTESC(514);
-    92: PRINTESC(515);
-    67: PRINTESC(505);
-    62: PRINTESC(516);
+    45: print_esc_str('accent');
+    90: print_esc_str('advance');
+    40: print_esc_str('afterassignment');
+    41: print_esc_str('aftergroup');
+    77: print_esc_str('fontdimen');
+    61: print_esc_str('begingroup');
+    42: print_esc_str('penalty');
+    16: print_esc_str('char');
+    107: print_esc_str('csname');
+    88: print_esc_str('font');
+    15: print_esc_str('delimiter');
+    92: print_esc_str('divide');
+    67: print_esc_str('endcsname');
+    62: print_esc_str('endgroup');
     64: PRINTESC(32);
-    102: PRINTESC(517);
-    32: PRINTESC(520);
-    36: PRINTESC(521);
-    39: PRINTESC(522);
-    37: PRINTESC(330);
+    102: print_esc_str('expandafter');
+    32: print_esc_str('halign');
+    36: print_esc_str('hrule');
+    39: print_esc_str('ignorespaces');
+    37: print_esc_str('insert');
     44: PRINTESC(47);
-    18: PRINTESC(351);
-    46: PRINTESC(523);
-    17: PRINTESC(524);
-    54: PRINTESC(525);
-    91: PRINTESC(526);
-    34: PRINTESC(527);
-    65: PRINTESC(528);
-    103: PRINTESC(529);
-    55: PRINTESC(335);
-    63: PRINTESC(530);
-    66: PRINTESC(533);
-    96: PRINTESC(534);
-    0: PRINTESC(535);
-    98: PRINTESC(536);
-    80: PRINTESC(532);
-    84: PRINTESC(408);
-    109: PRINTESC(537);
-    71: PRINTESC(407);
-    38: PRINTESC(352);
-    33: PRINTESC(538);
-    56: PRINTESC(539);
-    35: PRINTESC(540);{:266}{335:}
-    13: PRINTESC(597);
+    18: print_esc_str('mark');
+    46: print_esc_str('mathaccent');
+    17: print_esc_str('mathchar');
+    54: print_esc_str('mathchoice');
+    91: print_esc_str('multiply');
+    34: print_esc_str('noalign');
+    65: print_esc_str('noboundary');
+    103: print_esc_str('noexpand');
+    55: print_esc_str('nonscript');
+    63: print_esc_str('omit');
+    66: print_esc_str('radical');
+    96: print_esc_str('read');
+    0: print_esc_str('relax');
+    98: print_esc_str('setbox');
+    80: print_esc_str('prevgraf');
+    84: print_esc_str('parshape');
+    109: print_esc_str('the');
+    71: print_esc_str('toks');
+    38: print_esc_str('vadjust');
+    33: print_esc_str('valign');
+    56: print_esc_str('vcenter');
+    35: print_esc_str('vrule');{:266}{335:}
+    13: print_esc_str('par');
 {:335}{377:}
     104:
-         IF CHRCODE=0 THEN PRINTESC(629)
-         ELSE PRINTESC(630);
+         IF CHRCODE=0 THEN print_esc_str('input')
+         ELSE print_esc_str('endinput');
 {:377}{385:}
     110:
          CASE CHRCODE OF 
-           1: PRINTESC(632);
-           2: PRINTESC(633);
-           3: PRINTESC(634);
-           4: PRINTESC(635);
-           ELSE PRINTESC(631)
+           1: print_esc_str('firstmark');
+           2: print_esc_str('botmark');
+           3: print_esc_str('splitfirstmark');
+           4: print_esc_str('splitbotmark');
+           ELSE print_esc_str('topmark')
          END;
 {:385}{412:}
     89:
-        IF CHRCODE=0 THEN PRINTESC(476)
+        IF CHRCODE=0 THEN print_esc_str('count')
         ELSE
           IF CHRCODE=1 THEN
-            PRINTESC(500)
+            print_esc_str('dimen')
         ELSE
-          IF CHRCODE=2 THEN PRINTESC(395)
-        ELSE PRINTESC(396);
+          IF CHRCODE=2 THEN print_esc_str('skip')
+        ELSE print_esc_str('muskip');
 {:412}{417:}
     79:
-        IF CHRCODE=1 THEN PRINTESC(669)
-        ELSE PRINTESC(668);
+        IF CHRCODE=1 THEN print_esc_str('prevdepth')
+        ELSE print_esc_str('spacefactor');
     82:
-        IF CHRCODE=0 THEN PRINTESC(670)
-        ELSE PRINTESC(671);
+        IF CHRCODE=0 THEN print_esc_str('deadcycles')
+        ELSE print_esc_str('insertpenalties');
     83:
-        IF CHRCODE=1 THEN PRINTESC(672)
+        IF CHRCODE=1 THEN print_esc_str('wd')
         ELSE
-          IF CHRCODE=3 THEN PRINTESC(673)
-        ELSE PRINTESC(674);
+          IF CHRCODE=3 THEN print_esc_str('ht')
+        ELSE print_esc_str('dp');
     70:
         CASE CHRCODE OF 
-          0: PRINTESC(675);
-          1: PRINTESC(676);
-          2: PRINTESC(677);
-          3: PRINTESC(678);
-          ELSE PRINTESC(679)
+          0: print_esc_str('lastpenalty');
+          1: print_esc_str('lastkern');
+          2: print_esc_str('lastskip');
+          3: print_esc_str('inputlineno');
+          ELSE print_esc_str('badness')
         END;
 {:417}{469:}
     108:
          CASE CHRCODE OF 
-           0: PRINTESC(735);
-           1: PRINTESC(736);
-           2: PRINTESC(737);
-           3: PRINTESC(738);
-           4: PRINTESC(739);
-           ELSE PRINTESC(740)
+           0: print_esc_str('number');
+           1: print_esc_str('romannumeral');
+           2: print_esc_str('string');
+           3: print_esc_str('meaning');
+           4: print_esc_str('fontname');
+           ELSE print_esc_str('jobname')
          END;
 {:469}{488:}
     105:
          CASE CHRCODE OF 
-           1: PRINTESC(758);
-           2: PRINTESC(759);
-           3: PRINTESC(760);
-           4: PRINTESC(761);
-           5: PRINTESC(762);
-           6: PRINTESC(763);
-           7: PRINTESC(764);
-           8: PRINTESC(765);
-           9: PRINTESC(766);
-           10: PRINTESC(767);
-           11: PRINTESC(768);
-           12: PRINTESC(769);
-           13: PRINTESC(770);
-           14: PRINTESC(771);
-           15: PRINTESC(772);
-           16: PRINTESC(773);
-           ELSE PRINTESC(757)
+           1: print_esc_str('ifcat');
+           2: print_esc_str('ifnum');
+           3: print_esc_str('ifdim');
+           4: print_esc_str('ifodd');
+           5: print_esc_str('ifvmode');
+           6: print_esc_str('ifhmode');
+           7: print_esc_str('ifmmode');
+           8: print_esc_str('ifinner');
+           9: print_esc_str('ifvoid');
+           10: print_esc_str('ifhbox');
+           11: print_esc_str('ifvbox');
+           12: print_esc_str('ifx');
+           13: print_esc_str('ifeof');
+           14: print_esc_str('iftrue');
+           15: print_esc_str('iffalse');
+           16: print_esc_str('ifcase');
+           ELSE print_esc_str('if')
          END;
 {:488}{492:}
     106:
-         IF CHRCODE=2 THEN PRINTESC(774)
+         IF CHRCODE=2 THEN print_esc_str('fi')
          ELSE
            IF CHRCODE=4 THEN
-             PRINTESC(775)
-         ELSE PRINTESC(776);
+             print_esc_str('or')
+         ELSE print_esc_str('else');
 {:492}{781:}
     4:
-       IF CHRCODE=256 THEN PRINTESC(898)
+       IF CHRCODE=256 THEN print_esc_str('span')
        ELSE
          BEGIN
-           PRINT(902);
+           print_str('alignment tab character ');
            PRINT(CHRCODE);
          END;
     5:
-       IF CHRCODE=257 THEN PRINTESC(899)
-       ELSE PRINTESC(900);
+       IF CHRCODE=257 THEN print_esc_str('cr')
+       ELSE print_esc_str('crcr');
 {:781}{984:}
     81:
         CASE CHRCODE OF 
-          0: PRINTESC(970);
-          1: PRINTESC(971);
-          2: PRINTESC(972);
-          3: PRINTESC(973);
-          4: PRINTESC(974);
-          5: PRINTESC(975);
-          6: PRINTESC(976);
-          ELSE PRINTESC(977)
+          0: print_esc_str('pagegoal');
+          1: print_esc_str('pagetotal');
+          2: print_esc_str('pagestretch');
+          3: print_esc_str('pagefilstretch');
+          4: print_esc_str('pagefillstretch');
+          5: print_esc_str('pagefilllstretch');
+          6: print_esc_str('pageshrink');
+          ELSE print_esc_str('pagedepth')
         END;
 {:984}{1053:}
     14:
-        IF CHRCODE=1 THEN PRINTESC(1026)
-        ELSE PRINTESC(1025);
+        IF CHRCODE=1 THEN print_esc_str('dump')
+        ELSE print_esc_str('end');
 {:1053}{1059:}
     26:
         CASE CHRCODE OF 
-          4: PRINTESC(1027);
-          0: PRINTESC(1028);
-          1: PRINTESC(1029);
-          2: PRINTESC(1030);
-          ELSE PRINTESC(1031)
+          4: print_esc_str('hskip');
+          0: print_esc_str('hfil');
+          1: print_esc_str('hfill');
+          2: print_esc_str('hss');
+          ELSE print_esc_str('hfilneg')
         END;
     27:
         CASE CHRCODE OF 
-          4: PRINTESC(1032);
-          0: PRINTESC(1033);
-          1: PRINTESC(1034);
-          2: PRINTESC(1035);
-          ELSE PRINTESC(1036)
+          4: print_esc_str('vskip');
+          0: print_esc_str('vfil');
+          1: print_esc_str('vfill');
+          2: print_esc_str('vss');
+          ELSE print_esc_str('vfilneg')
         END;
-    28: PRINTESC(336);
-    29: PRINTESC(340);
-    30: PRINTESC(342);
+    28: print_esc_str('mskip');
+    29: print_esc_str('kern');
+    30: print_esc_str('mkern');
 {:1059}{1072:}
     21:
-        IF CHRCODE=1 THEN PRINTESC(1054)
-        ELSE PRINTESC(1055);
+        IF CHRCODE=1 THEN print_esc_str('moveleft')
+        ELSE print_esc_str('moveright');
     22:
-        IF CHRCODE=1 THEN PRINTESC(1056)
-        ELSE PRINTESC(1057);
+        IF CHRCODE=1 THEN print_esc_str('raise')
+        ELSE print_esc_str('lower');
     20:
         CASE CHRCODE OF 
-          0: PRINTESC(409);
-          1: PRINTESC(1058);
-          2: PRINTESC(1059);
-          3: PRINTESC(965);
-          4: PRINTESC(1060);
-          5: PRINTESC(967);
-          ELSE PRINTESC(1061)
+          0: print_esc_str('box');
+          1: print_esc_str('copy');
+          2: print_esc_str('lastbox');
+          3: print_esc_str('vsplit');
+          4: print_esc_str('vtop');
+          5: print_esc_str('vbox');
+          ELSE print_esc_str('hbox')
         END;
     31:
-        IF CHRCODE=100 THEN PRINTESC(1063)
+        IF CHRCODE=100 THEN print_esc_str('leaders')
         ELSE
           IF CHRCODE=101 THEN PRINTESC(
                                        1064)
         ELSE
-          IF CHRCODE=102 THEN PRINTESC(1065)
-        ELSE PRINTESC(1062);
+          IF CHRCODE=102 THEN print_esc_str('xleaders')
+        ELSE print_esc_str('shipout');
 {:1072}{1089:}
     43:
-        IF CHRCODE=0 THEN PRINTESC(1081)
-        ELSE PRINTESC(1080);
+        IF CHRCODE=0 THEN print_esc_str('noindent')
+        ELSE print_esc_str('indent');
 {:1089}{1108:}
     25:
-        IF CHRCODE=10 THEN PRINTESC(1092)
+        IF CHRCODE=10 THEN print_esc_str('unskip')
         ELSE
           IF CHRCODE=11
-            THEN PRINTESC(1091)
-        ELSE PRINTESC(1090);
+            THEN print_esc_str('unkern')
+        ELSE print_esc_str('unpenalty');
     23:
-        IF CHRCODE=1 THEN PRINTESC(1094)
-        ELSE PRINTESC(1093);
+        IF CHRCODE=1 THEN print_esc_str('unhcopy')
+        ELSE print_esc_str('unhbox');
     24:
-        IF CHRCODE=1 THEN PRINTESC(1096)
-        ELSE PRINTESC(1095);
+        IF CHRCODE=1 THEN print_esc_str('unvcopy')
+        ELSE print_esc_str('unvbox');
 {:1108}{1115:}
     47:
         IF CHRCODE=1 THEN PRINTESC(45)
-        ELSE PRINTESC(349);
+        ELSE print_esc_str('discretionary');
 {:1115}{1143:}
     48:
-        IF CHRCODE=1 THEN PRINTESC(1128)
-        ELSE PRINTESC(1127);
+        IF CHRCODE=1 THEN print_esc_str('leqno')
+        ELSE print_esc_str('eqno');
 {:1143}{1157:}
     50:
         CASE CHRCODE OF 
-          16: PRINTESC(866);
-          17: PRINTESC(867);
-          18: PRINTESC(868);
-          19: PRINTESC(869);
-          20: PRINTESC(870);
-          21: PRINTESC(871);
-          22: PRINTESC(872);
-          23: PRINTESC(873);
-          26: PRINTESC(875);
-          ELSE PRINTESC(874)
+          16: print_esc_str('mathord');
+          17: print_esc_str('mathop');
+          18: print_esc_str('mathbin');
+          19: print_esc_str('mathrel');
+          20: print_esc_str('mathopen');
+          21: print_esc_str('mathclose');
+          22: print_esc_str('mathpunct');
+          23: print_esc_str('mathinner');
+          26: print_esc_str('underline');
+          ELSE print_esc_str('overline')
         END;
     51:
-        IF CHRCODE=1 THEN PRINTESC(878)
+        IF CHRCODE=1 THEN print_esc_str('limits')
         ELSE
-          IF CHRCODE=2 THEN PRINTESC(879)
-        ELSE PRINTESC(1129);{:1157}{1170:}
+          IF CHRCODE=2 THEN print_esc_str('nolimits')
+        ELSE print_esc_str('displaylimits');{:1157}{1170:}
     53: PRINTSTYLE(CHRCODE);
 {:1170}{1179:}
     52:
         CASE CHRCODE OF 
-          1: PRINTESC(1148);
-          2: PRINTESC(1149);
-          3: PRINTESC(1150);
-          4: PRINTESC(1151);
-          5: PRINTESC(1152);
-          ELSE PRINTESC(1147)
+          1: print_esc_str('over');
+          2: print_esc_str('atop');
+          3: print_esc_str('abovewithdelims');
+          4: print_esc_str('overwithdelims');
+          5: print_esc_str('atopwithdelims');
+          ELSE print_esc_str('above')
         END;
 {:1179}{1189:}
     49:
-        IF CHRCODE=30 THEN PRINTESC(876)
-        ELSE PRINTESC(877);
+        IF CHRCODE=30 THEN print_esc_str('left')
+        ELSE print_esc_str('right');
 {:1189}{1209:}
     93:
-        IF CHRCODE=1 THEN PRINTESC(1171)
+        IF CHRCODE=1 THEN print_esc_str('long')
         ELSE
           IF CHRCODE=2 THEN
-            PRINTESC(1172)
-        ELSE PRINTESC(1173);
+            print_esc_str('outer')
+        ELSE print_esc_str('global');
     97:
-        IF CHRCODE=0 THEN PRINTESC(1174)
+        IF CHRCODE=0 THEN print_esc_str('def')
         ELSE
-          IF CHRCODE=1 THEN PRINTESC(1175)
+          IF CHRCODE=1 THEN print_esc_str('gdef')
         ELSE
-          IF CHRCODE=2 THEN PRINTESC(1176)
-        ELSE PRINTESC(1177);
+          IF CHRCODE=2 THEN print_esc_str('edef')
+        ELSE print_esc_str('xdef');
 {:1209}{1220:}
     94:
-        IF CHRCODE<>0 THEN PRINTESC(1192)
-        ELSE PRINTESC(1191);
+        IF CHRCODE<>0 THEN print_esc_str('futurelet')
+        ELSE print_esc_str('let');
 {:1220}{1223:}
     95:
         CASE CHRCODE OF 
-          0: PRINTESC(1193);
-          1: PRINTESC(1194);
-          2: PRINTESC(1195);
-          3: PRINTESC(1196);
-          4: PRINTESC(1197);
-          5: PRINTESC(1198);
-          ELSE PRINTESC(1199)
+          0: print_esc_str('chardef');
+          1: print_esc_str('mathchardef');
+          2: print_esc_str('countdef');
+          3: print_esc_str('dimendef');
+          4: print_esc_str('skipdef');
+          5: print_esc_str('muskipdef');
+          ELSE print_esc_str('toksdef')
         END;
     68:
         BEGIN
-          PRINTESC(513);
+          print_esc_str('char');
           PRINTHEX(CHRCODE);
         END;
     69:
         BEGIN
-          PRINTESC(524);
+          print_esc_str('mathchar');
           PRINTHEX(CHRCODE);
         END;
 {:1223}{1231:}
     85:
-        IF CHRCODE=3983 THEN PRINTESC(415)
+        IF CHRCODE=3983 THEN print_esc_str('catcode')
         ELSE
           IF CHRCODE=5007
-            THEN PRINTESC(419)
+            THEN print_esc_str('mathcode')
         ELSE
-          IF CHRCODE=4239 THEN PRINTESC(416)
+          IF CHRCODE=4239 THEN print_esc_str('lccode')
         ELSE
           IF CHRCODE
-             =4495 THEN PRINTESC(417)
+             =4495 THEN print_esc_str('uccode')
         ELSE
-          IF CHRCODE=4751 THEN PRINTESC(418)
+          IF CHRCODE=4751 THEN print_esc_str('sfcode')
         ELSE
-          PRINTESC(477);
+          print_esc_str('delcode');
     86: PRINTSIZE(CHRCODE-3935);
 {:1231}{1251:}
     99:
-        IF CHRCODE=1 THEN PRINTESC(953)
-        ELSE PRINTESC(941);
+        IF CHRCODE=1 THEN print_esc_str('patterns')
+        ELSE print_esc_str('hyphenation');
 {:1251}{1255:}
     78:
-        IF CHRCODE=0 THEN PRINTESC(1217)
-        ELSE PRINTESC(1218);
+        IF CHRCODE=0 THEN print_esc_str('hyphenchar')
+        ELSE print_esc_str('skewchar');
 {:1255}{1261:}
     87:
         BEGIN
-          PRINT(1226);
+          print_str('select font ');
           SLOWPRINT(FONTNAME[CHRCODE]);
           IF FONTSIZE[CHRCODE]<>FONTDSIZE[CHRCODE]THEN
             BEGIN
-              PRINT(741);
+              print_str(' at ');
               PRINTSCALED(FONTSIZE[CHRCODE]);
-              PRINT(397);
+              print_str('pt');
             END;
         END;
 {:1261}{1263:}
     100:
          CASE CHRCODE OF 
-           0: PRINTESC(274);
-           1: PRINTESC(275);
-           2: PRINTESC(276);
-           ELSE PRINTESC(1227)
+           0: print_esc_str('batchmode');
+           1: print_esc_str('nonstopmode');
+           2: print_esc_str('scrollmode');
+           ELSE print_esc_str('errorstopmode')
          END;
 {:1263}{1273:}
     60:
-        IF CHRCODE=0 THEN PRINTESC(1229)
-        ELSE PRINTESC(1228);
+        IF CHRCODE=0 THEN print_esc_str('closein')
+        ELSE print_esc_str('openin');
 {:1273}{1278:}
     58:
-        IF CHRCODE=0 THEN PRINTESC(1230)
-        ELSE PRINTESC(1231);
+        IF CHRCODE=0 THEN print_esc_str('message')
+        ELSE print_esc_str('errmessage');
 {:1278}{1287:}
     57:
-        IF CHRCODE=4239 THEN PRINTESC(1237)
-        ELSE PRINTESC(1238);
+        IF CHRCODE=4239 THEN print_esc_str('lowercase')
+        ELSE print_esc_str('uppercase');
 {:1287}{1292:}
     19:
         CASE CHRCODE OF 
-          1: PRINTESC(1240);
-          2: PRINTESC(1241);
-          3: PRINTESC(1242);
-          ELSE PRINTESC(1239)
+          1: print_esc_str('showbox');
+          2: print_esc_str('showthe');
+          3: print_esc_str('showlists');
+          ELSE print_esc_str('show')
         END;{:1292}{1295:}
-    101: PRINT(1249);
-    111: PRINT(1250);
-    112: PRINTESC(1251);
-    113: PRINTESC(1252);
+    101: print_str('undefined');
+    111: print_str('macro');
+    112: print_esc_str('long macro');
+    113: print_esc_str('outer macro');
     114:
          BEGIN
-           PRINTESC(1171);
-           PRINTESC(1252);
+           print_esc_str('long');
+           print_esc_str('outer macro');
          END;
-    115: PRINTESC(1253);
+    115: print_esc_str('outer endtemplate');
 {:1295}{1346:}
     59:
         CASE CHRCODE OF 
-          0: PRINTESC(1285);
-          1: PRINTESC(594);
-          2: PRINTESC(1286);
-          3: PRINTESC(1287);
-          4: PRINTESC(1288);
-          5: PRINTESC(1289);
-          ELSE PRINT(1290)
+          0: print_esc_str('openout');
+          1: print_esc_str('write');
+          2: print_esc_str('closeout');
+          3: print_esc_str('special');
+          4: print_esc_str('immediate');
+          5: print_esc_str('setlanguage');
+          ELSE print_str('[unknown extension!]')
         END;{:1346}
-    ELSE PRINT(567)
+    ELSE print_str('[unknown command code!]')
   END;
 END;{:298}{$IFDEF STATS}
 PROCEDURE SHOWEQTB(N:HALFWORD);
@@ -5405,14 +5438,14 @@ BEGIN
   ELSE
     IF N<3156 THEN
       BEGIN
-        PRINTESC(395);
+        print_esc_str('skip');
         PRINTINT(N-2900);
         PRINTCHAR(61);
         PRINTSPEC(EQTB[N].HH.RH,397);
       END
   ELSE
     BEGIN
-      PRINTESC(396);
+      print_esc_str('muskip');
       PRINTINT(N-3156);
       PRINTCHAR(61);
       PRINTSPEC(EQTB[N].HH.RH,337);
@@ -5421,7 +5454,7 @@ BEGIN
     IF N<5263 THEN{233:}
       IF N=3412 THEN
         BEGIN
-          PRINTESC(408);
+          print_esc_str('parshape');
           PRINTCHAR(61);
           IF EQTB[3412].HH.RH=0 THEN PRINTCHAR(48)
           ELSE PRINTINT(MEM[EQTB[3412].HH.
@@ -5437,7 +5470,7 @@ BEGIN
   ELSE
     IF N<3678 THEN
       BEGIN
-        PRINTESC(407);
+        print_esc_str('toks');
         PRINTINT(N-3422);
         PRINTCHAR(61);
         IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
@@ -5445,10 +5478,10 @@ BEGIN
   ELSE
     IF N<3934 THEN
       BEGIN
-        PRINTESC(409);
+        print_esc_str('box');
         PRINTINT(N-3678);
         PRINTCHAR(61);
-        IF EQTB[N].HH.RH=0 THEN PRINT(410)
+        IF EQTB[N].HH.RH=0 THEN print_str('void')
         ELSE
           BEGIN
             DEPTHTHRESHO := 0;
@@ -5459,23 +5492,23 @@ BEGIN
   ELSE
     IF N<3983 THEN{234:}
       BEGIN
-        IF N=3934 THEN PRINT(411)
+        IF N=3934 THEN print_str('current font')
         ELSE
           IF N<
              3951 THEN
             BEGIN
-              PRINTESC(412);
+              print_esc_str('textfont');
               PRINTINT(N-3935);
             END
         ELSE
           IF N<3967 THEN
             BEGIN
-              PRINTESC(413);
+              print_esc_str('scriptfont');
               PRINTINT(N-3951);
             END
         ELSE
           BEGIN
-            PRINTESC(414);
+            print_esc_str('scriptscriptfont');
             PRINTINT(N-3967);
           END;
         PRINTCHAR(61);
@@ -5486,25 +5519,24 @@ BEGIN
       BEGIN
         IF N<4239 THEN
           BEGIN
-            PRINTESC(
-                     415);
+            PRINTESC('catcode');
             PRINTINT(N-3983);
           END
         ELSE
           IF N<4495 THEN
             BEGIN
-              PRINTESC(416);
+              print_esc_str('lccode');
               PRINTINT(N-4239);
             END
         ELSE
           IF N<4751 THEN
             BEGIN
-              PRINTESC(417);
+              print_esc_str('uccode');
               PRINTINT(N-4495);
             END
         ELSE
           BEGIN
-            PRINTESC(418);
+            print_esc_str('sfcode');
             PRINTINT(N-4751);
           END;
         PRINTCHAR(61);
@@ -5512,7 +5544,7 @@ BEGIN
       END
   ELSE
     BEGIN
-      PRINTESC(419);
+      print_esc_str('mathcode');
       PRINTINT(N-5007);
       PRINTCHAR(61);
       PRINTINT(EQTB[N].HH.RH-0);
@@ -5520,17 +5552,16 @@ BEGIN
   ELSE
     IF N<5830 THEN{242:}
       BEGIN
-        IF N<5318 THEN PRINTPARAM(
-                                  N-5263)
+        IF N<5318 THEN PRINTPARAM(N-5263)
         ELSE
           IF N<5574 THEN
             BEGIN
-              PRINTESC(476);
+              print_esc_str('count');
               PRINTINT(N-5318);
             END
         ELSE
           BEGIN
-            PRINTESC(477);
+            print_esc_str('delcode');
             PRINTINT(N-5574);
           END;
         PRINTCHAR(61);
@@ -5543,12 +5574,12 @@ BEGIN
                                     -5830)
         ELSE
           BEGIN
-            PRINTESC(500);
+            print_esc_str('dimen');
             PRINTINT(N-5851);
           END;
         PRINTCHAR(61);
         PRINTSCALED(EQTB[N].INT);
-        PRINT(397);
+        print_str('pt');
       END{:251}
   ELSE PRINTCHAR(63);
 END;
@@ -5584,15 +5615,14 @@ BEGIN{261:}
               IF HASH[P].RH>0 THEN
                 BEGIN
                   REPEAT
-                    IF (HASHUSED=514)THEN OVERFLOW(503,2100
-                      );
+                    IF (HASHUSED=514)THEN overflow('hash size', 2100);
                     HASHUSED := HASHUSED-1;
                   UNTIL HASH[HASHUSED].RH=0;
                   HASH[P].LH := HASHUSED;
                   P := HASHUSED;
                 END;
               BEGIN
-                IF POOLPTR+L>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+                IF POOLPTR+L>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
               END;
               D := (POOLPTR-STRSTART[STRPTR]);
               WHILE POOLPTR>STRSTART[STRPTR] DO
@@ -5646,12 +5676,12 @@ BEGIN
   IF SAVEPTR>MAXSAVESTACK THEN
     BEGIN
       MAXSAVESTACK := SAVEPTR;
-      IF MAXSAVESTACK>SAVESIZE-6 THEN OVERFLOW(541,SAVESIZE);
+      IF MAXSAVESTACK>SAVESIZE-6 THEN overflow('save size', SAVESIZE);
     END;
   SAVESTACK[SAVEPTR].HH.B0 := 3;
   SAVESTACK[SAVEPTR].HH.B1 := CURGROUP;
   SAVESTACK[SAVEPTR].HH.RH := CURBOUNDARY;
-  IF CURLEVEL=255 THEN OVERFLOW(542,255);
+  IF CURLEVEL=255 THEN overflow('grouping levels', 255);
   CURBOUNDARY := SAVEPTR;
   CURLEVEL := CURLEVEL+1;
   SAVEPTR := SAVEPTR+1;
@@ -5680,7 +5710,7 @@ BEGIN
   IF SAVEPTR>MAXSAVESTACK THEN
     BEGIN
       MAXSAVESTACK := SAVEPTR;
-      IF MAXSAVESTACK>SAVESIZE-6 THEN OVERFLOW(541,SAVESIZE);
+      IF MAXSAVESTACK>SAVESIZE-6 THEN overflow('save size', SAVESIZE);
     END;
   IF L=0 THEN SAVESTACK[SAVEPTR].HH.B0 := 1
   ELSE
@@ -5736,7 +5766,7 @@ BEGIN
       IF SAVEPTR>MAXSAVESTACK THEN
         BEGIN
           MAXSAVESTACK := SAVEPTR;
-          IF MAXSAVESTACK>SAVESIZE-6 THEN OVERFLOW(541,SAVESIZE);
+          IF MAXSAVESTACK>SAVESIZE-6 THEN overflow('save size', SAVESIZE);
         END;
       SAVESTACK[SAVEPTR].HH.B0 := 2;
       SAVESTACK[SAVEPTR].HH.B1 := 0;
@@ -5824,7 +5854,7 @@ BEGIN
       30: CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
       CURBOUNDARY := SAVESTACK[SAVEPTR].HH.RH{:282};
     END
-  ELSE CONFUSION(543);
+  ELSE confusion_str('curlevel');
 END;
 {:281}{288:}
 PROCEDURE PREPAREMAG;
@@ -5834,16 +5864,16 @@ BEGIN
       BEGIN
         IF 
            INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(547);
+        print_nl_str('! ');
+        print_str('Incompatible magnification (');
       END;
       PRINTINT(EQTB[5280].INT);
-      PRINT(548);
-      PRINTNL(549);
+      print_str(');');
+      print_nl_str(' the previous value will be retained');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 550;
-        HELPLINE[0] := 551;
+        help_line[1] := 'I can handle only one magnification ratio per job. So I''ve';
+        help_line[0] := 'reverted to the magnification you used earlier on this run.';
       END;
       INTERROR(MAGSET);
       GEQWORDDEFIN(5280,MAGSET);
@@ -5853,12 +5883,12 @@ BEGIN
       BEGIN
         IF 
            INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(552);
+        print_nl_str('! ');
+        print_str('Illegal magnification has been changed to 1000');
       END;
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 553;
+        help_line[0] := 'The magnification ratio must be between 1 and 32768.';
       END;
       INTERROR(EQTB[5280].INT);
       GEQWORDDEFIN(5280,1000);
@@ -5895,7 +5925,7 @@ BEGIN
   IF CURLIST.MODEFIELD<>SHOWNMODE THEN
     BEGIN
       PRINTMODE(CURLIST.MODEFIELD);
-      PRINT(568);
+      print_str(': ');
       SHOWNMODE := CURLIST.MODEFIELD;
     END;
   PRINTCMDCHR(CURCMD,CURCHR);
@@ -5940,12 +5970,12 @@ BEGIN
                 BEGIN{313:}
                   IF CURINPUT.NAMEFIELD<=17 THEN
                     IF (CURINPUT.NAMEFIELD=0)THEN
-                      IF BASEPTR=0 THEN PRINTNL(574)
+                      IF BASEPTR=0 THEN print_nl_str('<*>')
                   ELSE PRINTNL(
                                575)
                   ELSE
                     BEGIN
-                      PRINTNL(576);
+                      print_nl_str('<read ');
                       IF CURINPUT.NAMEFIELD=17 THEN PRINTCHAR(42)
                       ELSE PRINTINT(CURINPUT.
                                     NAMEFIELD-1);
@@ -5953,7 +5983,7 @@ BEGIN
                     END
                   ELSE
                     BEGIN
-                      PRINTNL(577);
+                      print_nl_str('l.');
                       PRINTINT(LINE);
                     END;
                   PRINTCHAR(32){:313};{318:}
@@ -5981,27 +6011,27 @@ BEGIN
               ELSE
                 BEGIN{314:}
                   CASE CURINPUT.INDEXFIELD OF 
-                    0: PRINTNL(578);
-                    1,2: PRINTNL(579);
+                    0: print_nl_str('<argument> ');
+                    1,2: print_nl_str('<template> ');
                     3:
-                       IF CURINPUT.LOCFIELD=0 THEN PRINTNL(580)
-                       ELSE PRINTNL(581);
-                    4: PRINTNL(582);
+                       IF CURINPUT.LOCFIELD=0 THEN print_nl_str('<recently read> ')
+                       ELSE print_nl_str('<to be read again> ');
+                    4: print_nl_str('<inserted text> ');
                     5:
                        BEGIN
                          PRINTLN;
                          PRINTCS(CURINPUT.NAMEFIELD);
                        END;
-                    6: PRINTNL(583);
-                    7: PRINTNL(584);
-                    8: PRINTNL(585);
-                    9: PRINTNL(586);
-                    10: PRINTNL(587);
-                    11: PRINTNL(588);
-                    12: PRINTNL(589);
-                    13: PRINTNL(590);
-                    14: PRINTNL(591);
-                    15: PRINTNL(592);
+                    6: print_nl_str('<output> ');
+                    7: print_nl_str('<everypar> ');
+                    8: print_nl_str('<everymath> ');
+                    9: print_nl_str('<everydisplay> ');
+                    10: print_nl_str('<everyhbox> ');
+                    11: print_nl_str('<everyvbox> ');
+                    12: print_nl_str('<everyjob> ');
+                    13: print_nl_str('<everycr> ');
+                    14: print_nl_str('<mark> ');
+                    15: print_nl_str('<write> ');
                     ELSE PRINTNL(63)
                   END{:314};
 {319:}
@@ -6034,7 +6064,7 @@ BEGIN
                 END
               ELSE
                 BEGIN
-                  PRINT(277);
+                  print_str('...');
                   P := L+FIRSTCOUNT-HALFERRORLIN+3;
                   N := HALFERRORLIN;
                 END;
@@ -6048,14 +6078,14 @@ BEGIN
                         );
               FOR Q:=FIRSTCOUNT TO P-1 DO
                 PRINTCHAR(TRICKBUF[Q MOD ERRORLINE]);
-              IF M+N>ERRORLINE THEN PRINT(277){:317};
+              IF M+N>ERRORLINE THEN print_str('...'){:317};
               NN := NN+1;
             END;
         END{:312}
       ELSE
         IF NN=EQTB[5317].INT THEN
           BEGIN
-            PRINTNL(277);
+            print_nl_str('...');
             NN := NN+1;
           END;
       IF BOTTOMLINE THEN GOTO 30;
@@ -6070,7 +6100,7 @@ BEGIN
     IF INPUTPTR>MAXINSTACK THEN
       BEGIN
         MAXINSTACK := INPUTPTR;
-        IF INPUTPTR=STACKSIZE THEN OVERFLOW(593,STACKSIZE);
+        IF INPUTPTR=STACKSIZE THEN overflow('input stack size', STACKSIZE);
       END;
     INPUTSTACK[INPUTPTR] := CURINPUT;
     INPUTPTR := INPUTPTR+1;
@@ -6089,13 +6119,13 @@ BEGIN
           IF EQTB[5293].INT>1 THEN
             BEGIN
               BEGINDIAGNOS;
-              PRINTNL(338);
+              print_nl_str('');
               CASE T OF 
-                14: PRINTESC(351);
-                15: PRINTESC(594);
+                14: print_esc_str('mark');
+                15: print_esc_str('write');
                 ELSE PRINTCMDCHR(72,T+3407)
               END;
-              PRINT(556);
+              print_str('->');
               TOKENSHOW(P);
               ENDDIAGNOSTI(FALSE);
             END;
@@ -6126,7 +6156,7 @@ BEGIN
     IF CURINPUT.INDEXFIELD=1 THEN
       IF ALIGNSTATE>500000 THEN
         ALIGNSTATE := 0
-  ELSE FATALERROR(595);
+  ELSE fatal_error('(interwoven alignment preambles are not allowed)');
   BEGIN
     INPUTPTR := INPUTPTR-1;
     CURINPUT := INPUTSTACK[INPUTPTR];
@@ -6153,7 +6183,7 @@ BEGIN
     IF INPUTPTR>MAXINSTACK THEN
       BEGIN
         MAXINSTACK := INPUTPTR;
-        IF INPUTPTR=STACKSIZE THEN OVERFLOW(593,STACKSIZE);
+        IF INPUTPTR=STACKSIZE THEN overflow('input stack size', STACKSIZE);
       END;
     INPUTSTACK[INPUTPTR] := CURINPUT;
     INPUTPTR := INPUTPTR+1;
@@ -6181,14 +6211,14 @@ END;
 {:327}{328:}
 PROCEDURE BEGINFILEREA;
 BEGIN
-  IF INOPEN=MAXINOPEN THEN OVERFLOW(596,MAXINOPEN);
-  IF FIRST=BUFSIZE THEN OVERFLOW(256,BUFSIZE);
+  IF INOPEN=MAXINOPEN THEN overflow('text input levels', MAXINOPEN);
+  IF FIRST=BUFSIZE THEN overflow('buffer size', BUFSIZE);
   INOPEN := INOPEN+1;
   BEGIN
     IF INPUTPTR>MAXINSTACK THEN
       BEGIN
         MAXINSTACK := INPUTPTR;
-        IF INPUTPTR=STACKSIZE THEN OVERFLOW(593,STACKSIZE);
+        IF INPUTPTR=STACKSIZE THEN overflow('input stack size', STACKSIZE);
       END;
     INPUTSTACK[INPUTPTR] := CURINPUT;
     INPUTPTR := INPUTPTR+1;
@@ -6244,35 +6274,35 @@ BEGIN
           IF CURCS=0 THEN
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(604);
+              print_nl_str('! ');
+              print_str('File ended');
             END
           ELSE
             BEGIN
               CURCS := 0;
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(605);
+                print_nl_str('! ');
+                print_str('Forbidden control sequence found');
               END;
             END;
-          PRINT(606);{339:}
+          print_str(' while scanning ');{339:}
           P := GETAVAIL;
           CASE SCANNERSTATU OF 
             2:
                BEGIN
-                 PRINT(570);
+                 print_str('definition');
                  MEM[P].HH.LH := 637;
                END;
             3:
                BEGIN
-                 PRINT(612);
+                 print_str('use');
                  MEM[P].HH.LH := PARTOKEN;
                  LONGSTATE := 113;
                END;
             4:
                BEGIN
-                 PRINT(572);
+                 print_str('preamble');
                  MEM[P].HH.LH := 637;
                  Q := P;
                  P := GETAVAIL;
@@ -6282,19 +6312,19 @@ BEGIN
                END;
             5:
                BEGIN
-                 PRINT(573);
+                 print_str('text');
                  MEM[P].HH.LH := 637;
                END;
           END;
           BEGINTOKENLI(P,4){:339};
-          PRINT(607);
+          print_str(' of ');
           SPRINTCS(WARNINGINDEX);
           BEGIN
             HELPPTR := 4;
-            HELPLINE[3] := 608;
-            HELPLINE[2] := 609;
-            HELPLINE[1] := 610;
-            HELPLINE[0] := 611;
+            help_line[3] := 'I suspect you have forgotten a `}'', causing me';
+            help_line[2] := 'to read past where you wanted me to stop.';
+            help_line[1] := 'I''ll try to recover; but if the error is serious,';
+            help_line[0] := 'you''d better type `E'' or `X'' now and fix your file.';
           END;
           ERROR;
         END{:338}
@@ -6302,20 +6332,20 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(598);
+            print_nl_str('! ');
+            print_str('Incomplete ');
           END;
           PRINTCMDCHR(105,CURIF);
-          PRINT(599);
+          print_str('; all text was ignored after line ');
           PRINTINT(SKIPLINE);
           BEGIN
             HELPPTR := 3;
-            HELPLINE[2] := 600;
-            HELPLINE[1] := 601;
-            HELPLINE[0] := 602;
+            help_line[2] := 'A forbidden control sequence occurred in skipped text.';
+            help_line[1] := 'This kind of error happens when you say `\if...'' and forget';
+            help_line[0] := 'the matching `\fi''. I''ve inserted a `\fi''; this might work.';
           END;
           IF CURCS<>0 THEN CURCS := 0
-          ELSE HELPLINE[2] := 603;
+          ELSE help_line[2] := 'The file ended while I was skipping conditional text.';
           CURTOK := 6713;
           INSERROR;
         END;
@@ -6514,13 +6544,13 @@ BEGIN
                           BEGIN
                             BEGIN
                               IF INTERACTION=3 THEN;
-                              PRINTNL(262);
-                              PRINT(613);
+                              print_nl_str('! ');
+                              print_str('Text line contains an invalid character');
                             END;
                             BEGIN
                               HELPPTR := 2;
-                              HELPLINE[1] := 614;
-                              HELPLINE[0] := 615;
+                              help_line[1] := 'A funny symbol that I can''t read has just been input.';
+                              help_line[0] := 'Continue, and I''ll forget that it ever happened.';
                             END;
                             DELETIONSALL := FALSE;
                             ERROR;
@@ -6619,7 +6649,7 @@ BEGIN
                     BEGIN
                       IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
                         THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD+1;
-                      IF CURINPUT.LIMITFIELD=CURINPUT.STARTFIELD THEN PRINTNL(616);
+                      IF CURINPUT.LIMITFIELD=CURINPUT.STARTFIELD THEN print_nl_str('(Please type a command or say `\end'')');
                       PRINTLN;
                       FIRST := CURINPUT.STARTFIELD;
                       BEGIN;
@@ -6637,7 +6667,7 @@ BEGIN
                       FIRST := CURINPUT.LIMITFIELD+1;
                       CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
                     END
-                  ELSE FATALERROR(617);
+                  ELSE fatal_error('*** (job aborted, no legal \end found)');
                 END{:360};
               BEGIN
                 IF INTERRUPT<>0 THEN PAUSEFORINST;
@@ -6698,7 +6728,7 @@ BEGIN
     IF CURCMD>=4 THEN
       IF ALIGNSTATE=0 THEN{789:}
         BEGIN
-          IF (SCANNERSTATU=4)OR(CURALIGN=0)THEN FATALERROR(595);
+          IF (SCANNERSTATU=4)OR(CURALIGN=0)THEN fatal_error('(interwoven alignment preambles are not allowed)');
           CURCMD := MEM[CURALIGN+5].HH.LH;
           MEM[CURALIGN+5].HH.LH := CURCHR;
           IF CURCMD=63 THEN BEGINTOKENLI(29990,2)
@@ -6724,7 +6754,7 @@ BEGIN
                                                           PRINT(BUFFER[K]);
         FIRST := CURINPUT.LIMITFIELD;
         BEGIN;
-          PRINT(618);
+          print_str('=>');
           TERMINPUT;
         END;
         IF LAST>FIRST THEN
@@ -6816,17 +6846,17 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(650);
+                print_nl_str('! ');
+                print_str('Use of ');
               END;
               SPRINTCS(WARNINGINDEX);
-              PRINT(651);
+              print_str(' doesn''t match its definition');
               BEGIN
                 HELPPTR := 4;
-                HELPLINE[3] := 652;
-                HELPLINE[2] := 653;
-                HELPLINE[1] := 654;
-                HELPLINE[0] := 655;
+                help_line[3] := 'If you say, e.g., `\def\a1{...}'', then you must always';
+                help_line[2] := 'put `1'' after `\a'', since control sequence names are';
+                help_line[1] := 'made up of letters only. The macro here has not been';
+                help_line[0] := 'followed by the required stuff, so I''m ignoring it.';
               END;
               ERROR;
               GOTO 10;
@@ -6870,16 +6900,16 @@ BEGIN
                   RUNAWAY;
                   BEGIN
                     IF INTERACTION=3 THEN;
-                    PRINTNL(262);
-                    PRINT(645);
+                    print_nl_str('! ');
+                    print_str('Paragraph ended before ');
                   END;
                   SPRINTCS(WARNINGINDEX);
-                  PRINT(646);
+                  print_str(' was complete');
                   BEGIN
                     HELPPTR := 3;
-                    HELPLINE[2] := 647;
-                    HELPLINE[1] := 648;
-                    HELPLINE[0] := 649;
+                    help_line[2] := 'I suspect you''ve forgotten a `}'', causing me to apply this';
+                    help_line[1] := 'control sequence to too much text. How can we recover?';
+                    help_line[0] := 'My plan is to forget the whole thing and hope for the best.';
                   END;
                   BACKERROR;
                 END;
@@ -6921,16 +6951,16 @@ BEGIN
                             RUNAWAY;
                             BEGIN
                               IF INTERACTION=3 THEN;
-                              PRINTNL(262);
-                              PRINT(645);
+                              print_nl_str('! ');
+                              print_str('Paragraph ended before ');
                             END;
                             SPRINTCS(WARNINGINDEX);
-                            PRINT(646);
+                            print_str(' was complete');
                             BEGIN
                               HELPPTR := 3;
-                              HELPLINE[2] := 647;
-                              HELPLINE[1] := 648;
-                              HELPLINE[0] := 649;
+                              help_line[2] := 'I suspect you''ve forgotten a `}'', causing me to apply this';
+                              help_line[1] := 'control sequence to too much text. How can we recover?';
+                              help_line[0] := 'My plan is to forget the whole thing and hope for the best.';
                             END;
                             BACKERROR;
                           END;
@@ -6961,19 +6991,19 @@ BEGIN
             BACKINPUT;
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(637);
+              print_nl_str('! ');
+              print_str('Argument of ');
             END;
             SPRINTCS(WARNINGINDEX);
-            PRINT(638);
+            print_str(' has an extra }');
             BEGIN
               HELPPTR := 6;
-              HELPLINE[5] := 639;
-              HELPLINE[4] := 640;
-              HELPLINE[3] := 641;
-              HELPLINE[2] := 642;
-              HELPLINE[1] := 643;
-              HELPLINE[0] := 644;
+              help_line[5] := 'I''ve run across a `}'' that doesn''t seem to match anything.';
+              help_line[4] := 'For example, `\def\a#1{...}'' and `\a}'' would produce';
+              help_line[3] := 'this error. If you simply proceed now, the `\par'' that';
+              help_line[2] := 'I''ve just inserted will cause me to report a runaway';
+              help_line[1] := 'argument that might be the root of the problem. But if';
+              help_line[0] := 'your `}'' was spurious, just type `2'' and it will go away.';
             END;
             ALIGNSTATE := ALIGNSTATE+1;
             LONGSTATE := 111;
@@ -7024,7 +7054,7 @@ BEGIN
                     BEGINDIAGNOS;
                     PRINTNL(MATCHCHR);
                     PRINTINT(N);
-                    PRINT(656);
+                    print_str('<-');
                     SHOWTOKENLIS(PSTACK[N-1],0,1000);
                     ENDDIAGNOSTI(FALSE);
                   END;
@@ -7044,7 +7074,7 @@ BEGIN
         BEGIN
           MAXPARAMSTAC := 
                           PARAMPTR+N;
-          IF MAXPARAMSTAC>PARAMSIZE THEN OVERFLOW(636,PARAMSIZE);
+          IF MAXPARAMSTAC>PARAMSIZE THEN overflow('parameter stack size', PARAMSIZE);
         END;
       FOR M:=0 TO N-1 DO
         PARAMSTACK[PARAMPTR+M] := PSTACK[M];
@@ -7142,15 +7172,15 @@ BEGIN
                  BEGIN
                    BEGIN
                      IF INTERACTION=3 THEN;
-                     PRINTNL(262);
-                     PRINT(625);
+                     print_nl_str('! ');
+                     print_str('Missing ');
                    END;
-                   PRINTESC(505);
-                   PRINT(626);
+                   print_esc_str('endcsname');
+                   print_str(' inserted');
                    BEGIN
                      HELPPTR := 2;
-                     HELPLINE[1] := 627;
-                     HELPLINE[0] := 628;
+                     help_line[1] := 'The control sequence marked <to be read again> should';
+                     help_line[0] := 'not appear between \csname and \endcsname.';
                    END;
                    BACKERROR;
                  END{:373};
@@ -7162,7 +7192,7 @@ BEGIN
                    IF J>=MAXBUFSTACK THEN
                      BEGIN
                        MAXBUFSTACK := J+1;
-                       IF MAXBUFSTACK=BUFSIZE THEN OVERFLOW(256,BUFSIZE);
+                       IF MAXBUFSTACK=BUFSIZE THEN overflow('buffer size', BUFSIZE);
                      END;
                    BUFFER[J] := MEM[P].HH.LH MOD 256;
                    J := J+1;
@@ -7195,13 +7225,13 @@ BEGIN
                BEGIN
                  BEGIN
                    IF INTERACTION=3 THEN;
-                   PRINTNL(262);
-                   PRINT(777);
+                   print_nl_str('! ');
+                   print_str('Extra ');
                  END;
                  PRINTCMDCHR(106,CURCHR);
                  BEGIN
                    HELPPTR := 1;
-                   HELPLINE[0] := 778;
+                   help_line[0] := 'I''m ignoring this; it doesn''t match any \if.';
                  END;
                  ERROR;
                END
@@ -7228,16 +7258,16 @@ BEGIN
           BEGIN
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(619);
+              print_nl_str('! ');
+              print_str('Undefined control sequence');
             END;
             BEGIN
               HELPPTR := 5;
-              HELPLINE[4] := 620;
-              HELPLINE[3] := 621;
-              HELPLINE[2] := 622;
-              HELPLINE[1] := 623;
-              HELPLINE[0] := 624;
+              help_line[4] := 'The control sequence at the end of the top line';
+              help_line[3] := 'of your error message was never \def''ed. If you have';
+              help_line[2] := 'misspelled it (e.g., `\hobx''), type `I'' and the correct';
+              help_line[1] := 'spelling (e.g., `I\hbox''). Otherwise just continue,';
+              help_line[0] := 'and I''ll forget about whatever was undefined.';
             END;
             ERROR;
           END{:370}
@@ -7296,15 +7326,15 @@ BEGIN{404:}
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(657);
+        print_nl_str('! ');
+        print_str('Missing { inserted');
       END;
       BEGIN
         HELPPTR := 4;
-        HELPLINE[3] := 658;
-        HELPLINE[2] := 659;
-        HELPLINE[1] := 660;
-        HELPLINE[0] := 661;
+        help_line[3] := 'A left brace was mandatory here, so I''ve put one in.';
+        help_line[2] := 'You might want to delete and/or insert some corrections';
+        help_line[1] := 'so that I will find a matching right brace soon.';
+        help_line[0] := '(If you''re confused by all this, try typing `I}'' now.)';
       END;
       BACKERROR;
       CURTOK := 379;
@@ -7322,6 +7352,36 @@ BEGIN{406:}
   IF CURTOK<>3133 THEN BACKINPUT;
 END;
 {:405}{407:}
+function scan_keyword_str(const s: string): boolean;
+VAR
+  P: HALFWORD;
+  Q: HALFWORD;
+  i: Int32;
+BEGIN
+  P := 29987;
+  MEM[P].HH.RH := 0;
+  i := 1;
+  WHILE i <= length(s) DO BEGIN
+    GETXTOKEN;
+    IF (CURCS=0)AND((CURCHR=ord(s[i]))OR(CURCHR=ord(s[i])-32))THEN BEGIN
+          BEGIN
+            Q := GETAVAIL;
+            MEM[P].HH.RH := Q;
+            MEM[Q].HH.LH := CURTOK;
+            P := Q;
+          END;
+      i := i + 1;
+    END ELSE IF (CURCMD<>10)OR(P<>29987) THEN BEGIN
+      BACKINPUT;
+      IF P<>29987 THEN BEGINTOKENLI(MEM[29987].HH.RH,3);
+      scan_keyword_str := false;
+      exit;
+    END;
+  END;
+  FLUSHLIST(MEM[29987].HH.RH);
+  scan_keyword_str := true;
+END;
+
 FUNCTION SCANKEYWORD(S:STRNUMBER): BOOLEAN;
 
 LABEL 10;
@@ -7359,17 +7419,18 @@ BEGIN
   SCANKEYWORD := TRUE;
   10:
 END;
+
 {:407}{408:}
 PROCEDURE MUERROR;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(662);
+    print_nl_str('! ');
+    print_str('Incompatible glue units');
   END;
   BEGIN
     HELPPTR := 1;
-    HELPLINE[0] := 663;
+    help_line[0] := 'I''m going to assume that 1mu=1pt when they''re mixed.';
   END;
   ERROR;
 END;{:408}{409:}
@@ -7382,13 +7443,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(687);
+        print_nl_str('! ');
+        print_str('Bad register code');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 688;
-        HELPLINE[0] := 689;
+        help_line[1] := 'A register number must be between 0 and 255.';
+        help_line[0] := 'I changed this one to zero.';
       END;
       INTERROR(CURVAL);
       CURVAL := 0;
@@ -7402,13 +7463,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(690);
+        print_nl_str('! ');
+        print_str('Bad character code');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 691;
-        HELPLINE[0] := 689;
+        help_line[1] := 'A character number must be between 0 and 255.';
+        help_line[0] := 'I changed this one to zero.';
       END;
       INTERROR(CURVAL);
       CURVAL := 0;
@@ -7422,13 +7483,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(692);
+        print_nl_str('! ');
+        print_str('Bad number');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 693;
-        HELPLINE[0] := 689;
+        help_line[1] := 'Since I expected to read a number between 0 and 15,';
+        help_line[0] := 'I changed this one to zero.';
       END;
       INTERROR(CURVAL);
       CURVAL := 0;
@@ -7442,13 +7503,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(694);
+        print_nl_str('! ');
+        print_str('Bad mathchar');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 695;
-        HELPLINE[0] := 689;
+        help_line[1] := 'A mathchar number must be between 0 and 32767.';
+        help_line[0] := 'I changed this one to zero.';
       END;
       INTERROR(CURVAL);
       CURVAL := 0;
@@ -7462,13 +7523,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(696);
+        print_nl_str('! ');
+        print_str('Bad delimiter code');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 697;
-        HELPLINE[0] := 689;
+        help_line[1] := 'A numeric delimiter code must be between 0 and 2^{27}-1.';
+        help_line[0] := 'I changed this one to zero.';
       END;
       INTERROR(CURVAL);
       CURVAL := 0;
@@ -7497,13 +7558,13 @@ BEGIN{406:}
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(817);
+        print_nl_str('! ');
+        print_str('Missing font identifier');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 818;
-        HELPLINE[0] := 819;
+        help_line[1] := 'I was looking for a control sequence whose';
+        help_line[0] := 'current meaning has been defined by \font.';
       END;
       BACKERROR;
       F := 0;
@@ -7534,7 +7595,7 @@ BEGIN
       ELSE{580:}
         BEGIN
           REPEAT
-            IF FMEMPTR=FONTMEMSIZE THEN OVERFLOW(824,FONTMEMSIZE);
+            IF FMEMPTR=FONTMEMSIZE THEN overflow('font memory', FONTMEMSIZE);
             FONTINFO[FMEMPTR].INT := 0;
             FMEMPTR := FMEMPTR+1;
             FONTPARAMS[F] := FONTPARAMS[F]+1;
@@ -7548,17 +7609,17 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(802);
+        print_nl_str('! ');
+        print_str('Font ');
       END;
       PRINTESC(HASH[2624+F].RH);
-      PRINT(820);
+      print_str(' has only ');
       PRINTINT(FONTPARAMS[F]);
-      PRINT(821);
+      print_str(' fontdimen parameters');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 822;
-        HELPLINE[0] := 823;
+        help_line[1] := 'To increase the number of font parameters, you must';
+        help_line[0] := 'use \fontdimen immediately after the \font is loaded.';
       END;
       ERROR;
     END{:579};
@@ -7597,14 +7658,14 @@ BEGIN
                       BEGIN
                         BEGIN
                           IF INTERACTION=3 THEN;
-                          PRINTNL(262);
-                          PRINT(664);
+                          print_nl_str('! ');
+                          print_str('Missing number, treated as zero');
                         END;
                         BEGIN
                           HELPPTR := 3;
-                          HELPLINE[2] := 665;
-                          HELPLINE[1] := 666;
-                          HELPLINE[0] := 667;
+                          help_line[2] := 'A number should have been here; I inserted `0''.';
+                          help_line[1] := '(If you can''t figure out why I needed to see a number,';
+                          help_line[0] := 'look up `weird error'' in the index to The TeXbook.)';
                         END;
                         BACKERROR;
                         BEGIN
@@ -7660,16 +7721,16 @@ BEGIN
             BEGIN
               IF INTERACTION=3
                 THEN;
-              PRINTNL(262);
-              PRINT(680);
+              print_nl_str('! ');
+              print_str('Improper ');
             END;
             PRINTCMDCHR(79,M);
             BEGIN
               HELPPTR := 4;
-              HELPLINE[3] := 681;
-              HELPLINE[2] := 682;
-              HELPLINE[1] := 683;
-              HELPLINE[0] := 684;
+              help_line[3] := 'You can refer to \spacefactor only in horizontal mode;';
+              help_line[2] := 'you can refer to \prevdepth only in vertical mode; and';
+              help_line[1] := 'neither of these is meaningful inside \write. So';
+              help_line[0] := 'I''m forgetting what you said and using zero instead.';
             END;
             ERROR;
             IF LEVEL<>5 THEN
@@ -7824,15 +7885,15 @@ BEGIN
       BEGIN
         BEGIN
           IF INTERACTION=3 THEN;
-          PRINTNL(262);
-          PRINT(685);
+          print_nl_str('! ');
+          print_str('You can''t use `');
         END;
         PRINTCMDCHR(CURCMD,CURCHR);
-        PRINT(686);
-        PRINTESC(537);
+        print_str(''' after ');
+        print_esc_str('the');
         BEGIN
           HELPPTR := 1;
-          HELPLINE[0] := 684;
+          help_line[0] := 'I''m forgetting what you said and using zero instead.';
         END;
         ERROR;
         IF LEVEL<>5 THEN
@@ -7915,13 +7976,13 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(698);
+            print_nl_str('! ');
+            print_str('Improper alphabetic constant');
           END;
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 699;
-            HELPLINE[0] := 700;
+            help_line[1] := 'A one-character control sequence belongs after a ` mark.';
+            help_line[0] := 'So I''m essentially inserting \0 here.';
           END;
           CURVAL := 48;
           BACKERROR;
@@ -7975,13 +8036,13 @@ BEGIN
                 BEGIN
                   BEGIN
                     IF INTERACTION=3 THEN;
-                    PRINTNL(262);
-                    PRINT(701);
+                    print_nl_str('! ');
+                    print_str('Number too big');
                   END;
                   BEGIN
                     HELPPTR := 2;
-                    HELPLINE[1] := 702;
-                    HELPLINE[0] := 703;
+                    help_line[1] := 'I can only go up to 2147483647=''17777777777="7FFFFFFF,';
+                    help_line[0] := 'so I''m using that number instead of yours.';
                   END;
                   ERROR;
                   CURVAL := 2147483647;
@@ -7996,14 +8057,14 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(664);
+            print_nl_str('! ');
+            print_str('Missing number, treated as zero');
           END;
           BEGIN
             HELPPTR := 3;
-            HELPLINE[2] := 665;
-            HELPLINE[1] := 666;
-            HELPLINE[0] := 667;
+            help_line[2] := 'A number should have been here; I inserted `0''.';
+            help_line[1] := '(If you can''t figure out why I needed to see a number,';
+            help_line[0] := 'look up `weird error'' in the index to The TeXbook.)';
           END;
           BACKERROR;
         END{:446}
@@ -8114,7 +8175,7 @@ BEGIN
     END;
 {453:}
   IF INF THEN{454:}
-    IF SCANKEYWORD(311)THEN
+    IF scan_keyword_str('fil')THEN
       BEGIN
         CURORDER := 1;
         WHILE SCANKEYWORD(108) DO
@@ -8124,13 +8185,13 @@ BEGIN
                 BEGIN
                   IF 
                      INTERACTION=3 THEN;
-                  PRINTNL(262);
-                  PRINT(705);
+                  print_nl_str('! ');
+                  print_str('Illegal unit of measure (');
                 END;
-                PRINT(706);
+                print_str('replaced by filll)');
                 BEGIN
                   HELPPTR := 1;
-                  HELPLINE[0] := 707;
+                  help_line[0] := 'I dddon''t go any higher than filll.';
                 END;
                 ERROR;
               END
@@ -8163,10 +8224,10 @@ BEGIN
       GOTO 40;
     END;
   IF MU THEN GOTO 45;
-  IF SCANKEYWORD(708)THEN V := ({558:}FONTINFO[6+PARAMBASE[EQTB[3934].HH.RH]
+  IF scan_keyword_str('em')THEN V := ({558:}FONTINFO[6+PARAMBASE[EQTB[3934].HH.RH]
                                ].INT{:558})
   ELSE
-    IF SCANKEYWORD(709)THEN V := ({559:}FONTINFO[5+PARAMBASE[
+    IF scan_keyword_str('ex')THEN V := ({559:}FONTINFO[5+PARAMBASE[
                                  EQTB[3934].HH.RH]].INT{:559})
   ELSE GOTO 45;{443:}
   BEGIN
@@ -8177,27 +8238,27 @@ BEGIN
   GOTO 89;
   45:{:455};
   IF MU THEN{456:}
-    IF SCANKEYWORD(337)THEN GOTO 88
+    IF scan_keyword_str('mu')THEN GOTO 88
   ELSE
     BEGIN
       BEGIN
         IF 
            INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(705);
+        print_nl_str('! ');
+        print_str('Illegal unit of measure (');
       END;
-      PRINT(710);
+      print_str('mu inserted)');
       BEGIN
         HELPPTR := 4;
-        HELPLINE[3] := 711;
-        HELPLINE[2] := 712;
-        HELPLINE[1] := 713;
-        HELPLINE[0] := 714;
+        help_line[3] := 'The unit of measurement in math glue must be mu.';
+        help_line[2] := 'To recover gracefully from this error, it''s best to';
+        help_line[1] := 'delete the erroneous units; e.g., type `2'' to delete';
+        help_line[0] := 'two letters. (See Chapter 27 of The TeXbook.)';
       END;
       ERROR;
       GOTO 88;
     END{:456};
-  IF SCANKEYWORD(704)THEN{457:}
+  IF scan_keyword_str('true')THEN{457:}
     BEGIN
       PREPAREMAG;
       IF EQTB[5280].INT<>1000 THEN
@@ -8209,68 +8270,68 @@ BEGIN
           F := F MOD 65536;
         END;
     END{:457};
-  IF SCANKEYWORD(397)THEN GOTO 88;
+  IF scan_keyword_str('pt')THEN GOTO 88;
 {458:}
-  IF SCANKEYWORD(715)THEN
+  IF scan_keyword_str('in')THEN
     BEGIN
       NUM := 7227;
       DENOM := 100;
     END
   ELSE
-    IF SCANKEYWORD(716)THEN
+    IF scan_keyword_str('pc')THEN
       BEGIN
         NUM := 12;
         DENOM := 1;
       END
   ELSE
-    IF SCANKEYWORD(717)THEN
+    IF scan_keyword_str('cm')THEN
       BEGIN
         NUM := 7227;
         DENOM := 254;
       END
   ELSE
-    IF SCANKEYWORD(718)THEN
+    IF scan_keyword_str('mm')THEN
       BEGIN
         NUM := 7227;
         DENOM := 2540;
       END
   ELSE
-    IF SCANKEYWORD(719)THEN
+    IF scan_keyword_str('bp')THEN
       BEGIN
         NUM := 7227;
         DENOM := 7200;
       END
   ELSE
-    IF SCANKEYWORD(720)THEN
+    IF scan_keyword_str('dd')THEN
       BEGIN
         NUM := 1238;
         DENOM := 1157;
       END
   ELSE
-    IF SCANKEYWORD(721)THEN
+    IF scan_keyword_str('cc')THEN
       BEGIN
         NUM := 14856;
         DENOM := 1157;
       END
   ELSE
-    IF SCANKEYWORD(722)THEN GOTO 30
+    IF scan_keyword_str('sp')THEN GOTO 30
   ELSE{459:}
     BEGIN
       BEGIN
         IF 
            INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(705);
+        print_nl_str('! ');
+        print_str('Illegal unit of measure (');
       END;
-      PRINT(723);
+      print_str('pt inserted)');
       BEGIN
         HELPPTR := 6;
-        HELPLINE[5] := 724;
-        HELPLINE[4] := 725;
-        HELPLINE[3] := 726;
-        HELPLINE[2] := 712;
-        HELPLINE[1] := 713;
-        HELPLINE[0] := 714;
+        help_line[5] := 'Dimensions can be in units of em, ex, in, pt, pc,';
+        help_line[4] := 'cm, mm, dd, cc, bp, or sp; but yours is a new one!';
+        help_line[3] := 'I''ll assume that you meant to say pt, for printer''s points.';
+        help_line[2] := 'To recover gracefully from this error, it''s best to';
+        help_line[1] := 'delete the erroneous units; e.g., type `2'' to delete';
+        help_line[0] := 'two letters. (See Chapter 27 of The TeXbook.)';
       END;
       ERROR;
       GOTO 32;
@@ -8294,13 +8355,13 @@ BEGIN
           BEGIN
             IF 
                INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(727);
+            print_nl_str('! ');
+            print_str('Dimension too large');
           END;
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 728;
-            HELPLINE[0] := 729;
+            help_line[1] := 'I can''t work with sizes bigger than about 19 feet.';
+            help_line[0] := 'Continue and I''ll use the largest value I can.';
           END;
           ERROR;
           CURVAL := 1073741823;
@@ -8351,13 +8412,13 @@ BEGIN
     END;{462:}
   Q := NEWSPEC(0);
   MEM[Q+1].INT := CURVAL;
-  IF SCANKEYWORD(730)THEN
+  IF scan_keyword_str('plus')THEN
     BEGIN
       SCANDIMEN(MU,TRUE,FALSE);
       MEM[Q+2].INT := CURVAL;
       MEM[Q].HH.B0 := CURORDER;
     END;
-  IF SCANKEYWORD(731)THEN
+  IF scan_keyword_str('minus')THEN
     BEGIN
       SCANDIMEN(MU,TRUE,FALSE);
       MEM[Q+3].INT := CURVAL;
@@ -8381,19 +8442,19 @@ BEGIN
       MEM[Q+2].INT := 0;
     END;
   21:
-      IF SCANKEYWORD(732)THEN
+      IF scan_keyword_str('width')THEN
         BEGIN
           SCANDIMEN(FALSE,FALSE,FALSE);
           MEM[Q+1].INT := CURVAL;
           GOTO 21;
         END;
-  IF SCANKEYWORD(733)THEN
+  IF scan_keyword_str('height')THEN
     BEGIN
       SCANDIMEN(FALSE,FALSE,FALSE);
       MEM[Q+3].INT := CURVAL;
       GOTO 21;
     END;
-  IF SCANKEYWORD(734)THEN
+  IF scan_keyword_str('depth')THEN
     BEGIN
       SCANDIMEN(FALSE,FALSE,FALSE);
       MEM[Q+2].INT := CURVAL;
@@ -8410,7 +8471,7 @@ VAR P: HALFWORD;
   K: POOLPOINTER;
 BEGIN
   BEGIN
-    IF POOLPTR+1>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR
+    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR
       );
   END;
   P := 29997;
@@ -8499,7 +8560,7 @@ BEGIN
         1:
            BEGIN
              PRINTSCALED(CURVAL);
-             PRINT(397);
+             print_str('pt');
            END;
         2:
            BEGIN
@@ -8558,9 +8619,9 @@ BEGIN
          PRINT(FONTNAME[CURVAL]);
          IF FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL]THEN
            BEGIN
-             PRINT(741);
+             print_str(' at ');
              PRINTSCALED(FONTSIZE[CURVAL]);
-             PRINT(397);
+             print_str('pt');
            END;
        END;
     5:
@@ -8624,13 +8685,13 @@ BEGIN
                 BEGIN
                   BEGIN
                     IF INTERACTION=3 THEN;
-                    PRINTNL(262);
-                    PRINT(744);
+                    print_nl_str('! ');
+                    print_str('You already have nine parameters');
                   END;
                   BEGIN
                     HELPPTR := 2;
-                    HELPLINE[1] := 745;
-                    HELPLINE[0] := 746;
+                    help_line[1] := 'I''m going to ignore the # sign you just used,';
+                    help_line[0] := 'as well as the token that followed it.';
                   END;
                   ERROR;
                   GOTO 22;
@@ -8642,13 +8703,13 @@ BEGIN
                     BEGIN
                       BEGIN
                         IF INTERACTION=3 THEN;
-                        PRINTNL(262);
-                        PRINT(747);
+                        print_nl_str('! ');
+                        print_str('Parameters must be numbered consecutively');
                       END;
                       BEGIN
                         HELPPTR := 2;
-                        HELPLINE[1] := 748;
-                        HELPLINE[0] := 749;
+                        help_line[1] := 'I''ve inserted the digit you should have used after the #.';
+                        help_line[0] := 'Type `1'' to delete what you did use.';
                       END;
                       BACKERROR;
                     END;
@@ -8673,14 +8734,14 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(657);
+            print_nl_str('! ');
+            print_str('Missing { inserted');
           END;
           ALIGNSTATE := ALIGNSTATE+1;
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 742;
-            HELPLINE[0] := 743;
+            help_line[1] := 'Where was the left brace? You said something like `\def\a}'',';
+            help_line[0] := 'which I''m going to interpret as `\def\a{}''.';
           END;
           ERROR;
           GOTO 40;
@@ -8732,15 +8793,15 @@ BEGIN
                     BEGIN
                       IF 
                          INTERACTION=3 THEN;
-                      PRINTNL(262);
-                      PRINT(750);
+                      print_nl_str('! ');
+                      print_str('Illegal parameter number in definition of ');
                     END;
                     SPRINTCS(WARNINGINDEX);
                     BEGIN
                       HELPPTR := 3;
-                      HELPLINE[2] := 751;
-                      HELPLINE[1] := 752;
-                      HELPLINE[0] := 753;
+                      help_line[2] := 'You meant to type ## instead of #, right?';
+                      help_line[1] := 'Or maybe a } was forgotten somewhere earlier, and things';
+                      help_line[0] := 'are all screwed up? I''m going to assume that you meant ##.';
                     END;
                     BACKERROR;
                     CURTOK := S;
@@ -8796,7 +8857,7 @@ BEGIN
       IF INTERACTION>1 THEN
         IF N<0 THEN
           BEGIN;
-            PRINT(338);
+            print_str('');
             TERMINPUT;
           END
     ELSE
@@ -8809,7 +8870,7 @@ BEGIN
         END;
         N := -1;
       END
-    ELSE FATALERROR(754){:484}
+    ELSE fatal_error('*** (cannot \read from terminal in nonstop modes)'){:484}
     ELSE
       IF READOPEN[M]=1 THEN{485:}
         IF INPUTLN
@@ -8830,13 +8891,13 @@ BEGIN
                 RUNAWAY;
                 BEGIN
                   IF INTERACTION=3 THEN;
-                  PRINTNL(262);
-                  PRINT(755);
+                  print_nl_str('! ');
+                  print_str('File ended within ');
                 END;
-                PRINTESC(534);
+                print_esc_str('read');
                 BEGIN
                   HELPPTR := 1;
-                  HELPLINE[0] := 756;
+                  help_line[0] := 'This \read has unbalanced braces.';
                 END;
                 ALIGNSTATE := 1000000;
                 CURINPUT.LIMITFIELD := 0;
@@ -8912,7 +8973,7 @@ BEGIN
       Q := CONDPTR;
       WHILE TRUE DO
         BEGIN
-          IF Q=0 THEN CONFUSION(757);
+          IF Q=0 THEN confusion_str('if');
           IF MEM[Q].HH.RH=P THEN
             BEGIN
               MEM[Q].HH.B0 := L;
@@ -9003,13 +9064,13 @@ BEGIN{495:}
                BEGIN
                  IF 
                     INTERACTION=3 THEN;
-                 PRINTNL(262);
-                 PRINT(781);
+                 print_nl_str('! ');
+                 print_str('Missing = inserted for ');
                END;
                PRINTCMDCHR(105,THISIF);
                BEGIN
                  HELPPTR := 1;
-                 HELPLINE[0] := 782;
+                 help_line[0] := 'I was expecting to see `<'', `='', or `>''. Didn''t.';
                END;
                BACKERROR;
                R := 61;
@@ -9090,7 +9151,7 @@ BEGIN{495:}
           IF EQTB[5299].INT>1 THEN
             BEGIN
               BEGINDIAGNOS;
-              PRINT(783);
+              print_str('{case ');
               PRINTINT(N);
               PRINTCHAR(125);
               ENDDIAGNOSTI(FALSE);
@@ -9120,8 +9181,8 @@ BEGIN{495:}
   IF EQTB[5299].INT>1 THEN{502:}
     BEGIN
       BEGINDIAGNOS;
-      IF B THEN PRINT(779)
-      ELSE PRINT(780);
+      IF B THEN print_str('{true}')
+      ELSE print_str('{false}');
       ENDDIAGNOSTI(FALSE);
     END{:502};
   IF B THEN
@@ -9138,13 +9199,13 @@ BEGIN{495:}
           IF CURCHR<>4 THEN GOTO 50;
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(777);
+            print_nl_str('! ');
+            print_str('Extra ');
           END;
-          PRINTESC(775);
+          print_esc_str('or');
           BEGIN
             HELPPTR := 1;
-            HELPLINE[0] := 778;
+            help_line[0] := 'I''m ignoring this; it doesn''t match any \if.';
           END;
           ERROR;
         END
@@ -9185,7 +9246,7 @@ BEGIN
     BEGIN
       BEGIN
         IF POOLPTR+1>
-           POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+           POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
       END;
       BEGIN
         STRPOOL[POOLPTR] := C;
@@ -9204,7 +9265,7 @@ BEGIN
 END;{:516}{517:}
 PROCEDURE ENDNAME;
 BEGIN
-  IF STRPTR+3>MAXSTRINGS THEN OVERFLOW(258,MAXSTRINGS-INITSTRPTR);
+  IF STRPTR+3>MAXSTRINGS THEN overflow('number of strings', MAXSTRINGS-INITSTRPTR);
   IF AREADELIMITE=0 THEN CURAREA := 338
   ELSE
     BEGIN
@@ -9226,6 +9287,38 @@ BEGIN
     END;
 END;
 {:517}{519:}
+PROCEDURE pack_file_name(N,A:STRNUMBER; Extension: string);
+VAR
+  K: Int32;
+  C: ASCIICODE;
+  J: POOLPOINTER;
+BEGIN
+  K := 0;
+  FOR J:=STRSTART[A]TO STRSTART[A+1]-1 DO
+    BEGIN
+      C := STRPOOL[J];
+      K := K+1;
+      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
+    END;
+  FOR J:=STRSTART[N]TO STRSTART[N+1]-1 DO
+    BEGIN
+      C := STRPOOL[J];
+      K := K+1;
+      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
+    END;
+
+  for J := 1 to length(Extension) do begin
+    C := ord(Extension[J]);
+    K := K+1;
+    IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
+  end;
+
+  IF K<=FILENAMESIZE THEN NAMELENGTH := K
+  ELSE NAMELENGTH := FILENAMESIZE;
+  FOR K:=NAMELENGTH+1 TO FILENAMESIZE DO
+    NAMEOFFILE[K] := #0;
+END;
+
 PROCEDURE PACKFILENAME(N,A,E:STRNUMBER);
 
 VAR K: Int32;
@@ -9359,23 +9452,23 @@ BEGIN
   IF S=787 THEN
     BEGIN
       IF INTERACTION=3 THEN;
-      PRINTNL(262);
-      PRINT(788);
+      print_nl_str('! ');
+      print_str('I can''t find file `');
     END
   ELSE
     BEGIN
       IF INTERACTION=3 THEN;
-      PRINTNL(262);
-      PRINT(789);
+      print_nl_str('! ');
+      print_str('I can''t write on file `');
     END;
   PRINTFILENAM(CURNAME,CURAREA,CUREXT);
-  PRINT(790);
+  print_str('''.');
   IF E=791 THEN SHOWCONTEXT;
-  PRINTNL(792);
+  print_nl_str('Please type another ');
   PRINT(S);
-  IF INTERACTION<2 THEN FATALERROR(793);;
+  IF INTERACTION<2 THEN fatal_error('*** (job aborted, file error in nonstop mode)');;
   BEGIN;
-    PRINT(568);
+    print_str(': ');
     TERMINPUT;
   END;
 {531:}
@@ -9410,7 +9503,7 @@ BEGIN
       NAMEOFJOBARE := '';
       JOBNAME := 796;
     END;
-  PACKJOBNAME(797);
+  PACKJOBNAME(797); {pack_job_name_str('.log');}
   WHILE NOT AOPENOUT(LOGFILE) DO{535:}
     BEGIN
       SELECTOR := 17;
@@ -9424,7 +9517,7 @@ BEGIN
     WRITE(LOGFILE,'This is TeX, Version 3.141592653 Free Pascal'
     );
     SLOWPRINT(FORMATIDENT);
-    PRINT(800);
+    print_str('  ');
     PRINTINT(SYSDAY);
     PRINTCHAR(32);
     MONTHS := 'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC';
@@ -9438,7 +9531,7 @@ BEGIN
     PRINTTWO(SYSTIME MOD 60);
   END{:536};
   INPUTSTACK[INPUTPTR] := CURINPUT;
-  PRINTNL(798);
+  print_nl_str('**');
   L := INPUTSTACK[0].LIMITFIELD;
   IF BUFFER[L]=EQTB[5311].INT THEN L := L-1;
   FOR K:=1 TO L DO
@@ -9619,8 +9712,7 @@ BEGIN
   {563: @<Open |tfm_file| for input@>}
   FILEOPENED := FALSE;
   IF AIRE=338 THEN PACKFILENAME(NOM,785,811)
-  ELSE PACKFILENAME(NOM,AIRE,811
-    );
+  ELSE PACKFILENAME(NOM,AIRE,811);
   IF NOT BOPENIN(TFMFILE)THEN GOTO 11;
   FILEOPENED := TRUE{:563};
 
@@ -9657,31 +9749,31 @@ BEGIN
       BEGIN
         IF 
            INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(802);
+        print_nl_str('! ');
+        print_str('Font ');
       END;
       SPRINTCS(U);
       PRINTCHAR(61);
       PRINTFILENAM(NOM,AIRE,338);
       IF S>=0 THEN
         BEGIN
-          PRINT(741);
+          print_str(' at ');
           PRINTSCALED(S);
-          PRINT(397);
+          print_str('pt');
         END
       ELSE
         IF S<>-1000 THEN
           BEGIN
-            PRINT(803);
+            print_str(' scaled ');
             PRINTINT(-S);
           END;
-      PRINT(812);
+      print_str(' not loaded: Not enough room left');
       BEGIN
         HELPPTR := 4;
-        HELPLINE[3] := 813;
-        HELPLINE[2] := 814;
-        HELPLINE[1] := 815;
-        HELPLINE[0] := 816;
+        help_line[3] := 'I''m afraid I won''t be able to make use of this font,';
+        help_line[2] := 'because my memory for character-size data is too small.';
+        help_line[1] := 'If you''re really stuck, ask a wizard to enlarge me.';
+        help_line[0] := 'Or maybe try `I\font<same font id>=<name of loaded font>''.';
       END;
       ERROR;
       GOTO 30;
@@ -9916,33 +10008,33 @@ BEGIN
   {561: @<Report that the font won't be loaded@>}
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(802);
+        print_nl_str('! ');
+        print_str('Font ');
       END;
   SPRINTCS(U);
   PRINTCHAR(61);
   PRINTFILENAM(NOM,AIRE,338);
   IF S>=0 THEN
     BEGIN
-      PRINT(741);
+      print_str(' at ');
       PRINTSCALED(S);
-      PRINT(397);
+      print_str('pt');
     END
   ELSE
     IF S<>-1000 THEN
       BEGIN
-        PRINT(803);
+        print_str(' scaled ');
         PRINTINT(-S);
       END;
-  IF FILEOPENED THEN PRINT(804)
-  ELSE PRINT(805);
+  IF FILEOPENED THEN print_str(' not loadable: Bad metric (TFM) file')
+  ELSE print_str(' not loadable: Metric (TFM) file not found');
   BEGIN
     HELPPTR := 5;
-    HELPLINE[4] := 806;
-    HELPLINE[3] := 807;
-    HELPLINE[2] := 808;
-    HELPLINE[1] := 809;
-    HELPLINE[0] := 810;
+    help_line[4] := 'I wasn''t able to read the size data for this font,';
+    help_line[3] := 'so I will ignore the font specification.';
+    help_line[2] := '[Wizards can fix TFM files using TFtoPL/PLtoTF.]';
+    help_line[1] := 'You might try inserting a different font spec;';
+    help_line[0] := 'e.g., type `I\font<same font id>=<substitute font name>''.';
   END;
   ERROR;
   {:561}
@@ -9960,9 +10052,9 @@ BEGIN
   IF EQTB[5298].INT>0 THEN
     BEGIN
       BEGINDIAGNOS;
-      PRINTNL(825);
+      print_nl_str('Missing character: There is no ');
       PRINT(C);
-      PRINT(826);
+      print_str(' in font ');
       SLOWPRINT(FONTNAME[F]);
       PRINTCHAR(33);
       ENDDIAGNOSTI(FALSE);
@@ -10330,7 +10422,7 @@ BEGIN
   SHOWTOKENLIS(MEM[MEM[P+1].HH.RH].HH.RH,0,POOLSIZE-POOLPTR);
   SELECTOR := OLDSETTING;
   BEGIN
-    IF POOLPTR+1>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
   END;
   IF (POOLPTR-STRSTART[STRPTR])<256 THEN
     BEGIN
@@ -10389,13 +10481,13 @@ BEGIN{1371:}
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1297);
+        print_nl_str('! ');
+        print_str('Unbalanced write command');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 1298;
-        HELPLINE[0] := 1012;
+        help_line[1] := 'On this page there''s a \write with fewer real {''s than }''s.';
+        help_line[0] := 'I can''t handle that very well; good luck.';
       END;
       ERROR;
       REPEAT
@@ -10411,7 +10503,7 @@ BEGIN{1371:}
     BEGIN
       IF (J=17)AND(SELECTOR=19)THEN
         SELECTOR := 18;
-      PRINTNL(338);
+      print_nl_str('');
     END;
   TOKENSHOW(DEFREF);
   PRINTLN;
@@ -10451,7 +10543,7 @@ BEGIN
              END{:1374};
     3: SPECIALOUT(P);
     4:;
-    ELSE CONFUSION(1299)
+    ELSE confusion_str('ext4')
   END;
 END;{:1373}
 PROCEDURE HLISTOUT;
@@ -10768,7 +10860,7 @@ BEGIN
   TOPEDGE := CURV;
   WHILE P<>0 DO{630:}
     BEGIN
-      IF (P>=HIMEMMIN)THEN CONFUSION(828)
+      IF (P>=HIMEMMIN)THEN confusion_str('vlistout')
       ELSE{631:}
         BEGIN
           CASE MEM[P].HH.B0 OF 
@@ -10951,9 +11043,9 @@ VAR PAGELOC: Int32;
 BEGIN
   IF EQTB[5297].INT>0 THEN
     BEGIN
-      PRINTNL(338);
+      print_nl_str('');
       PRINTLN;
-      PRINT(829);
+      print_str('Completed box being shipped out');
     END;
   IF TERMOFFSET>MAXPRINTLINE-9 THEN PRINTLN
   ELSE
@@ -10983,19 +11075,19 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(833);
+        print_nl_str('! ');
+        print_str('Huge page cannot be shipped out');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 834;
-        HELPLINE[0] := 835;
+        help_line[1] := 'The page just created is more than 18 feet tall or';
+        help_line[0] := 'more than 18 feet wide, so I suspect something went wrong.';
       END;
       ERROR;
       IF EQTB[5297].INT<=0 THEN
         BEGIN
           BEGINDIAGNOS;
-          PRINTNL(836);
+          print_nl_str('The following box has been deleted:');
           SHOWBOX(P);
           ENDDIAGNOSTI(TRUE);
         END;
@@ -11012,9 +11104,9 @@ BEGIN
   IF OUTPUTFILENA=0 THEN
     BEGIN
       IF JOBNAME=0 THEN OPENLOGFILE;
-      PACKJOBNAME(794);
+      PACKJOBNAME(794); {pack_job_name_str('.dvi');}
       WHILE NOT BOPENOUT(DVIFILE) DO
-        PROMPTFILENA(795,794);
+        PROMPTFILENA(795,794); {$795='file name for output' $794='.dvi'}
       OUTPUTFILENA := BMAKENAMESTR(DVIFILE);
     END;
   IF TOTALPAGES=0 THEN
@@ -11035,7 +11127,7 @@ BEGIN
       DVIFOUR(EQTB[5280].INT);
       OLDSETTING := SELECTOR;
       SELECTOR := 21;
-      PRINT(827);
+      print_str(' TeX output ');
       PRINTINT(EQTB[5286].INT);
       PRINTCHAR(46);
       PRINTTWO(EQTB[5285].INT);
@@ -11086,7 +11178,7 @@ BEGIN
 {639:}{$IFDEF STATS}
   IF EQTB[5294].INT>1 THEN
     BEGIN
-      PRINTNL(830);
+      print_nl_str('Memory usage before: ');
       PRINTINT(VARUSED);
       PRINTCHAR(38);
       PRINTINT(DYNUSED);
@@ -11096,11 +11188,11 @@ BEGIN
   FLUSHNODELIS(P);{$IFDEF STATS}
   IF EQTB[5294].INT>1 THEN
     BEGIN
-      PRINT(831);
+      print_str(' after: ');
       PRINTINT(VARUSED);
       PRINTCHAR(38);
       PRINTINT(DYNUSED);
-      PRINT(832);
+      print_str('; still untouched: ');
       PRINTINT(HIMEMMIN-LOMEMMAX-1);
       PRINTLN;
     END;{$ENDIF}{:639};
@@ -11114,9 +11206,9 @@ VAR S: Int32;
   SPECCODE: 0..1;
 BEGIN
   IF THREECODES THEN S := SAVESTACK[SAVEPTR+0].INT;
-  IF SCANKEYWORD(842)THEN SPECCODE := 0
+  IF scan_keyword_str('to')THEN SPECCODE := 0
   ELSE
-    IF SCANKEYWORD(843)THEN
+    IF scan_keyword_str('spread')THEN
       SPECCODE := 1
   ELSE
     BEGIN
@@ -11290,9 +11382,9 @@ BEGIN
               IF LASTBADNESS>EQTB[5289].INT THEN
                 BEGIN
                   PRINTLN;
-                  IF LASTBADNESS>100 THEN PRINTNL(844)
-                  ELSE PRINTNL(845);
-                  PRINT(846);
+                  IF LASTBADNESS>100 THEN print_nl_str('Underfull')
+                  ELSE print_nl_str('Loose');
+                  print_str(' \hbox (badness ');
                   PRINTINT(LASTBADNESS);
                   GOTO 50;
                 END;
@@ -11333,9 +11425,9 @@ BEGIN
                   MEM[MEM[Q].HH.RH+1].INT := EQTB[5846].INT;
                 END;
               PRINTLN;
-              PRINTNL(852);
+              print_nl_str('Overfull \hbox (');
               PRINTSCALED(-X-TOTALSHRINK[0]);
-              PRINT(853);
+              print_str('pt too wide');
               GOTO 50;
             END{:666};
         END
@@ -11348,7 +11440,7 @@ BEGIN
               IF LASTBADNESS>EQTB[5289].INT THEN
                 BEGIN
                   PRINTLN;
-                  PRINTNL(854);
+                  print_nl_str('Tight \hbox (badness ');
                   PRINTINT(LASTBADNESS);
                   GOTO 50;
                 END;
@@ -11356,18 +11448,18 @@ BEGIN
       GOTO 10;
     END{:664}{:657};
   50:{663:}
-      IF OUTPUTACTIVE THEN PRINT(847)
+      IF OUTPUTACTIVE THEN print_str(') has occurred while output is active')
       ELSE
         BEGIN
           IF PACKBEGINLIN<>0
             THEN
             BEGIN
-              IF PACKBEGINLIN>0 THEN PRINT(848)
-              ELSE PRINT(849);
+              IF PACKBEGINLIN>0 THEN print_str(') in paragraph at lines ')
+              ELSE print_str(') in alignment at lines ');
               PRINTINT(ABS(PACKBEGINLIN));
-              PRINT(850);
+              print_str('--');
             END
-          ELSE PRINT(851);
+          ELSE print_str(') detected at line ');
           PRINTINT(LINE);
         END;
   PRINTLN;
@@ -11409,7 +11501,7 @@ BEGIN
   TOTALSHRINK[3] := 0{:650};
   WHILE P<>0 DO{669:}
     BEGIN
-      IF (P>=HIMEMMIN)THEN CONFUSION(855)
+      IF (P>=HIMEMMIN)THEN confusion_str('vpack')
       ELSE
         CASE MEM
              [P].HH.B0 OF 
@@ -11491,9 +11583,9 @@ BEGIN
               IF LASTBADNESS>EQTB[5290].INT THEN
                 BEGIN
                   PRINTLN;
-                  IF LASTBADNESS>100 THEN PRINTNL(844)
-                  ELSE PRINTNL(845);
-                  PRINT(856);
+                  IF LASTBADNESS>100 THEN print_nl_str('Underfull')
+                  ELSE print_nl_str('Loose');
+                  print_str(' \vbox (badness ');
                   PRINTINT(LASTBADNESS);
                   GOTO 50;
                 END;
@@ -11527,9 +11619,9 @@ BEGIN
           IF (-X-TOTALSHRINK[0]>EQTB[5839].INT)OR(EQTB[5290].INT<100)THEN
             BEGIN
               PRINTLN;
-              PRINTNL(857);
+              print_nl_str('Overfull \vbox (');
               PRINTSCALED(-X-TOTALSHRINK[0]);
-              PRINT(858);
+              print_str('pt too high');
               GOTO 50;
             END{:677};
         END
@@ -11542,7 +11634,7 @@ BEGIN
               IF LASTBADNESS>EQTB[5290].INT THEN
                 BEGIN
                   PRINTLN;
-                  PRINTNL(859);
+                  print_nl_str('Tight \vox (badness ');
                   PRINTINT(LASTBADNESS);
                   GOTO 50;
                 END;
@@ -11550,17 +11642,17 @@ BEGIN
       GOTO 10;
     END{:676}{:672};
   50:{675:}
-      IF OUTPUTACTIVE THEN PRINT(847)
+      IF OUTPUTACTIVE THEN print_str(') has occurred while output is active')
       ELSE
         BEGIN
           IF PACKBEGINLIN<>0
             THEN
             BEGIN
-              PRINT(849);
+              print_str(') in alignment at lines ');
               PRINTINT(ABS(PACKBEGINLIN));
-              PRINT(850);
+              print_str('--');
             END
-          ELSE PRINT(851);
+          ELSE print_str(') detected at line ');
           PRINTINT(LINE);
           PRINTLN;
         END;
@@ -11987,21 +12079,21 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(338);
+        print_nl_str('! ');
+        print_str('');
       END;
       PRINTSIZE(CURSIZE);
       PRINTCHAR(32);
       PRINTINT(MEM[A].HH.B0);
-      PRINT(884);
+      print_str(' is undefined (character ');
       PRINT(CURC-0);
       PRINTCHAR(41);
       BEGIN
         HELPPTR := 4;
-        HELPLINE[3] := 885;
-        HELPLINE[2] := 886;
-        HELPLINE[1] := 887;
-        HELPLINE[0] := 888;
+        help_line[3] := 'Somewhere in the math formula just ended, you used the';
+        help_line[2] := 'stated character from an undefined font family. For example,';
+        help_line[1] := 'plain TeX doesn''t allow \it or \sl in subscripts. Proceed,';
+        help_line[0] := 'and I''ll try to forget that I needed that character.';
       END;
       ERROR;
       CURI := NULLCHARACTE;
@@ -12053,7 +12145,7 @@ VAR V: HALFWORD;
   DELTA: SCALED;
 BEGIN
   V := MEM[Q+1].HH.LH;
-  IF MEM[V].HH.B0<>1 THEN CONFUSION(539);
+  IF MEM[V].HH.B0<>1 THEN confusion_str('vcenter');
   DELTA := MEM[V+3].INT+MEM[V+2].INT;
   MEM[V+3].INT := FONTINFO[22+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT+HALF(
                   DELTA);
@@ -12724,7 +12816,7 @@ BEGIN
               MATHKERN(Q,CURMU);
               GOTO 81;
             END;{:730}
-        ELSE CONFUSION(889)
+        ELSE confusion_str('mlist1')
       END;
 {754:}
       CASE MEM[Q+1].HH.RH OF 
@@ -12765,7 +12857,7 @@ BEGIN
              END{:703};
              P := HPACK(MEM[29997].HH.RH,0,1);
            END;
-        ELSE CONFUSION(890)
+        ELSE confusion_str('mlist2')
       END;
       MEM[Q+1].INT := P;
       IF (MEM[Q+3].HH.RH=0)AND(MEM[Q+2].HH.RH=0)THEN GOTO 82;
@@ -12835,7 +12927,7 @@ BEGIN
                                 MEM[P].HH.RH := 0;
                                 GOTO 30;
                               END;
-        ELSE CONFUSION(891)
+        ELSE confusion_str('mlist3')
       END{:761};
 {766:}
       IF RTYPE>0 THEN
@@ -12853,7 +12945,7 @@ BEGIN
             52:
                 IF CURSTYLE<4 THEN X := 17
                 ELSE X := 0;
-            ELSE CONFUSION(893)
+            ELSE confusion_str('mlist4')
           END;
           IF X<>0 THEN
             BEGIN
@@ -12945,7 +13037,7 @@ BEGIN
           GETTOKEN;
         END;
     END;
-  IF CURCMD=9 THEN FATALERROR(595);
+  IF CURCMD=9 THEN fatal_error('(interwoven alignment preambles are not allowed)');
   IF (CURCMD=75)AND(CURCHR=2893)THEN
     BEGIN
       SCANOPTIONAL;
@@ -12976,16 +13068,16 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(680);
+        print_nl_str('! ');
+        print_str('Improper ');
       END;
-      PRINTESC(520);
-      PRINT(894);
+      print_esc_str('halign');
+      print_str(' inside $$''s');
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 895;
-        HELPLINE[1] := 896;
-        HELPLINE[0] := 897;
+        help_line[2] := 'Displays can use special alignments (like \eqalignno)';
+        help_line[1] := 'only if nothing but the alignment itself is between $$''s.';
+        help_line[0] := 'So I''ve deleted the formulas that preceded this alignment.';
       END;
       ERROR;
       FLUSHMATH;
@@ -13027,14 +13119,14 @@ BEGIN
               BEGIN
                 IF 
                    INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(903);
+                print_nl_str('! ');
+                print_str('Missing # inserted in alignment preamble');
               END;
               BEGIN
                 HELPPTR := 3;
-                HELPLINE[2] := 904;
-                HELPLINE[1] := 905;
-                HELPLINE[0] := 906;
+                help_line[2] := 'There should be exactly one # between &''s, when an';
+                help_line[1] := '\halign or \valign is being set up. In this case you had';
+                help_line[0] := 'none, so I''ve put one in; maybe that will work.';
               END;
               BACKERROR;
               GOTO 31;
@@ -13063,14 +13155,14 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(907);
+                print_nl_str('! ');
+                print_str('Only one # is allowed per tab');
               END;
               BEGIN
                 HELPPTR := 3;
-                HELPLINE[2] := 904;
-                HELPLINE[1] := 905;
-                HELPLINE[0] := 908;
+                help_line[2] := 'There should be exactly one # between &''s, when an';
+                help_line[1] := '\halign or \valign is being set up. In this case you had';
+                help_line[0] := 'more than one, so I''m ignoring all but the first.';
               END;
               ERROR;
               GOTO 22;
@@ -13141,10 +13233,10 @@ VAR P: HALFWORD;
   O: GLUEORD;
   N: HALFWORD;
 BEGIN
-  IF CURALIGN=0 THEN CONFUSION(909);
+  IF CURALIGN=0 THEN confusion_str('endv');
   Q := MEM[CURALIGN].HH.RH;
-  IF Q=0 THEN CONFUSION(909);
-  IF ALIGNSTATE<500000 THEN FATALERROR(595);
+  IF Q=0 THEN confusion_str('endv');
+  IF ALIGNSTATE<500000 THEN fatal_error('(interwoven alignment preambles are not allowed)');
   P := MEM[Q].HH.RH;
 {792:}
   IF (P=0)AND(MEM[CURALIGN+5].HH.LH<257)THEN
@@ -13185,15 +13277,15 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(910);
+        print_nl_str('! ');
+        print_str('Extra alignment tab has been changed to ');
       END;
-      PRINTESC(899);
+      print_esc_str('cr');
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 911;
-        HELPLINE[1] := 912;
-        HELPLINE[0] := 913;
+        help_line[2] := 'You have given more \span or & marks than there were';
+        help_line[1] := 'in the preamble to the \halign or \valign now in progress.';
+        help_line[0] := 'So I''ll assume that you meant to type \cr instead.';
       END;
       MEM[CURALIGN+5].HH.LH := 257;
       ERROR;
@@ -13225,7 +13317,7 @@ BEGIN
               N := N+1;
               Q := MEM[MEM[Q].HH.RH].HH.RH;
             UNTIL Q=CURALIGN;
-            IF N>255 THEN CONFUSION(914);
+            IF N>255 THEN confusion_str('256 spans');
             Q := CURSPAN;
             WHILE MEM[MEM[Q].HH.LH].HH.RH<N DO
               Q := MEM[Q].HH.LH;
@@ -13336,9 +13428,9 @@ VAR P,Q,R,S,U,V: HALFWORD;
   RULESAVE: SCALED;
   AUXSAVE: MEMORYWORD;
 BEGIN
-  IF CURGROUP<>6 THEN CONFUSION(915);
+  IF CURGROUP<>6 THEN confusion_str('align1');
   UNSAVE;
-  IF CURGROUP<>6 THEN CONFUSION(916);
+  IF CURGROUP<>6 THEN confusion_str('align0');
   UNSAVE;
   IF NEST[NESTPTR-1].MODEFIELD=203 THEN O := EQTB[5845].INT
   ELSE O := 0;
@@ -13600,13 +13692,13 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(1170);
+            print_nl_str('! ');
+            print_str('Missing $$ inserted');
           END;
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 895;
-            HELPLINE[0] := 896;
+            help_line[1] := 'Displays can use special alignments (like \eqalignno)';
+            help_line[0] := 'only if nothing but the alignment itself is between $$''s.';
           END;
           BACKERROR;
         END{:1207}
@@ -13617,13 +13709,13 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1166);
+                print_nl_str('! ');
+                print_str('Display math should end with $$');
               END;
               BEGIN
                 HELPPTR := 2;
-                HELPLINE[1] := 1167;
-                HELPLINE[0] := 1168;
+                help_line[1] := 'The `$'' that I just saw supposedly matches a previous `$$''.';
+                help_line[0] := 'So I shall assume that you typed `$$'' both times.';
               END;
               BACKERROR;
             END;
@@ -13697,16 +13789,16 @@ BEGIN
       IF EQTB[5295].INT>0 THEN ENDDIAGNOSTI(TRUE);{$ENDIF}
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(917);
+        print_nl_str('! ');
+        print_str('Infinite glue shrinkage found in a paragraph');
       END;
       BEGIN
         HELPPTR := 5;
-        HELPLINE[4] := 918;
-        HELPLINE[3] := 919;
-        HELPLINE[2] := 920;
-        HELPLINE[1] := 921;
-        HELPLINE[0] := 922;
+        help_line[4] := 'The paragraph just ended includes some glue that has';
+        help_line[3] := 'infinite shrinkability, e.g., `\hskip 0pt minus 1fil''.';
+        help_line[2] := 'Such glue doesn''t belong there---it allows a paragraph';
+        help_line[1] := 'of any length to fit on one line. But it''s safe to proceed,';
+        help_line[0] := 'since the offensive shrinkability has been made finite.';
       END;
       ERROR;{$IFDEF STATS}
       IF EQTB[5295].INT>0 THEN BEGINDIAGNOS;{$ENDIF}
@@ -13817,7 +13909,7 @@ BEGIN{831:}
                                                         MEM[V+1].HH.B1].QQQQ.B0].INT;
                                      END;
                                   0,1,2,11: BREAKWIDTH[1] := BREAKWIDTH[1]-MEM[V+1].INT;
-                                  ELSE CONFUSION(923)
+                                  ELSE confusion_str('disc1')
                                 END{:841};
                             END;
                           WHILE S<>0 DO
@@ -13839,7 +13931,7 @@ BEGIN{831:}
                                                         MEM[S+1].HH.B1].QQQQ.B0].INT;
                                      END;
                                   0,1,2,11: BREAKWIDTH[1] := BREAKWIDTH[1]+MEM[S+1].INT;
-                                  ELSE CONFUSION(924)
+                                  ELSE confusion_str('disc2')
                                 END{:842};
                               S := MEM[S].HH.RH;
                             END;
@@ -13933,16 +14025,16 @@ BEGIN{831:}
                         PREVR := Q;{$IFDEF STATS}
                         IF EQTB[5295].INT>0 THEN{846:}
                           BEGIN
-                            PRINTNL(925);
+                            print_nl_str('@@');
                             PRINTINT(MEM[PASSIVE].HH.LH);
-                            PRINT(926);
+                            print_str(': line ');
                             PRINTINT(MEM[Q+1].HH.LH-1);
                             PRINTCHAR(46);
                             PRINTINT(FITCLASS);
                             IF BREAKTYPE=1 THEN PRINTCHAR(45);
-                            PRINT(927);
+                            print_str(' t=');
                             PRINTINT(MEM[Q+2].INT);
-                            PRINT(928);
+                            print_str(' -> @@');
                             IF MEM[PASSIVE+1].HH.LH=0 THEN PRINTCHAR(48)
                             ELSE PRINTINT(MEM[MEM[
                                           PASSIVE+1].HH.LH].HH.LH);
@@ -14058,44 +14150,44 @@ BEGIN{831:}
           BEGIN
             IF PRINTEDNODE<>CURP THEN{857:}
               BEGIN
-                PRINTNL(338);
+                print_nl_str('');
                 IF CURP=0 THEN SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH)
                 ELSE
                   BEGIN
                     SAVELINK := 
                                 MEM[CURP].HH.RH;
                     MEM[CURP].HH.RH := 0;
-                    PRINTNL(338);
+                    print_nl_str('');
                     SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH);
                     MEM[CURP].HH.RH := SAVELINK;
                   END;
                 PRINTEDNODE := CURP;
               END{:857};
             PRINTNL(64);
-            IF CURP=0 THEN PRINTESC(597)
+            IF CURP=0 THEN print_esc_str('par')
             ELSE
               IF MEM[CURP].HH.B0<>10 THEN
                 BEGIN
                   IF 
-                     MEM[CURP].HH.B0=12 THEN PRINTESC(531)
+                     MEM[CURP].HH.B0=12 THEN print_esc_str('penalty')
                   ELSE
                     IF MEM[CURP].HH.B0=7 THEN
-                      PRINTESC(349)
+                      print_esc_str('discretionary')
                   ELSE
-                    IF MEM[CURP].HH.B0=11 THEN PRINTESC(340)
+                    IF MEM[CURP].HH.B0=11 THEN print_esc_str('kern')
                   ELSE PRINTESC(
                                 343);
                 END;
-            PRINT(929);
+            print_str(' via @@');
             IF MEM[R+1].HH.RH=0 THEN PRINTCHAR(48)
             ELSE PRINTINT(MEM[MEM[R+1].HH.RH].
                           HH.LH);
-            PRINT(930);
+            print_str(' b=');
             IF B>10000 THEN PRINTCHAR(42)
             ELSE PRINTINT(B);
-            PRINT(931);
+            print_str(' p=');
             PRINTINT(PI);
-            PRINT(932);
+            print_str(' d=');
             IF ARTIFICIALDE THEN PRINTCHAR(42)
             ELSE PRINTINT(D);
           END{:856};{$ENDIF}
@@ -14356,7 +14448,7 @@ BEGIN{878:}
                 END;
         END{:879};
   UNTIL CURP=0;
-  IF (CURLINE<>BESTLINE)OR(MEM[29997].HH.RH<>0)THEN CONFUSION(939);
+  IF (CURLINE<>BESTLINE)OR(MEM[29997].HH.RH<>0)THEN confusion_str('line breaking');
   CURLIST.PGFIELD := BESTLINE-1;
 END;
 {:877}{895:}{906:}
@@ -14917,9 +15009,9 @@ BEGIN
       L := TRIEOPHASH[H];
       IF L=0 THEN
         BEGIN
-          IF TRIEOPPTR=TRIEOPSIZE THEN OVERFLOW(949,TRIEOPSIZE);
+          IF TRIEOPPTR=TRIEOPSIZE THEN overflow('pattern memory ops', TRIEOPSIZE);
           U := TRIEUSED[CURLANG];
-          IF U=255 THEN OVERFLOW(950,255);
+          IF U=255 THEN overflow('pattern memory ops per language', 255);
           TRIEOPPTR := TRIEOPPTR+1;
           U := U+1;
           TRIEUSED[CURLANG] := U;
@@ -15004,8 +15096,7 @@ BEGIN
 {954:}
       IF TRIEMAX<H+256 THEN
         BEGIN
-          IF TRIESIZE<=H+256 THEN OVERFLOW(951,
-                                           TRIESIZE);
+          IF TRIESIZE<=H+256 THEN overflow('pattern memory', TRIESIZE);
           REPEAT
             TRIEMAX := TRIEMAX+1;
             TRIETAKEN[TRIEMAX] := FALSE;
@@ -15114,12 +15205,12 @@ BEGIN
                              BEGIN
                                BEGIN
                                  IF INTERACTION=3 THEN;
-                                 PRINTNL(262);
-                                 PRINT(957);
+                                 print_nl_str('! ');
+                                 print_str('Nonletter');
                                END;
                                BEGIN
                                  HELPPTR := 1;
-                                 HELPLINE[0] := 956;
+                                 help_line[0] := '(See Appendix H.)';
                                END;
                                ERROR;
                              END;
@@ -15169,8 +15260,7 @@ BEGIN
                               END;
                             IF (P=0)OR(C<TRIEC[P])THEN{964:}
                               BEGIN
-                                IF TRIEPTR=TRIESIZE THEN OVERFLOW(
-                                                                  951,TRIESIZE);
+                                IF TRIEPTR=TRIESIZE THEN overflow('pattern memory', TRIESIZE);
                                 TRIEPTR := TRIEPTR+1;
                                 TRIER[TRIEPTR] := P;
                                 P := TRIEPTR;
@@ -15186,12 +15276,12 @@ BEGIN
                           BEGIN
                             BEGIN
                               IF INTERACTION=3 THEN;
-                              PRINTNL(262);
-                              PRINT(958);
+                              print_nl_str('! ');
+                              print_str('Duplicate pattern');
                             END;
                             BEGIN
                               HELPPTR := 1;
-                              HELPLINE[0] := 956;
+                              help_line[0] := '(See Appendix H.)';
                             END;
                             ERROR;
                           END;
@@ -15206,13 +15296,13 @@ BEGIN
               BEGIN
                 BEGIN
                   IF INTERACTION=3 THEN;
-                  PRINTNL(262);
-                  PRINT(955);
+                  print_nl_str('! ');
+                  print_str('Bad ');
                 END;
-                PRINTESC(953);
+                print_esc_str('patterns');
                 BEGIN
                   HELPPTR := 1;
-                  HELPLINE[0] := 956;
+                  help_line[0] := '(See Appendix H.)';
                 END;
                 ERROR;
               END
@@ -15224,13 +15314,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(952);
+        print_nl_str('! ');
+        print_str('Too late for ');
       END;
-      PRINTESC(953);
+      print_esc_str('patterns');
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 954;
+        help_line[0] := 'All patterns must be given before typesetting begins.';
       END;
       ERROR;
       MEM[29988].HH.RH := SCANTOKS(FALSE,FALSE);
@@ -15420,7 +15510,7 @@ BEGIN
       IF EQTB[5295].INT>0 THEN
         BEGIN
           BEGINDIAGNOS;
-          PRINTNL(933);
+          print_nl_str('@firstpass');
         END;{$ENDIF}
       SECONDPASS := FALSE;
       FINALPASS := FALSE;
@@ -15668,7 +15758,7 @@ BEGIN
                                              .HH.B1].QQQQ.B0].INT;
                               END;
                            0,1,2,11: DISCWIDTH := DISCWIDTH+MEM[S+1].INT;
-                           ELSE CONFUSION(937)
+                           ELSE confusion_str('disc3')
                          END{:870};
                        S := MEM[S].HH.RH;
                      UNTIL S=0;
@@ -15696,7 +15786,7 @@ BEGIN
                                                 ]+MEM[S+1].HH.B1].QQQQ.B0].INT;
                             END;
                          0,1,2,11: ACTIVEWIDTH[1] := ACTIVEWIDTH[1]+MEM[S+1].INT;
-                         ELSE CONFUSION(938)
+                         ELSE confusion_str('disc4')
                        END{:871};
                      R := R-1;
                      S := MEM[S].HH.RH;
@@ -15717,7 +15807,7 @@ BEGIN
                END;
             12: TRYBREAK(MEM[CURP+1].INT,0);
             4,3,5:;
-            ELSE CONFUSION(936)
+            ELSE confusion_str('paragraph')
           END;
           PREVP := CURP;
           CURP := MEM[CURP].HH.RH;
@@ -15788,14 +15878,14 @@ BEGIN
         END{:865};
       IF NOT SECONDPASS THEN
         BEGIN{$IFDEF STATS}
-          IF EQTB[5295].INT>0 THEN PRINTNL(934);{$ENDIF}
+          IF EQTB[5295].INT>0 THEN print_nl_str('@secondpass');{$ENDIF}
           THRESHOLD := EQTB[5264].INT;
           SECONDPASS := TRUE;
           FINALPASS := (EQTB[5850].INT<=0);
         END
       ELSE
         BEGIN{$IFDEF STATS}
-          IF EQTB[5295].INT>0 THEN PRINTNL(935);
+          IF EQTB[5295].INT>0 THEN print_nl_str('@emergencypass');
 {$ENDIF}
           BACKGROUND[2] := BACKGROUND[2]+EQTB[5850].INT;
           FINALPASS := TRUE;
@@ -15871,13 +15961,13 @@ BEGIN
                               BEGIN
                                 IF 
                                    INTERACTION=3 THEN;
-                                PRINTNL(262);
-                                PRINT(945);
+                                print_nl_str('! ');
+                                print_str('Not a letter');
                               END;
                               BEGIN
                                 HELPPTR := 2;
-                                HELPLINE[1] := 946;
-                                HELPLINE[0] := 947;
+                                help_line[1] := 'Letters in \hyphenation words must have \lccode>0.';
+                                help_line[0] := 'Proceed; I''ll ignore the character I just read.';
                               END;
                               ERROR;
                             END
@@ -15902,7 +15992,7 @@ BEGIN
                         N := N+1;
                         HC[N] := CURLANG;
                         BEGIN
-                          IF POOLPTR+N>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+                          IF POOLPTR+N>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
                         END;
                         H := 0;
                         FOR J:=1 TO N DO
@@ -15915,7 +16005,7 @@ BEGIN
                           END;
                         S := MAKESTRING;
 {940:}
-                        IF HYPHCOUNT=307 THEN OVERFLOW(948,307);
+                        IF HYPHCOUNT=307 THEN overflow('exception dictionary', 307);
                         HYPHCOUNT := HYPHCOUNT+1;
                         WHILE HYPHWORD[H]<>0 DO
                           BEGIN{941:}
@@ -15951,15 +16041,15 @@ BEGIN
               BEGIN
                 BEGIN
                   IF INTERACTION=3 THEN;
-                  PRINTNL(262);
-                  PRINT(680);
+                  print_nl_str('! ');
+                  print_str('Improper ');
                 END;
-                PRINTESC(941);
-                PRINT(942);
+                print_esc_str('hyphenation');
+                print_str(' will be flushed');
                 BEGIN
                   HELPPTR := 2;
-                  HELPLINE[1] := 943;
-                  HELPLINE[0] := 944;
+                  help_line[1] := 'Hyphenation exceptions must contain only letters';
+                  help_line[0] := 'and hyphens. But continue; I''ll forgive and forget.';
                 END;
                 ERROR;
               END{:936}
@@ -16001,7 +16091,7 @@ BEGIN
                   MEM[PREVP].HH.RH := P;
                   FLUSHNODELIS(Q);
                 END;
-      ELSE CONFUSION(959)
+      ELSE confusion_str('pruning')
     END;
   PRUNEPAGETOP := MEM[29997].HH.RH;
 END;
@@ -16053,7 +16143,7 @@ BEGIN
               END;
           12: PI := MEM[P+1].INT;
           4,3: GOTO 45;
-          ELSE CONFUSION(960)
+          ELSE confusion_str('vertbreak')
         END{:973};
 {974:}
       IF PI<10000 THEN
@@ -16094,15 +16184,15 @@ BEGIN
                   BEGIN
                     IF INTERACTION=3
                       THEN;
-                    PRINTNL(262);
-                    PRINT(961);
+                    print_nl_str('! ');
+                    print_str('Infinite glue shrinkage found in box being split');
                   END;
                   BEGIN
                     HELPPTR := 4;
-                    HELPLINE[3] := 962;
-                    HELPLINE[2] := 963;
-                    HELPLINE[1] := 964;
-                    HELPLINE[0] := 922;
+                    help_line[3] := 'The box you are \vsplitting contains some infinitely';
+                    help_line[2] := 'shrinkable glue, e.g., `\vss'' or `\vskip 0pt minus 1fil''.';
+                    help_line[1] := 'Such glue doesn''t belong there; but you can safely proceed,';
+                    help_line[0] := 'since the offensive shrinkability has been made finite.';
                   END;
                   ERROR;
                   R := NEWSPEC(Q);
@@ -16152,16 +16242,16 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(338);
+        print_nl_str('! ');
+        print_str('');
       END;
-      PRINTESC(965);
-      PRINT(966);
-      PRINTESC(967);
+      print_esc_str('vsplit');
+      print_str(' needs a ');
+      print_esc_str('vbox');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 968;
-        HELPLINE[0] := 969;
+        help_line[1] := 'The box you are trying to split is an \hbox.';
+        help_line[0] := 'I can''t split such a box, so I''ll leave it alone.';
       END;
       ERROR;
       VSPLIT := 0;
@@ -16210,31 +16300,31 @@ BEGIN
   PRINTSCALED(PAGESOFAR[1]);
   IF PAGESOFAR[2]<>0 THEN
     BEGIN
-      PRINT(312);
+      print_str(' plus ');
       PRINTSCALED(PAGESOFAR[2]);
-      PRINT(338);
+      print_str('');
     END;
   IF PAGESOFAR[3]<>0 THEN
     BEGIN
-      PRINT(312);
+      print_str(' plus ');
       PRINTSCALED(PAGESOFAR[3]);
-      PRINT(311);
+      print_str('fil');
     END;
   IF PAGESOFAR[4]<>0 THEN
     BEGIN
-      PRINT(312);
+      print_str(' plus ');
       PRINTSCALED(PAGESOFAR[4]);
-      PRINT(978);
+      print_str('fill');
     END;
   IF PAGESOFAR[5]<>0 THEN
     BEGIN
-      PRINT(312);
+      print_str(' plus ');
       PRINTSCALED(PAGESOFAR[5]);
-      PRINT(979);
+      print_str('filll');
     END;
   IF PAGESOFAR[6]<>0 THEN
     BEGIN
-      PRINT(313);
+      print_str(' minus ');
       PRINTSCALED(PAGESOFAR[6]);
     END;
 END;{:985}{987:}
@@ -16254,9 +16344,9 @@ BEGIN
   IF EQTB[5296].INT>0 THEN
     BEGIN
       BEGINDIAGNOS;
-      PRINTNL(987);
+      print_nl_str('%% goal height=');
       PRINTSCALED(PAGESOFAR[0]);
-      PRINT(988);
+      print_str(', max depth=');
       PRINTSCALED(PAGEMAXDEPTH);
       ENDDIAGNOSTI(FALSE);
     END;{$ENDIF}
@@ -16266,7 +16356,7 @@ PROCEDURE BOXERROR(N:EIGHTBITS);
 BEGIN
   ERROR;
   BEGINDIAGNOS;
-  PRINTNL(836);
+  print_nl_str('The following box has been deleted:');
   SHOWBOX(EQTB[3678+N].HH.RH);
   ENDDIAGNOSTI(TRUE);
   FLUSHNODELIS(EQTB[3678+N].HH.RH);
@@ -16283,14 +16373,14 @@ BEGIN
       BEGIN
         BEGIN
           IF INTERACTION=3 THEN;
-          PRINTNL(262);
-          PRINT(989);
+          print_nl_str('! ');
+          print_str('Insertions can only be added to a vbox');
         END;
         BEGIN
           HELPPTR := 3;
-          HELPLINE[2] := 990;
-          HELPLINE[1] := 991;
-          HELPLINE[0] := 992;
+          help_line[2] := 'Tut tut: You''re trying to \insert into a';
+          help_line[1] := '\box register that now contains an \hbox.';
+          help_line[0] := 'Proceed, and I''ll discard its present contents.';
         END;
         BOXERROR(N);
       END;
@@ -16330,15 +16420,15 @@ BEGIN{1013:}
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(338);
+        print_nl_str('! ');
+        print_str('');
       END;
-      PRINTESC(409);
-      PRINT(1003);
+      print_esc_str('box');
+      print_str('255 is not void');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 1004;
-        HELPLINE[0] := 992;
+        help_line[1] := 'You shouldn''t use \box255 except in \output routines.';
+        help_line[0] := 'Proceed, and I''ll discard its present contents.';
       END;
       BOXERROR(255);
     END{:1015};
@@ -16499,16 +16589,16 @@ BEGIN{1013:}
       BEGIN
         BEGIN
           IF INTERACTION=3 THEN;
-          PRINTNL(262);
-          PRINT(1005);
+          print_nl_str('! ');
+          print_str('Output loop---');
         END;
         PRINTINT(DEADCYCLES);
-        PRINT(1006);
+        print_str(' consecutive dead cycles');
         BEGIN
           HELPPTR := 3;
-          HELPLINE[2] := 1007;
-          HELPLINE[1] := 1008;
-          HELPLINE[0] := 1009;
+          help_line[2] := 'I''ve concluded that your \output is awry; it never does a';
+          help_line[1] := '\shipout, so I''m shipping \box255 out myself. Next time';
+          help_line[0] := 'increase \maxdeadcycles if you want me to be more patient!';
         END;
         ERROR;
       END{:1024}
@@ -16650,16 +16740,16 @@ BEGIN
                    BEGIN
                      IF INTERACTION=3
                        THEN;
-                     PRINTNL(262);
-                     PRINT(998);
+                     print_nl_str('! ');
+                     print_str('Infinite glue shrinkage inserted from ');
                    END;
-                   PRINTESC(395);
+                   print_esc_str('skip');
                    PRINTINT(N);
                    BEGIN
                      HELPPTR := 3;
-                     HELPLINE[2] := 999;
-                     HELPLINE[1] := 1000;
-                     HELPLINE[0] := 922;
+                     help_line[2] := 'The correction glue for page breaking with insertions';
+                     help_line[1] := 'must have finite shrinkability. But you may proceed,';
+                     help_line[0] := 'since the offensive shrinkability has been made finite.';
                    END;
                    ERROR;
                  END;
@@ -16693,13 +16783,13 @@ BEGIN
                    IF EQTB[5296].INT>0 THEN{1011:}
                      BEGIN
                        BEGINDIAGNOS;
-                       PRINTNL(1001);
+                       print_nl_str('% split');
                        PRINTINT(N);
-                       PRINT(1002);
+                       print_str(' to ');
                        PRINTSCALED(W);
                        PRINTCHAR(44);
                        PRINTSCALED(BESTHEIGHTPL);
-                       PRINT(931);
+                       print_str(' p=');
                        IF Q=0 THEN PRINTINT(-10000)
                        ELSE
                          IF MEM[Q].HH.B0=12 THEN PRINTINT(MEM[Q
@@ -16721,7 +16811,7 @@ BEGIN
              END;
            GOTO 80;
          END{:1008};
-      ELSE CONFUSION(993)
+      ELSE confusion_str('page')
     END{:1000};
 {1005:}
     IF PI<10000 THEN
@@ -16748,16 +16838,16 @@ BEGIN
           BEGIN
             BEGINDIAGNOS;
             PRINTNL(37);
-            PRINT(927);
+            print_str(' t=');
             PRINTTOTALS;
-            PRINT(996);
+            print_str(' g=');
             PRINTSCALED(PAGESOFAR[0]);
-            PRINT(930);
+            print_str(' b=');
             IF B=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(B);
-            PRINT(931);
+            print_str(' p=');
             PRINTINT(PI);
-            PRINT(997);
+            print_str(' c=');
             IF C=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(C);
             IF C<=LEASTPAGECOS THEN PRINTCHAR(35);
@@ -16796,15 +16886,15 @@ BEGIN
                 BEGIN
                   IF INTERACTION=3
                     THEN;
-                  PRINTNL(262);
-                  PRINT(994);
+                  print_nl_str('! ');
+                  print_str('Infinite glue shrinkage found on current page');
                 END;
                 BEGIN
                   HELPPTR := 4;
-                  HELPLINE[3] := 995;
-                  HELPLINE[2] := 963;
-                  HELPLINE[1] := 964;
-                  HELPLINE[0] := 922;
+                  help_line[3] := 'The page about to be output contains some infinitely';
+                  help_line[2] := 'shrinkable glue, e.g., `\vss'' or `\vskip 0pt minus 1fil''.';
+                  help_line[1] := 'Such glue doesn''t belong there; but you can safely proceed,';
+                  help_line[0] := 'since the offensive shrinkability has been made finite.';
                 END;
                 ERROR;
                 R := NEWSPEC(Q);
@@ -16884,13 +16974,13 @@ BEGIN
   CURTOK := 804;
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1017);
+    print_nl_str('! ');
+    print_str('Missing $ inserted');
   END;
   BEGIN
     HELPPTR := 2;
-    HELPLINE[1] := 1018;
-    HELPLINE[0] := 1019;
+    help_line[1] := 'I''ve inserted a begin-math/end-math symbol since I think';
+    help_line[0] := 'you left one out. Proceed, with fingers crossed.';
   END;
   INSERROR;
 END;
@@ -16899,11 +16989,11 @@ PROCEDURE YOUCANT;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(685);
+    print_nl_str('! ');
+    print_str('You can''t use `');
   END;
   PRINTCMDCHR(CURCMD,CURCHR);
-  PRINT(1020);
+  print_str(''' in ');
   PRINTMODE(CURLIST.MODEFIELD);
 END;{:1049}{1050:}
 PROCEDURE REPORTILLEGA;
@@ -16911,10 +17001,10 @@ BEGIN
   YOUCANT;
   BEGIN
     HELPPTR := 4;
-    HELPLINE[3] := 1021;
-    HELPLINE[2] := 1022;
-    HELPLINE[1] := 1023;
-    HELPLINE[0] := 1024;
+    help_line[3] := 'Sorry, but I''m not programmed to handle this case;';
+    help_line[2] := 'I''ll just pretend that you didn''t ask for it.';
+    help_line[1] := 'If you''re in the wrong mode, you might be able to';
+    help_line[0] := 'return to the right one by typing `I}'' or `I$'' or `I\par''.';
   END;
   ERROR;
 END;
@@ -17004,13 +17094,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(777);
+        print_nl_str('! ');
+        print_str('Extra ');
       END;
       PRINTCMDCHR(CURCMD,CURCHR);
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 1043;
+        help_line[0] := 'Things are pretty mixed up, but I think the worst is over.';
       END;
       ERROR;
     END{:1066}
@@ -17021,14 +17111,14 @@ BEGIN
       MEM[29997].HH.RH := P;
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(625);
+        print_nl_str('! ');
+        print_str('Missing ');
       END;{1065:}
       CASE CURGROUP OF 
         14:
             BEGIN
               MEM[P].HH.LH := 6711;
-              PRINTESC(516);
+              print_esc_str('endgroup');
             END;
         15:
             BEGIN
@@ -17041,7 +17131,7 @@ BEGIN
               MEM[P].HH.RH := GETAVAIL;
               P := MEM[P].HH.RH;
               MEM[P].HH.LH := 3118;
-              PRINTESC(1042);
+              print_esc_str('right.');
             END;
         ELSE
           BEGIN
@@ -17049,15 +17139,15 @@ BEGIN
             PRINTCHAR(125);
           END
       END{:1065};
-      PRINT(626);
+      print_str(' inserted');
       BEGINTOKENLI(MEM[29997].HH.RH,4);
       BEGIN
         HELPPTR := 5;
-        HELPLINE[4] := 1037;
-        HELPLINE[3] := 1038;
-        HELPLINE[2] := 1039;
-        HELPLINE[1] := 1040;
-        HELPLINE[0] := 1041;
+        help_line[4] := 'I''ve inserted something that you may have forgotten.';
+        help_line[3] := '(See the <inserted text> above.)';
+        help_line[2] := 'With luck, this will get me unwedged. But if you';
+        help_line[1] := 'really didn''t forget anything, try typing `2'' now; then';
+        help_line[0] := 'my insertion and my current dilemma will both disappear.';
       END;
       ERROR;
     END;
@@ -17066,21 +17156,21 @@ PROCEDURE EXTRARIGHTBR;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1048);
+    print_nl_str('! ');
+    print_str('Extra }, or forgotten ');
   END;
   CASE CURGROUP OF 
-    14: PRINTESC(516);
+    14: print_esc_str('endgroup');
     15: PRINTCHAR(36);
-    16: PRINTESC(877);
+    16: print_esc_str('right');
   END;
   BEGIN
     HELPPTR := 5;
-    HELPLINE[4] := 1049;
-    HELPLINE[3] := 1050;
-    HELPLINE[2] := 1051;
-    HELPLINE[1] := 1052;
-    HELPLINE[0] := 1053;
+    help_line[4] := 'I''ve deleted a group-closing symbol because it seems to be';
+    help_line[3] := 'spurious, as in `$x}$''. But perhaps the } is legitimate and';
+    help_line[2] := 'you forgot something else, as in `\hbox{$x}''. In such cases';
+    help_line[1] := 'the way to recover is to insert both the forgotten and the';
+    help_line[0] := 'deleted material, e.g., by typing `I$}''.';
   END;
   ERROR;
   ALIGNSTATE := ALIGNSTATE+1;
@@ -17158,14 +17248,14 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1066);
+                print_nl_str('! ');
+                print_str('Leaders not followed by proper glue');
               END;
               BEGIN
                 HELPPTR := 3;
-                HELPLINE[2] := 1067;
-                HELPLINE[1] := 1068;
-                HELPLINE[0] := 1069;
+                help_line[2] := 'You should say `\leaders <box or rule><hskip or vskip>''.';
+                help_line[1] := 'I found the <box or rule>, but there''s no suitable';
+                help_line[0] := '<hskip or vskip>, so I''m ignoring these leaders.';
               END;
               BACKERROR;
               FLUSHNODELIS(CURBOX);
@@ -17202,7 +17292,7 @@ BEGIN
              YOUCANT;
              BEGIN
                HELPPTR := 1;
-               HELPLINE[0] := 1070;
+               help_line[0] := 'Sorry; this \lastbox will be void.';
              END;
              ERROR;
            END
@@ -17213,8 +17303,8 @@ BEGIN
                YOUCANT;
                BEGIN
                  HELPPTR := 2;
-                 HELPLINE[1] := 1071;
-                 HELPLINE[0] := 1072;
+                 help_line[1] := 'Sorry...I usually can''t take things from the current page.';
+                 help_line[0] := 'This \lastbox will therefore be void.';
                END;
                ERROR;
              END
@@ -17250,17 +17340,17 @@ BEGIN
        BEGIN
          SCANEIGHTBIT;
          N := CURVAL;
-         IF NOT SCANKEYWORD(842)THEN
+         IF NOT scan_keyword_str('to')THEN
            BEGIN
              BEGIN
                IF INTERACTION=3 THEN;
-               PRINTNL(262);
-               PRINT(1073);
+               print_nl_str('! ');
+               print_str('Missing `to'' inserted');
              END;
              BEGIN
                HELPPTR := 2;
-               HELPLINE[1] := 1074;
-               HELPLINE[0] := 1075;
+               help_line[1] := 'I''m working on `\vsplit<box number> to <dimen>'';';
+               help_line[0] := 'will look for the <dimen> next.';
              END;
              ERROR;
            END;
@@ -17322,14 +17412,14 @@ BEGIN{404:}
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1076);
+        print_nl_str('! ');
+        print_str('A <box> was supposed to be here');
       END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 1077;
-        HELPLINE[1] := 1078;
-        HELPLINE[0] := 1079;
+        help_line[2] := 'I was expecting to see \hbox or \vbox or \copy or \box or';
+        help_line[1] := 'something like that. So you might find something missing in';
+        help_line[0] := 'your output. But keep trying; you can fix this later.';
       END;
       BACKERROR;
     END;
@@ -17432,15 +17522,15 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(685);
+        print_nl_str('! ');
+        print_str('You can''t use `');
       END;
-      PRINTESC(521);
-      PRINT(1082);
+      print_esc_str('hrule');
+      print_str(''' here except with leaders');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 1083;
-        HELPLINE[0] := 1084;
+        help_line[1] := 'To put a horizontal rule in an hbox or an alignment,';
+        help_line[0] := 'you should use \leaders or \hrulefill (see The TeXbook).';
       END;
       ERROR;
     END
@@ -17473,14 +17563,14 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(1085);
+            print_nl_str('! ');
+            print_str('You can''t ');
           END;
-          PRINTESC(330);
+          print_esc_str('insert');
           PRINTINT(255);
           BEGIN
             HELPPTR := 1;
-            HELPLINE[0] := 1086;
+            help_line[0] := 'I''m changing to \insert0; box 255 is special.';
           END;
           ERROR;
           CURVAL := 0;
@@ -17533,13 +17623,12 @@ BEGIN
           YOUCANT;
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 1071;
-            HELPLINE[0] := 1087;
+            help_line[1] := 'Sorry...I usually can''t take things from the current page.';
+            help_line[0] := 'Try `I\vskip-\lastskip'' instead.';
           END;
-          IF CURCHR=11 THEN HELPLINE[0] := (1088)
+          IF CURCHR=11 THEN help_line[0] := 'Try `I\kern-\lastkern'' instead.'
           ELSE
-            IF CURCHR<>10 THEN HELPLINE[0] 
-              := (1089);
+            IF CURCHR<>10 THEN help_line[0] := 'Perhaps you can make the output routine do it.';
           ERROR;
         END;
     END{:1106}
@@ -17586,14 +17675,14 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1097);
+        print_nl_str('! ');
+        print_str('Incompatible list can''t be unboxed');
       END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 1098;
-        HELPLINE[1] := 1099;
-        HELPLINE[0] := 1100;
+        help_line[2] := 'Sorry, Pandora. (You sneaky devil.)';
+        help_line[1] := 'I refuse to unbox an \hbox in vertical mode or vice versa.';
+        help_line[0] := 'And I can''t open any boxes in math mode.';
       END;
       ERROR;
       GOTO 10;
@@ -17685,16 +17774,16 @@ BEGIN
                 BEGIN
                   IF INTERACTION
                      =3 THEN;
-                  PRINTNL(262);
-                  PRINT(1107);
+                  print_nl_str('! ');
+                  print_str('Improper discretionary list');
                 END;
                 BEGIN
                   HELPPTR := 1;
-                  HELPLINE[0] := 1108;
+                  help_line[0] := 'Discretionary lists must contain only boxes and kerns.';
                 END;
                 ERROR;
                 BEGINDIAGNOS;
-                PRINTNL(1109);
+                print_nl_str('The following discretionary sublist has been deleted:');
                 SHOWBOX(P);
                 ENDDIAGNOSTI(TRUE);
                 FLUSHNODELIS(P);
@@ -17718,14 +17807,14 @@ BEGIN
              BEGIN
                IF 
                   INTERACTION=3 THEN;
-               PRINTNL(262);
-               PRINT(1101);
+               print_nl_str('! ');
+               print_str('Illegal math ');
              END;
-             PRINTESC(349);
+             print_esc_str('discretionary');
              BEGIN
                HELPPTR := 2;
-               HELPLINE[1] := 1102;
-               HELPLINE[0] := 1103;
+               help_line[1] := 'Sorry: The third part of a discretionary break must be';
+               help_line[0] := 'empty, in math formulas. I had to delete your third part.';
              END;
              FLUSHNODELIS(P);
              N := 0;
@@ -17738,13 +17827,13 @@ BEGIN
              BEGIN
                IF 
                   INTERACTION=3 THEN;
-               PRINTNL(262);
-               PRINT(1104);
+               print_nl_str('! ');
+               print_str('Discretionary list is too long');
              END;
              BEGIN
                HELPPTR := 2;
-               HELPLINE[1] := 1105;
-               HELPLINE[0] := 1106;
+               help_line[1] := 'Wow---I never thought anybody would tweak me here.';
+               help_line[0] := 'You can''t seriously need such a huge discretionary list?';
              END;
              ERROR;
            END;
@@ -17821,31 +17910,31 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1114);
+        print_nl_str('! ');
+        print_str('Misplaced ');
       END;
       PRINTCMDCHR(CURCMD,CURCHR);
       IF CURTOK=1062 THEN
         BEGIN
           BEGIN
             HELPPTR := 6;
-            HELPLINE[5] := 1115;
-            HELPLINE[4] := 1116;
-            HELPLINE[3] := 1117;
-            HELPLINE[2] := 1118;
-            HELPLINE[1] := 1119;
-            HELPLINE[0] := 1120;
+            help_line[5] := 'I can''t figure out why you would want to use a tab mark';
+            help_line[4] := 'here. If you just want an ampersand, the remedy is';
+            help_line[3] := 'simple: Just type `I\&'' now. But if some right brace';
+            help_line[2] := 'up above has ended a previous alignment prematurely,';
+            help_line[1] := 'you''re probably due for more error messages, and you';
+            help_line[0] := 'might try typing `S'' now just to see what is salvageable.';
           END;
         END
       ELSE
         BEGIN
           BEGIN
             HELPPTR := 5;
-            HELPLINE[4] := 1115;
-            HELPLINE[3] := 1121;
-            HELPLINE[2] := 1118;
-            HELPLINE[1] := 1119;
-            HELPLINE[0] := 1120;
+            help_line[4] := 'I can''t figure out why you would want to use a tab mark';
+            help_line[3] := 'or \cr or \span just now. If something like a right brace';
+            help_line[2] := 'up above has ended a previous alignment prematurely,';
+            help_line[1] := 'you''re probably due for more error messages, and you';
+            help_line[0] := 'might try typing `S'' now just to see what is salvageable.';
           END;
         END;
       ERROR;
@@ -17857,8 +17946,8 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(657);
+            print_nl_str('! ');
+            print_str('Missing { inserted');
           END;
           ALIGNSTATE := ALIGNSTATE+1;
           CURTOK := 379;
@@ -17867,17 +17956,17 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(1110);
+            print_nl_str('! ');
+            print_str('Missing } inserted');
           END;
           ALIGNSTATE := ALIGNSTATE-1;
           CURTOK := 637;
         END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 1111;
-        HELPLINE[1] := 1112;
-        HELPLINE[0] := 1113;
+        help_line[2] := 'I''ve put in what seems to be necessary to fix';
+        help_line[1] := 'the current column of the current alignment.';
+        help_line[0] := 'Try to go on, since this might almost work.';
       END;
       INSERROR;
     END;
@@ -17886,14 +17975,14 @@ PROCEDURE NOALIGNERROR;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1114);
+    print_nl_str('! ');
+    print_str('Misplaced ');
   END;
-  PRINTESC(527);
+  print_esc_str('noalign');
   BEGIN
     HELPPTR := 2;
-    HELPLINE[1] := 1122;
-    HELPLINE[0] := 1123;
+    help_line[1] := 'I expect to see \noalign only after the \cr of';
+    help_line[0] := 'an alignment. Proceed, and I''ll ignore this case.';
   END;
   ERROR;
 END;
@@ -17901,14 +17990,14 @@ PROCEDURE OMITERROR;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1114);
+    print_nl_str('! ');
+    print_str('Misplaced ');
   END;
-  PRINTESC(530);
+  print_esc_str('omit');
   BEGIN
     HELPPTR := 2;
-    HELPLINE[1] := 1124;
-    HELPLINE[0] := 1123;
+    help_line[1] := 'I expect to see \omit only after tab marks or the \cr of';
+    help_line[0] := 'an alignment. Proceed, and I''ll ignore this case.';
   END;
   ERROR;
 END;
@@ -17921,7 +18010,7 @@ BEGIN
         =0)AND(INPUTSTACK[BASEPTR].STATEFIELD=0) DO
     BASEPTR := BASEPTR-1;
   IF (INPUTSTACK[BASEPTR].INDEXFIELD<>2)OR(INPUTSTACK[BASEPTR].LOCFIELD<>0)
-     OR(INPUTSTACK[BASEPTR].STATEFIELD<>0)THEN FATALERROR(595);
+     OR(INPUTSTACK[BASEPTR].STATEFIELD<>0)THEN fatal_error('(interwoven alignment preambles are not allowed)');
   IF CURGROUP=6 THEN
     BEGIN
       ENDGRAF;
@@ -17933,13 +18022,13 @@ PROCEDURE CSERROR;
 BEGIN
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(777);
+    print_nl_str('! ');
+    print_str('Extra ');
   END;
-  PRINTESC(505);
+  print_esc_str('endcsname');
   BEGIN
     HELPPTR := 1;
-    HELPLINE[0] := 1126;
+    help_line[0] := 'I''m ignoring this, since I wasn''t doing a \csname.';
   END;
   ERROR;
 END;
@@ -18203,12 +18292,12 @@ BEGIN
       END;
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1130);
+    print_nl_str('! ');
+    print_str('Limit controls must follow a math operator');
   END;
   BEGIN
     HELPPTR := 1;
-    HELPLINE[0] := 1131;
+    help_line[0] := 'I''m ignoring this misplaced \limits or \nolimits command.';
   END;
   ERROR;
   10:
@@ -18232,17 +18321,17 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1132);
+        print_nl_str('! ');
+        print_str('Missing delimiter (. inserted)');
       END;
       BEGIN
         HELPPTR := 6;
-        HELPLINE[5] := 1133;
-        HELPLINE[4] := 1134;
-        HELPLINE[3] := 1135;
-        HELPLINE[2] := 1136;
-        HELPLINE[1] := 1137;
-        HELPLINE[0] := 1138;
+        help_line[5] := 'I was expecting to see something like `('' or `\{'' or';
+        help_line[4] := '`\}'' here. If you typed, e.g., `{'' instead of `\{'', you';
+        help_line[3] := 'should probably delete the `{'' by typing `1'' now, so that';
+        help_line[2] := 'braces don''t get unbalanced. Otherwise just proceed.';
+        help_line[1] := 'Acceptable delimiters are characters whose \delcode is';
+        help_line[0] := 'nonnegative, or you can use `\delimiter <delimiter code>''.';
       END;
       BACKERROR;
       CURVAL := 0;
@@ -18272,15 +18361,15 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1139);
+        print_nl_str('! ');
+        print_str('Please use ');
       END;
-      PRINTESC(523);
-      PRINT(1140);
+      print_esc_str('mathaccent');
+      print_str(' for accents in math mode');
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 1141;
-        HELPLINE[0] := 1142;
+        help_line[1] := 'I''m changing \accent to \mathaccent here; wish me luck.';
+        help_line[0] := '(Accents are not the same in formulas as they are in text.)';
       END;
       ERROR;
     END{:1166};
@@ -18329,7 +18418,7 @@ BEGIN
         BEGIN
           Q := MEM[CURLIST.AUXFIELD.
                INT+2].HH.LH;
-          IF MEM[Q].HH.B0<>30 THEN CONFUSION(877);
+          IF MEM[Q].HH.B0<>30 THEN confusion_str('right');
           MEM[CURLIST.AUXFIELD.INT+2].HH.LH := MEM[Q].HH.RH;
           MEM[Q].HH.RH := CURLIST.AUXFIELD.INT;
           MEM[CURLIST.AUXFIELD.INT].HH.RH := P;
@@ -18397,24 +18486,24 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1143);
+                print_nl_str('! ');
+                print_str('Double superscript');
               END;
               BEGIN
                 HELPPTR := 1;
-                HELPLINE[0] := 1144;
+                help_line[0] := 'I treat `x^1^2'' essentially like `x^1{}^2''.';
               END;
             END
           ELSE
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1145);
+                print_nl_str('! ');
+                print_str('Double subscript');
               END;
               BEGIN
                 HELPPTR := 1;
-                HELPLINE[0] := 1146;
+                help_line[0] := 'I treat `x_1_2'' essentially like `x_1{}_2''.';
               END;
             END;
           ERROR;
@@ -18437,14 +18526,14 @@ BEGIN
       IF C MOD 3=0 THEN SCANDIMEN(FALSE,FALSE,FALSE);
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1153);
+        print_nl_str('! ');
+        print_str('Ambiguous; you need another { and }');
       END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 1154;
-        HELPLINE[1] := 1155;
-        HELPLINE[0] := 1156;
+        help_line[2] := 'I''m ignoring this fraction specification, since I don''t';
+        help_line[1] := 'know whether a construction like `x \over y \over z''';
+        help_line[0] := 'means `{x \over y} \over z'' or `x \over {y \over z}''.';
       END;
       ERROR;
     END{:1183}
@@ -18491,13 +18580,13 @@ BEGIN
           SCANDELIMITE(29988,FALSE);
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(777);
+            print_nl_str('! ');
+            print_str('Extra ');
           END;
-          PRINTESC(877);
+          print_esc_str('right');
           BEGIN
             HELPPTR := 1;
-            HELPLINE[0] := 1157;
+            help_line[0] := 'I''m ignoring a \right that had no matching \left.';
           END;
           ERROR;
         END
@@ -18555,14 +18644,14 @@ BEGIN
       BEGIN
         IF INTERACTION=
            3 THEN;
-        PRINTNL(262);
-        PRINT(1158);
+        print_nl_str('! ');
+        print_str('Math formula deleted: Insufficient symbol fonts');
       END;
       BEGIN
         HELPPTR := 3;
-        HELPLINE[2] := 1159;
-        HELPLINE[1] := 1160;
-        HELPLINE[0] := 1161;
+        help_line[2] := 'Sorry, but I can''t typeset math unless \textfont 2';
+        help_line[1] := 'and \scriptfont 2 and \scriptscriptfont 2 have all';
+        help_line[0] := 'the \fontdimen values needed in math symbol fonts.';
       END;
       ERROR;
       FLUSHMATH;
@@ -18575,14 +18664,14 @@ BEGIN
         BEGIN
           IF 
              INTERACTION=3 THEN;
-          PRINTNL(262);
-          PRINT(1162);
+          print_nl_str('! ');
+          print_str('Math formula deleted: Insufficient extension fonts');
         END;
         BEGIN
           HELPPTR := 3;
-          HELPLINE[2] := 1163;
-          HELPLINE[1] := 1164;
-          HELPLINE[0] := 1165;
+          help_line[2] := 'Sorry, but I can''t typeset math unless \textfont 3';
+          help_line[1] := 'and \scriptfont 3 and \scriptscriptfont 3 have all';
+          help_line[0] := 'the \fontdimen values needed in math extension fonts.';
         END;
         ERROR;
         FLUSHMATH;
@@ -18599,13 +18688,13 @@ BEGIN
           BEGIN
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(1166);
+              print_nl_str('! ');
+              print_str('Display math should end with $$');
             END;
             BEGIN
               HELPPTR := 2;
-              HELPLINE[1] := 1167;
-              HELPLINE[0] := 1168;
+              help_line[1] := 'The `$'' that I just saw supposedly matches a previous `$$''.';
+              help_line[0] := 'So I shall assume that you typed `$$'' both times.';
             END;
             BACKERROR;
           END;
@@ -18626,14 +18715,14 @@ BEGIN
           BEGIN
             IF INTERACTION=
                3 THEN;
-            PRINTNL(262);
-            PRINT(1158);
+            print_nl_str('! ');
+            print_str('Math formula deleted: Insufficient symbol fonts');
           END;
           BEGIN
             HELPPTR := 3;
-            HELPLINE[2] := 1159;
-            HELPLINE[1] := 1160;
-            HELPLINE[0] := 1161;
+            help_line[2] := 'Sorry, but I can''t typeset math unless \textfont 2';
+            help_line[1] := 'and \scriptfont 2 and \scriptscriptfont 2 have all';
+            help_line[0] := 'the \fontdimen values needed in math symbol fonts.';
           END;
           ERROR;
           FLUSHMATH;
@@ -18646,14 +18735,14 @@ BEGIN
             BEGIN
               IF 
                  INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(1162);
+              print_nl_str('! ');
+              print_str('Math formula deleted: Insufficient extension fonts');
             END;
             BEGIN
               HELPPTR := 3;
-              HELPLINE[2] := 1163;
-              HELPLINE[1] := 1164;
-              HELPLINE[0] := 1165;
+              help_line[2] := 'Sorry, but I can''t typeset math unless \textfont 3';
+              help_line[1] := 'and \scriptfont 3 and \scriptscriptfont 3 have all';
+              help_line[0] := 'the \fontdimen values needed in math extension fonts.';
             END;
             ERROR;
             FLUSHMATH;
@@ -18694,13 +18783,13 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1166);
+                print_nl_str('! ');
+                print_str('Display math should end with $$');
               END;
               BEGIN
                 HELPPTR := 2;
-                HELPLINE[1] := 1167;
-                HELPLINE[0] := 1168;
+                help_line[1] := 'The `$'' that I just saw supposedly matches a previous `$$''.';
+                help_line[0] := 'So I shall assume that you typed `$$'' both times.';
               END;
               BACKERROR;
             END;
@@ -18835,7 +18924,7 @@ BEGIN
 END;{:1194}{1200:}
 PROCEDURE RESUMEAFTERD;
 BEGIN
-  IF CURGROUP<>15 THEN CONFUSION(1169);
+  IF CURGROUP<>15 THEN confusion_str('display');
   UNSAVE;
   CURLIST.PGFIELD := CURLIST.PGFIELD+3;
   PUSHNEST;
@@ -18867,16 +18956,16 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1184);
+        print_nl_str('! ');
+        print_str('Missing control sequence inserted');
       END;
       BEGIN
         HELPPTR := 5;
-        HELPLINE[4] := 1185;
-        HELPLINE[3] := 1186;
-        HELPLINE[2] := 1187;
-        HELPLINE[1] := 1188;
-        HELPLINE[0] := 1189;
+        help_line[4] := 'Please don''t say `\def cs{...}'', say `\def\cs{...}''.';
+        help_line[3] := 'I''ve inserted an inaccessible control sequence so that your';
+        help_line[2] := 'definition will be completed without mixing me up too badly.';
+        help_line[1] := 'You can recover graciously from this error, if you''re';
+        help_line[0] := 'careful; see exercise 27.2 in The TeXbook.';
       END;
       IF CURCS=0 THEN BACKINPUT;
       CURTOK := 6709;
@@ -18918,15 +19007,15 @@ BEGIN
           BEGIN
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(685);
+              print_nl_str('! ');
+              print_str('You can''t use `');
             END;
             PRINTCMDCHR(CURCMD,CURCHR);
-            PRINT(686);
+            print_str(''' after ');
             PRINTCMDCHR(Q,0);
             BEGIN
               HELPPTR := 1;
-              HELPLINE[0] := 1210;
+              help_line[0] := 'I''m forgetting what you said and not changing anything.';
             END;
             ERROR;
             GOTO 10;
@@ -18944,7 +19033,7 @@ BEGIN
   40:{:1237};
   IF Q=89 THEN SCANOPTIONAL
   ELSE
-    IF SCANKEYWORD(1206)THEN;
+    IF scan_keyword_str('by')THEN;
   ARITHERROR := FALSE;
   IF Q<91 THEN{1238:}
     IF P<2 THEN
@@ -19021,13 +19110,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1207);
+        print_nl_str('! ');
+        print_str('Arithmetic overflow');
       END;
       BEGIN
         HELPPTR := 2;
-        HELPLINE[1] := 1208;
-        HELPLINE[0] := 1209;
+        help_line[1] := 'I can''t carry out that multiplication or division,';
+        help_line[0] := 'since the result is out of range.';
       END;
       IF P>=2 THEN DELETEGLUERE(CURVAL);
       ERROR;
@@ -19067,12 +19156,12 @@ BEGIN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1213);
+                print_nl_str('! ');
+                print_str('Bad space factor');
               END;
               BEGIN
                 HELPPTR := 1;
-                HELPLINE[0] := 1214;
+                help_line[0] := 'I allow only values in the range 1..32767 here.';
               END;
               INTERROR(CURVAL);
             END
@@ -19095,13 +19184,13 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(955);
+        print_nl_str('! ');
+        print_str('Bad ');
       END;
-      PRINTESC(532);
+      print_esc_str('prevgraf');
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 1215;
+        help_line[0] := 'I allow only nonnegative values here.';
       END;
       INTERROR(CURVAL);
     END
@@ -19167,11 +19256,11 @@ BEGIN
     BEGIN
       OLDSETTING := SELECTOR;
       SELECTOR := 21;
-      PRINT(1219);
+      print_str('FONT');
       PRINT(U-1);
       SELECTOR := OLDSETTING;
       BEGIN
-        IF POOLPTR+1>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+        IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
       END;
       T := MAKESTRING;
     END;
@@ -19180,7 +19269,7 @@ BEGIN
   SCANOPTIONAL;
   SCANFILENAME;{1258:}
   NAMEINPROGRE := TRUE;
-  IF SCANKEYWORD(1220)THEN{1259:}
+  IF scan_keyword_str('at')THEN{1259:}
     BEGIN
       SCANDIMEN(FALSE,FALSE,FALSE);
       S := CURVAL;
@@ -19188,22 +19277,22 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(1222);
+            print_nl_str('! ');
+            print_str('Improper `at'' size (');
           END;
           PRINTSCALED(S);
-          PRINT(1223);
+          print_str('pt), replaced by 10pt');
           BEGIN
             HELPPTR := 2;
-            HELPLINE[1] := 1224;
-            HELPLINE[0] := 1225;
+            help_line[1] := 'I can only handle fonts at positive sizes that are';
+            help_line[0] := 'less than 2048pt, so I''ve changed what you said to 10pt.';
           END;
           ERROR;
           S := 10*65536;
         END;
     END{:1259}
   ELSE
-    IF SCANKEYWORD(1221)THEN
+    IF scan_keyword_str('scaled')THEN
       BEGIN
         SCANINT;
         S := -CURVAL;
@@ -19211,12 +19300,12 @@ BEGIN
           BEGIN
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(552);
+              print_nl_str('! ');
+              print_str('Illegal magnification has been changed to 1000');
             END;
             BEGIN
               HELPPTR := 1;
-              HELPLINE[0] := 553;
+              help_line[0] := 'The magnification ratio must be between 1 and 32768.';
             END;
             INTERROR(CURVAL);
             S := -1000;
@@ -19284,14 +19373,14 @@ BEGIN
         BEGIN
           BEGIN
             IF INTERACTION=3 THEN;
-            PRINTNL(262);
-            PRINT(1179);
+            print_nl_str('! ');
+            print_str('You can''t use a prefix with `');
           END;
           PRINTCMDCHR(CURCMD,CURCHR);
           PRINTCHAR(39);
           BEGIN
             HELPPTR := 1;
-            HELPLINE[0] := 1180;
+            help_line[0] := 'I''ll pretend you didn''t say \long or \outer or \global.';
           END;
           BACKERROR;
           GOTO 10;
@@ -19303,18 +19392,18 @@ BEGIN
       BEGIN
         IF INTERACTION=3
           THEN;
-        PRINTNL(262);
-        PRINT(685);
+        print_nl_str('! ');
+        print_str('You can''t use `');
       END;
-      PRINTESC(1171);
-      PRINT(1181);
-      PRINTESC(1172);
-      PRINT(1182);
+      print_esc_str('long');
+      print_str(''' or `');
+      print_esc_str('outer');
+      print_str(''' with `');
       PRINTCMDCHR(CURCMD,CURCHR);
       PRINTCHAR(39);
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 1183;
+        help_line[0] := 'I''ll pretend you didn''t say \long or \outer here.';
       END;
       ERROR;
     END{:1213};
@@ -19429,17 +19518,17 @@ BEGIN
         BEGIN
           SCANINT;
           N := CURVAL;
-          IF NOT SCANKEYWORD(842)THEN
+          IF NOT scan_keyword_str('to')THEN
             BEGIN
               BEGIN
                 IF INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(1073);
+                print_nl_str('! ');
+                print_str('Missing `to'' inserted');
               END;
               BEGIN
                 HELPPTR := 2;
-                HELPLINE[1] := 1200;
-                HELPLINE[0] := 1201;
+                help_line[1] := 'You should have said `\read<number> to \cs''.';
+                help_line[0] := 'I''m going to look for the \cs now.';
               END;
               ERROR;
             END;
@@ -19568,16 +19657,16 @@ BEGIN
               BEGIN
                 IF INTERACTION=3
                   THEN;
-                PRINTNL(262);
-                PRINT(1202);
+                print_nl_str('! ');
+                print_str('Invalid code (');
               END;
               PRINTINT(CURVAL);
-              IF P<5574 THEN PRINT(1203)
-              ELSE PRINT(1204);
+              IF P<5574 THEN print_str('), should be in the range 0..')
+              ELSE print_str('), should be at most ');
               PRINTINT(N);
               BEGIN
                 HELPPTR := 1;
-                HELPLINE[0] := 1205;
+                help_line[0] := 'I''m going to use 0 instead of that illegal code value.';
               END;
               ERROR;
               CURVAL := 0;
@@ -19621,14 +19710,14 @@ BEGIN
               BEGIN
                 IF 
                    INTERACTION=3 THEN;
-                PRINTNL(262);
-                PRINT(680);
+                print_nl_str('! ');
+                print_str('Improper ');
               END;
-              PRINTESC(536);
+              print_esc_str('setbox');
               BEGIN
                 HELPPTR := 2;
-                HELPLINE[1] := 1211;
-                HELPLINE[0] := 1212;
+                help_line[1] := 'Sorry, \setbox is not allowed after \halign in a display,';
+                help_line[0] := 'or between \accent and an accented character.';
               END;
               ERROR;
             END;
@@ -19668,8 +19757,8 @@ BEGIN
             GOTO 30;{$ENDIF}
             BEGIN
               IF INTERACTION=3 THEN;
-              PRINTNL(262);
-              PRINT(1216);
+              print_nl_str('! ');
+              print_str('Patterns can be loaded only by INITEX');
             END;
             HELPPTR := 0;
             ERROR;
@@ -19706,7 +19795,7 @@ BEGIN
     88: NEWFONT(A);{:1256}{1264:}
     100: NEWINTERACTI;
 {:1264}
-    ELSE CONFUSION(1178)
+    ELSE confusion_str('prefix')
   END;
   30:{1269:}
       IF AFTERTOKEN<>0 THEN
@@ -19771,7 +19860,7 @@ BEGIN
   SELECTOR := OLDSETTING;
   FLUSHLIST(DEFREF);
   BEGIN
-    IF POOLPTR+1>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
   END;
   S := MAKESTRING;
   IF C=0 THEN{1280:}
@@ -19788,8 +19877,8 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(338);
+        print_nl_str('! ');
+        print_str('');
       END;
       SLOWPRINT(S);
       IF EQTB[3421].HH.RH<>0 THEN USEERRHELP := TRUE
@@ -19797,17 +19886,17 @@ BEGIN
         IF LONGHELPSEEN THEN
           BEGIN
             HELPPTR := 1;
-            HELPLINE[0] := 1232;
+            help_line[0] := '(That was another \errmessage.)';
           END
       ELSE
         BEGIN
           IF INTERACTION<3 THEN LONGHELPSEEN := TRUE;
           BEGIN
             HELPPTR := 4;
-            HELPLINE[3] := 1233;
-            HELPLINE[2] := 1234;
-            HELPLINE[1] := 1235;
-            HELPLINE[0] := 1236;
+            help_line[3] := 'This error message was generated by an \errmessage';
+            help_line[2] := 'command, so I can''t give any explicit help.';
+            help_line[1] := 'Pretend that you''re Hercule Poirot: Examine all clues,';
+            help_line[0] := 'and deduce the truth by order and method.';
           END;
         END;
       ERROR;
@@ -19862,10 +19951,10 @@ BEGIN
        BEGIN
          SCANEIGHTBIT;
          BEGINDIAGNOS;
-         PRINTNL(1254);
+         print_nl_str('> \box');
          PRINTINT(CURVAL);
          PRINTCHAR(61);
-         IF EQTB[3678+CURVAL].HH.RH=0 THEN PRINT(410)
+         IF EQTB[3678+CURVAL].HH.RH=0 THEN print_str('void')
          ELSE SHOWBOX(EQTB[3678+
                       CURVAL].HH.RH);
        END{:1296};
@@ -19873,7 +19962,7 @@ BEGIN
        BEGIN
          GETTOKEN;
          IF INTERACTION=3 THEN;
-         PRINTNL(1248);
+         print_nl_str('> ');
          IF CURCS<>0 THEN
            BEGIN
              SPRINTCS(CURCS);
@@ -19886,7 +19975,7 @@ BEGIN
       BEGIN
         P := THETOKS;
         IF INTERACTION=3 THEN;
-        PRINTNL(1248);
+        print_nl_str('> ');
         TOKENSHOW(29997);
         FLUSHLIST(MEM[29997].HH.RH);
         GOTO 50;
@@ -19896,14 +19985,14 @@ BEGIN
   ENDDIAGNOSTI(TRUE);
   BEGIN
     IF INTERACTION=3 THEN;
-    PRINTNL(262);
-    PRINT(1255);
+    print_nl_str('! ');
+    print_str('OK');
   END;
   IF SELECTOR=19 THEN
     IF EQTB[5292].INT<=0 THEN
       BEGIN
         SELECTOR := 17;
-        PRINT(1256);
+        print_str(' (see the transcript file)');
         SELECTOR := 19;
       END{:1298};
   50:
@@ -19917,20 +20006,20 @@ BEGIN
           BEGIN
             BEGIN
               HELPPTR := 3;
-              HELPLINE[2] := 1243;
-              HELPLINE[1] := 1244;
-              HELPLINE[0] := 1245;
+              help_line[2] := 'This isn''t an error message; I''m just \showing something.';
+              help_line[1] := 'Type `I\show...'' to show more (e.g., \show\cs,';
+              help_line[0] := '\showthe\count10, \showbox255, \showlists).';
             END;
           END
       ELSE
         BEGIN
           BEGIN
             HELPPTR := 5;
-            HELPLINE[4] := 1243;
-            HELPLINE[3] := 1244;
-            HELPLINE[2] := 1245;
-            HELPLINE[1] := 1246;
-            HELPLINE[0] := 1247;
+            help_line[4] := 'This isn''t an error message; I''m just \showing something.';
+            help_line[3] := 'Type `I\show...'' to show more (e.g., \show\cs,';
+            help_line[2] := '\showthe\count10, \showbox255, \showlists).';
+            help_line[1] := 'And type `I\tracingonline=1\show...'' to show boxes and';
+            help_line[0] := 'lists on your terminal as well as in the transcript file.';
           END;
         END;
   ERROR;
@@ -19960,12 +20049,12 @@ BEGIN
     BEGIN
       BEGIN
         IF INTERACTION=3 THEN;
-        PRINTNL(262);
-        PRINT(1258);
+        print_nl_str('! ');
+        print_str('You can''t dump inside a group');
       END;
       BEGIN
         HELPPTR := 1;
-        HELPLINE[0] := 1259;
+        help_line[0] := '`{...\dump}'' is a no-no.';
       END;
       BEGIN
         IF INTERACTION=3 THEN INTERACTION := 2;
@@ -19981,7 +20070,7 @@ BEGIN
   
   {1328:}
   SELECTOR := 21;
-  PRINT(1272);
+  print_str(' (preloaded format=');
   PRINT(JOBNAME);
   PRINTCHAR(32);
   PRINTINT(EQTB[5286].INT);
@@ -19993,19 +20082,19 @@ BEGIN
   IF INTERACTION=0 THEN SELECTOR := 18
   ELSE SELECTOR := 19;
   BEGIN
-    IF POOLPTR+1>POOLSIZE THEN OVERFLOW(257,POOLSIZE-INITPOOLPTR);
+    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
   END;
   FORMATIDENT := MAKESTRING;
-  PACKJOBNAME(786);
+  PACKJOBNAME(786); {pack_job_name_str('.fmt');}
   WHILE NOT WOPENOUT(FMTFILE) DO
     PROMPTFILENA(1273,786);
-  PRINTNL(1274);
+  print_nl_str('Beginning to dump on file ');
   SLOWPRINT(WMAKENAMESTR(FMTFILE));
   BEGIN
     STRPTR := STRPTR-1;
     POOLPTR := STRSTART[STRPTR];
   END;
-  PRINTNL(338);
+  print_nl_str('');
   SLOWPRINT(FORMATIDENT);
   {:1328}
 
@@ -20046,7 +20135,7 @@ BEGIN
 
   PRINTLN;
   PRINTINT(STRPTR);
-  PRINT(1260); {" strings of total length "}
+  print_str(' strings of total length '); {" strings of total length "}
   PRINTINT(POOLPTR);
   {:1309}
 
@@ -20082,7 +20171,7 @@ BEGIN
   dump_int(f, DYNUSED);
   PRINTLN;
   PRINTINT(X);
-  PRINT(1261);
+  print_str(' memory locations dumped; current usage is ');
   PRINTINT(VARUSED);
   PRINTCHAR(38);
   PRINTINT(DYNUSED);
@@ -20168,7 +20257,7 @@ BEGIN
   dump_int(f, CSCOUNT);
   PRINTLN;
   PRINTINT(CSCOUNT);
-  PRINT(1262);
+  print_str(' multiletter control sequences');
   {:1318}
   {:1313}
 
@@ -20202,22 +20291,22 @@ BEGIN
     dump_int(f, BCHARLABEL[K]);
     dump_int(f, FONTBCHAR[K]);
     dump_int(f, FONTFALSEBCH[K]);
-    PRINTNL(1265);
+    print_nl_str('\font');
     PRINTESC(HASH[2624+K].RH);
     PRINTCHAR(61);
     PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
     IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
-      PRINT(741);
+      print_str(' at ');
       PRINTSCALED(FONTSIZE[K]);
-      PRINT(397);
+      print_str('pt');
     END;
     {:1322}
   END;
   PRINTLN;
   PRINTINT(FMEMPTR-7);
-  PRINT(1263);
+  print_str(' words of font info for ');
   PRINTINT(FONTPTR-0);
-  PRINT(1264);
+  print_str(' preloaded font');
   IF FONTPTR<>1 THEN PRINTCHAR(115);
   {:1320}
 
@@ -20232,7 +20321,7 @@ BEGIN
   END;
   PRINTLN;
   PRINTINT(HYPHCOUNT);
-  PRINT(1266);
+  print_str(' hyphenation exception');
   IF HYPHCOUNT<>1 THEN PRINTCHAR(115);
   IF TRIENOTREADY THEN INITTRIE;
   dump_int(f, TRIEMAX);
@@ -20246,19 +20335,19 @@ BEGIN
     dump_int(f, HYFNUM[K]);
     dump_int(f, HYFNEXT[K]);
   END;
-  PRINTNL(1267);
+  print_nl_str('Hyphenation trie of length ');
   PRINTINT(TRIEMAX);
-  PRINT(1268);
+  print_str(' has ');
   PRINTINT(TRIEOPPTR);
-  PRINT(1269);
+  print_str(' op');
   IF TRIEOPPTR<>1 THEN PRINTCHAR(115);
-  PRINT(1270);
+  print_str(' out of ');
   PRINTINT(TRIEOPSIZE);
   FOR K:=255 DOWNTO 0 DO BEGIN
     IF TRIEUSED[K]>0 THEN BEGIN
-      PRINTNL(800);
+      print_nl_str('  ');
       PRINTINT(TRIEUSED[K]);
-      PRINT(1271);
+      print_str(' for language ');
       PRINTINT(K);
       dump_int(f, K);
       dump_int(f, TRIEUSED[K]);
@@ -20370,7 +20459,7 @@ BEGIN
            MEM[CURLIST.TAILFIELD+1].HH.B0 := NORMMIN(EQTB[5314].INT);
            MEM[CURLIST.TAILFIELD+1].HH.B1 := NORMMIN(EQTB[5315].INT);
          END{:1377};
-    ELSE CONFUSION(1291)
+    ELSE confusion_str('ext1')
   END;
 END;{:1348}{1376:}
 PROCEDURE FIXLANGUAGE;
@@ -20404,13 +20493,13 @@ BEGIN
        BEGIN
          BEGIN
            IF INTERACTION=3 THEN;
-           PRINTNL(262);
-           PRINT(1044);
+           print_nl_str('! ');
+           print_str('Too many }''s');
          END;
          BEGIN
            HELPPTR := 2;
-           HELPLINE[1] := 1045;
-           HELPLINE[0] := 1046;
+           help_line[1] := 'You''ve closed more groups than you opened.';
+           help_line[0] := 'Such booboos are generally harmless, so keep going.';
          END;
          ERROR;
        END;
@@ -20478,13 +20567,13 @@ BEGIN
            BEGIN
              BEGIN
                IF INTERACTION=3 THEN;
-               PRINTNL(262);
-               PRINT(1010);
+               print_nl_str('! ');
+               print_str('Unbalanced output routine');
              END;
              BEGIN
                HELPPTR := 2;
-               HELPLINE[1] := 1011;
-               HELPLINE[0] := 1012;
+               help_line[1] := 'Your sneaky output routine has problematic {''s and/or }''s.';
+               help_line[0] := 'I can''t handle that very well; good luck.';
              END;
              ERROR;
              REPEAT
@@ -20501,16 +20590,16 @@ BEGIN
            BEGIN
              BEGIN
                IF INTERACTION=3 THEN;
-               PRINTNL(262);
-               PRINT(1013);
+               print_nl_str('! ');
+               print_str('Output routine didn''t use all of ');
              END;
-             PRINTESC(409);
+             print_esc_str('box');
              PRINTINT(255);
              BEGIN
                HELPPTR := 3;
-               HELPLINE[2] := 1014;
-               HELPLINE[1] := 1015;
-               HELPLINE[0] := 1016;
+               help_line[2] := 'Your \output commands should empty \box255,';
+               help_line[1] := 'e.g., by saying `\shipout\box255''.';
+               help_line[0] := 'Proceed; I''ll discard its present contents.';
              END;
              BOXERROR(255);
            END{:1028};
@@ -20540,14 +20629,14 @@ BEGIN
          CURTOK := 6710;
          BEGIN
            IF INTERACTION=3 THEN;
-           PRINTNL(262);
-           PRINT(625);
+           print_nl_str('! ');
+           print_str('Missing ');
          END;
-         PRINTESC(899);
-         PRINT(626);
+         print_esc_str('cr');
+         print_str(' inserted');
          BEGIN
            HELPPTR := 1;
-           HELPLINE[0] := 1125;
+           help_line[0] := 'I''m guessing that you meant to end an alignment here.';
          END;
          INSERROR;
        END;
@@ -20612,7 +20701,7 @@ BEGIN
                    CURLIST.TAILFIELD := P;
                  END{:1187};
        END;{:1186}
-    ELSE CONFUSION(1047)
+    ELSE confusion_str('rightbrace')
   END;
 END;
 {:1068}
@@ -21617,7 +21706,7 @@ BEGIN{1378:}
         END;
       CURS := CURS-1;
     END;
-  IF TOTALPAGES=0 THEN PRINTNL(837)
+  IF TOTALPAGES=0 THEN print_nl_str('No pages of output.')
   ELSE
     BEGIN
       BEGIN
@@ -21684,15 +21773,15 @@ BEGIN{1378:}
 {599:}
       IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,DVIBUFSIZE-1);
       IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
-      PRINTNL(838);
+      print_nl_str('Output written on ');
       SLOWPRINT(OUTPUTFILENA);
-      PRINT(286);
+      print_str(' (');
       PRINTINT(TOTALPAGES);
-      PRINT(839);
+      print_str(' page');
       IF TOTALPAGES<>1 THEN PRINTCHAR(115);
-      PRINT(840);
+      print_str(', ');
       PRINTINT(DVIOFFSET+DVIPTR);
-      PRINT(841);
+      print_str(' bytes).');
       BCLOSE(DVIFILE);
     END{:642};
   IF LOGOPENED THEN
@@ -21702,7 +21791,7 @@ BEGIN{1378:}
       SELECTOR := SELECTOR-2;
       IF SELECTOR=17 THEN
         BEGIN
-          PRINTNL(1275);
+          print_nl_str('Transcript written on ');
           SLOWPRINT(LOGNAME);
           PRINTCHAR(46);
           PRINTLN;
@@ -21726,29 +21815,29 @@ BEGIN
       ENDFILEREADI;
   WHILE OPENPARENS>0 DO
     BEGIN
-      PRINT(1276);
+      print_str(' )');
       OPENPARENS := OPENPARENS-1;
     END;
   IF CURLEVEL>1 THEN
     BEGIN
       PRINTNL(40);
-      PRINTESC(1277);
-      PRINT(1278);
+      print_esc_str('end occurred ');
+      print_str('inside a group at level ');
       PRINTINT(CURLEVEL-1);
       PRINTCHAR(41);
     END;
   WHILE CONDPTR<>0 DO
     BEGIN
       PRINTNL(40);
-      PRINTESC(1277);
-      PRINT(1279);
+      print_esc_str('end occurred ');
+      print_str('when ');
       PRINTCMDCHR(105,CURIF);
       IF IFLINE<>0 THEN
         BEGIN
-          PRINT(1280);
+          print_str(' on line ');
           PRINTINT(IFLINE);
         END;
-      PRINT(1281);
+      print_str(' was incomplete)');
       IFLINE := MEM[CONDPTR+1].INT;
       CURIF := MEM[CONDPTR].HH.B1;
       TEMPPTR := CONDPTR;
@@ -21761,7 +21850,7 @@ BEGIN
         THEN
         BEGIN
           SELECTOR := 17;
-          PRINTNL(1282);
+          print_nl_str('(see the transcript file for additional information)');
           SELECTOR := 19;
         END;
   IF C=1 THEN
@@ -21772,7 +21861,7 @@ BEGIN
       STOREFMTFILE(FMTFILE);
       GOTO 10;
 {$ENDIF}
-      PRINTNL(1283);
+      print_nl_str('(\dump is performed only by INITEX)');
       GOTO 10;
     END;
   10:
@@ -22163,7 +22252,7 @@ VAR K,L,M,N: Int32;
 BEGIN;
   WHILE TRUE DO
     BEGIN;
-      PRINTNL(1284);
+      print_nl_str('debug # (-1 to exit):');
       FLUSH(OUTPUT);
       READ(INPUT,M);
       IF M<0 THEN GOTO 10
