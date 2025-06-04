@@ -595,7 +595,6 @@ VAR {13:}BAD: Int32;
   LONGHELPSEEN: BOOLEAN;
 {:1281}{1299:}
   FORMATIDENT: STRNUMBER;{:1299}{1305:}
-  FMTFILE: WORDFILE;
 {:1305}{1331:}
 {:1331}{1342:}
   WRITEFILE: ARRAY[0..15] OF ALPHAFILE;
@@ -791,9 +790,8 @@ BEGIN{8:}{21:}
   IFLIMIT := 0;
   CURIF := 0;
   IFLINE := 0;
-{:490}{521:}
-  TEXFORMATDEF := 'TeXformats/plain.fmt';
-{:521}{551:}
+{:490}
+{551:}
   FOR K:=0 TO FONTMAX DO
     FONTUSED[K] := FALSE;
 {:551}{556:}
@@ -1658,20 +1656,8 @@ BEGIN
   REWRITE(F);
   WOPENOUT := IORESULT=0;
 END;{$I+}
-{:27}{28:}
-PROCEDURE ACLOSE(VAR F:ALPHAFILE);
-BEGIN
-  CLOSE(F);
-END;
-PROCEDURE BCLOSE(VAR F:BYTEFILE);
-BEGIN
-  CLOSE(F);
-END;
-PROCEDURE WCLOSE(VAR F:WORDFILE);
-BEGIN
-  CLOSE(F);
-END;
-{:28}{31:}
+{:27}
+{31:}
 FUNCTION INPUTLN(VAR F:ALPHAFILE;BYPASSEOLN:BOOLEAN): BOOLEAN;
 
 VAR LASTNONBLANK: 0..BUFSIZE;
@@ -6233,7 +6219,7 @@ PROCEDURE ENDFILEREADI;
 BEGIN
   FIRST := CURINPUT.STARTFIELD;
   LINE := LINESTACK[CURINPUT.INDEXFIELD];
-  IF CURINPUT.NAMEFIELD>17 THEN ACLOSE(INPUTFILE[CURINPUT.INDEXFIELD]);
+  IF CURINPUT.NAMEFIELD>17 THEN close(INPUTFILE[CURINPUT.INDEXFIELD]);
   BEGIN
     INPUTPTR := INPUTPTR-1;
     CURINPUT := INPUTSTACK[INPUTPTR];
@@ -8877,14 +8863,14 @@ BEGIN
            (READFILE[M],FALSE)THEN READOPEN[M] := 0
     ELSE
       BEGIN
-        ACLOSE(READFILE[M]);
+        close(READFILE[M]);
         READOPEN[M] := 2;
       END{:485}
     ELSE{486:}
       BEGIN
         IF NOT INPUTLN(READFILE[M],TRUE)THEN
           BEGIN
-            ACLOSE(READFILE[M]);
+            close(READFILE[M]);
             READOPEN[M] := 2;
             IF ALIGNSTATE<>1000000 THEN
               BEGIN
@@ -9349,41 +9335,10 @@ BEGIN
   FOR K:=NAMELENGTH+1 TO FILENAMESIZE DO
     NAMEOFFILE[K] := #0;
 END;
-{:519}{523:}
-PROCEDURE PACKBUFFERED(N:SMALLNUMBER;A,B:Int32);
+{:519}
 
-VAR K: Int32;
-  C: ASCIICODE;
-  J: Int32;
-BEGIN
-  IF N+B-A+5>FILENAMESIZE THEN B := A+FILENAMESIZE-N-5;
-  K := 0;
-  FOR J:=1 TO N DO
-    BEGIN
-      C := XORD[TEXFORMATDEF[J]];
-      K := K+1;
-      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-    END;
-  FOR J:=A TO B DO
-    BEGIN
-      C := BUFFER[J];
-      K := K+1;
-      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-    END;
-  FOR J:=17 TO 20 DO
-    BEGIN
-      C := XORD[TEXFORMATDEF[J]];
-      K := K+1;
-      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-    END;
-  IF K<=FILENAMESIZE THEN NAMELENGTH := K
-  ELSE NAMELENGTH := FILENAMESIZE;
-  FOR K:=NAMELENGTH+1 TO FILENAMESIZE DO
-    NAMEOFFILE[K] := #0;
-END;
-{:523}{525:}
+{525:}
 FUNCTION MAKENAMESTRI: STRNUMBER;
-
 VAR K: 1..FILENAMESIZE;
 BEGIN
   IF (POOLPTR+NAMELENGTH>POOLSIZE)OR(STRPTR=MAXSTRINGS)OR((POOLPTR-
@@ -9399,18 +9354,9 @@ BEGIN
       MAKENAMESTRI := MAKESTRING;
     END;
 END;
-FUNCTION AMAKENAMESTR(VAR F:ALPHAFILE): STRNUMBER;
-BEGIN
-  AMAKENAMESTR := MAKENAMESTRI;
-END;
-FUNCTION BMAKENAMESTR(VAR F:BYTEFILE): STRNUMBER;
-BEGIN
-  BMAKENAMESTR := MAKENAMESTRI;
-END;
-FUNCTION WMAKENAMESTR(VAR F:WORDFILE): STRNUMBER;
-BEGIN
-  WMAKENAMESTR := MAKENAMESTRI;
-END;{:525}{526:}
+{:525}
+
+{526:}
 PROCEDURE SCANFILENAME;
 
 LABEL 30;
@@ -9509,7 +9455,7 @@ BEGIN
       SELECTOR := 17;
       PROMPTFILENA(799,797);
     END{:535};
-  LOGNAME := AMAKENAMESTR(LOGFILE);
+  LOGNAME := MAKENAMESTRI;
   SELECTOR := 18;
   LOGOPENED := TRUE;
 {536:}
@@ -9561,7 +9507,7 @@ BEGIN
       ENDFILEREADI;
       PROMPTFILENA(787,791);
     END;
-  30: CURINPUT.NAMEFIELD := AMAKENAMESTR(INPUTFILE[CURINPUT.INDEXFIELD]);
+  30: CURINPUT.NAMEFIELD := MAKENAMESTRI;
   IF JOBNAME=0 THEN
     BEGIN
       JOBAREA := CURAREA;
@@ -10040,7 +9986,7 @@ BEGIN
   {:561}
 
   30:
-      IF FILEOPENED THEN BCLOSE(TFMFILE);
+      IF FILEOPENED THEN close(TFMFILE);
   READFONTINFO := G;
 END;
 {:560}
@@ -10524,8 +10470,7 @@ BEGIN
                IF MEM[P].HH.B1=1 THEN WRITEOUT(P)
                ELSE
                  BEGIN
-                   IF WRITEOPEN[J]THEN ACLOSE(
-                                              WRITEFILE[J]);
+                   IF WRITEOPEN[J]THEN close(WRITEFILE[J]);
                    IF MEM[P].HH.B1=2 THEN WRITEOPEN[J] := FALSE
                    ELSE
                      IF J<16 THEN
@@ -11107,7 +11052,7 @@ BEGIN
       PACKJOBNAME(794); {pack_job_name_str('.dvi');}
       WHILE NOT BOPENOUT(DVIFILE) DO
         PROMPTFILENA(795,794); {$795='file name for output' $794='.dvi'}
-      OUTPUTFILENA := BMAKENAMESTR(DVIFILE);
+      OUTPUTFILENA := MAKENAMESTRI;
     END;
   IF TOTALPAGES=0 THEN
     BEGIN
@@ -19833,7 +19778,7 @@ BEGIN
   N := CURVAL;
   IF READOPEN[N]<>2 THEN
     BEGIN
-      ACLOSE(READFILE[N]);
+      close(READFILE[N]);
       READOPEN[N] := 2;
     END;
   IF C<>0 THEN
@@ -20036,13 +19981,14 @@ end;
 
 {1302:}
 {$IFDEF INITEX}
-PROCEDURE STOREFMTFILE(var f: WORDFILE);
+PROCEDURE StoreFormatFile;
 LABEL 41,42,31,32;
 VAR J,K,L: Int32;
   P,Q: HALFWORD;
   X: Int32;
   W: FOURQUARTERS;
   mw: MEMORYWORD;
+  f: WORDFILE;
 BEGIN
   {1304:}
   IF SAVEPTR<>0 THEN
@@ -20086,10 +20032,10 @@ BEGIN
   END;
   FORMATIDENT := MAKESTRING;
   PACKJOBNAME(786); {pack_job_name_str('.fmt');}
-  WHILE NOT WOPENOUT(FMTFILE) DO
+  WHILE NOT WOPENOUT(f) DO
     PROMPTFILENA(1273,786);
   print_nl_str('Beginning to dump on file ');
-  SLOWPRINT(WMAKENAMESTR(FMTFILE));
+  SLOWPRINT(MAKENAMESTRI);
   BEGIN
     STRPTR := STRPTR-1;
     POOLPTR := STRSTART[STRPTR];
@@ -20362,9 +20308,7 @@ BEGIN
   EQTB[5294].INT := 0;
   {:1326}
 
-  {1329:}
-  WCLOSE(FMTFILE)
-  {:1329};
+  close(f)
 END;
 {$ENDIF}
 {:1302}
@@ -21314,41 +21258,9 @@ PROCEDURE GIVEERRHELP;
 BEGIN
   TOKENSHOW(EQTB[3421].HH.RH);
 END;
-{:1284}{1303:}{524:}
-FUNCTION OPENFMTFILE: BOOLEAN;
+{:1284}
 
-LABEL 40,10;
-
-VAR J: 0..BUFSIZE;
-BEGIN
-  J := CURINPUT.LOCFIELD;
-  IF BUFFER[CURINPUT.LOCFIELD]=38 THEN
-    BEGIN
-      CURINPUT.LOCFIELD := CURINPUT.
-                           LOCFIELD+1;
-      J := CURINPUT.LOCFIELD;
-      BUFFER[LAST] := 32;
-      WHILE BUFFER[J]<>32 DO
-        J := J+1;
-      PACKBUFFERED(0,CURINPUT.LOCFIELD,J-1);
-      IF WOPENIN(FMTFILE)THEN GOTO 40;
-      PACKBUFFERED(11,CURINPUT.LOCFIELD,J-1);
-      IF WOPENIN(FMTFILE)THEN GOTO 40;;
-      WRITELN(OUTPUT,'Sorry, I can''t find that format;',' will try PLAIN.');
-      FLUSH(OUTPUT);
-    END;
-  PACKBUFFERED(16,1,0);
-  IF NOT WOPENIN(FMTFILE)THEN
-    BEGIN;
-      WRITELN(OUTPUT,'I can''t find the PLAIN format file!');
-      OPENFMTFILE := FALSE;
-      GOTO 10;
-    END;
-  40: CURINPUT.LOCFIELD := J;
-  OPENFMTFILE := TRUE;
-  10:
-END;
-{:524}
+{1303:}
 
 {FIXME: catch I/O error}
 function UndumpMemoryWord(var f: WORDFILE) : MEMORYWORD;
@@ -21411,13 +21323,13 @@ begin
   STRPOOL[IndexInStrPool+3] := qqqq.B3;
 end;
 
-function ReadFMTFile(var f: WORDFILE): boolean;
+function ReadFormatFile(var f: WORDFILE): boolean;
 VAR J,K: Int32;
   P,Q: HALFWORD;
   X: Int32;
   W: FOURQUARTERS;
 BEGIN
-  ReadFMTFile := false;
+  ReadFormatFile := false;
 
   {1308: @<Undump constants for consistency check@>}
   X := UndumpMemoryWord(f).INT;
@@ -21633,20 +21545,59 @@ BEGIN
   IF (X<>69069)THEN exit;
   {:1327}
 
-  ReadFMTFile := true;
+  ReadFormatFile := true;
 END;
 {:1303}
 
-procedure LoadFMTFile;
-var Successful: boolean;
+const
+  FormatFileDirectory = 'TeXformats/';
+  FormatFileFilename  = 'plain';
+  FormatFileExtension = '.fmt';
+
+function OpenFormatFile(var f: WORDFILE; Filename: string) : boolean;
+BEGIN
+  assign(f, Filename);
+  reset(f);
+  OpenFormatFile := IOResult=0;
+END;
+
+procedure FindFormatFile(var f: WORDFILE);
+var
+  i, j: 0..BUFSIZE;
+  s: string;
 begin
-  IF NOT OPENFMTFILE THEN halt(History);
-  Successful := ReadFMTFile(FMTFILE);
-  WCLOSE(FMTFILE);
-  if not Successful then begin
+  if BUFFER[CURINPUT.LOCFIELD]=ord('&') then begin
+
+    {Get filename from input line}
+    CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
+    j := CURINPUT.LOCFIELD;
+    BUFFER[LAST] := 32;
+    while BUFFER[j]<>32 do j := j+1;
+    SetLength(s, j - CURINPUT.LOCFIELD);
+    for i := CURINPUT.LOCFIELD to j-1 do 
+      s[i-CURINPUT.LOCFIELD+1] := chr(BUFFER[i]);
+    CURINPUT.LOCFIELD := j;
+
+    if OpenFormatFile(f, s+FormatFileExtension) then exit;
+    if OpenFormatFile(f, FormatFileDirectory+s+FormatFileExtension) then exit;
+    writeln(output, 'Sorry, I can''t find that format;',' will try PLAIN.');
+  end;
+  if not OpenFormatFile(f, FormatFileDirectory+FormatFileFilename+FormatFileExtension) then begin
+    writeln(output, 'I can''t find the PLAIN format file!');
+    halt(History);
+  end;
+END;
+
+procedure LoadFormatFile;
+var
+  f: WORDFILE;
+begin
+  FindFormatFile(f);
+  if not ReadFormatFile(f) then begin;
     writeln(Output, '(Fatal format file error; I''m stymied)');
     halt(History);
   end;
+  close(f);
 end;
 
 
@@ -21656,7 +21607,7 @@ PROCEDURE close_files_and_terminate;
 VAR K: Int32;
 BEGIN{1378:}
   FOR K:=0 TO 15 DO
-    IF WRITEOPEN[K]THEN ACLOSE(WRITEFILE[K])
+    IF WRITEOPEN[K]THEN close(WRITEFILE[K])
 {:1378};
   EQTB[5312].INT := -1;{$IFDEF STATS}
   IF EQTB[5294].INT>0 THEN{1334:}
@@ -21782,12 +21733,12 @@ BEGIN{1378:}
       print_str(', ');
       PRINTINT(DVIOFFSET+DVIPTR);
       print_str(' bytes).');
-      BCLOSE(DVIFILE);
+      close(DVIFILE);
     END{:642};
   IF LOGOPENED THEN
     BEGIN
       WRITELN(LOGFILE);
-      ACLOSE(LOGFILE);
+      close(LOGFILE);
       SELECTOR := SELECTOR-2;
       IF SELECTOR=17 THEN
         BEGIN
@@ -21853,18 +21804,16 @@ BEGIN
           print_nl_str('(see the transcript file for additional information)');
           SELECTOR := 19;
         END;
-  IF C=1 THEN
-    BEGIN{$IFDEF INITEX}
+  IF C=1 THEN BEGIN
+    {$IFDEF INITEX}
       FOR C:=0 TO 4 DO
         IF CURMARK[C]<>0 THEN DELETETOKENR(CURMARK[C]);
       IF LASTGLUE<>65535 THEN DELETEGLUERE(LASTGLUE);
-      STOREFMTFILE(FMTFILE);
-      GOTO 10;
-{$ENDIF}
+      StoreFormatFile;
+    {$ELSE}
       print_nl_str('(\dump is performed only by INITEX)');
-      GOTO 10;
-    END;
-  10:
+    {$ENDIF}
+  END;
 END;{:1335}{1336:}{$IFDEF INITEX}
 PROCEDURE INITPRIM;
 BEGIN
@@ -22397,7 +22346,7 @@ BEGIN
     IF (FORMATIDENT=0)OR(BUFFER[CURINPUT.LOCFIELD]=38)THEN
       BEGIN
         IF FORMATIDENT<>0 THEN INITIALIZE;
-        LoadFMTFile;
+        LoadFormatFile;
         WHILE (CURINPUT.LOCFIELD<CURINPUT.LIMITFIELD)AND(BUFFER[CURINPUT.LOCFIELD
               ]=32) DO
           CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
