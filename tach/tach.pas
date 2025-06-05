@@ -26,6 +26,71 @@ CONST {11:}MEMMAX = 30000;
 {:11}
 
 
+
+
+{@ The following parameters can be changed at compile time to extend or
+reduce \TeX's capacity. They may have different values in \INITEX\ and
+in production versions of \TeX\.}
+
+  mem_max = 30000;
+    {greatest index in \TeX's internal |mem| array;
+     must be strictly less than |max_halfword|;
+     must be equal to |mem_top| in \INITEX\, otherwise |>=mem_top|}
+  mem_min = 0; 
+    {smallest index in \TeX's internal |mem| array;
+     must be |min_halfword| or more;
+     must be equal to |mem_bot| in \INITEX\, otherwise |<=mem_bot|}
+  buf_size = 500;
+    {maximum number of characters simultaneously present in
+     current lines of open files and in control sequences between
+     \csname and \endcsname; must not exceed |max_halfword|}
+  error_line = 72;
+    {width of context lines on terminal error messages}
+  half_error_line = 42;
+    {width of first lines of contexts in terminal
+     error messages; should be between 30 and |error_line-15|}
+  max_print_line = 79;
+    {width of longest text lines output; should be at least 60}
+  stack_size = 200;
+    {maximum number of simultaneous input sources}
+  max_in_open = 6;
+    {maximum number of input files and error insertions that
+     can be going on simultaneously}
+  font_max = 75;
+    {maximum internal font number; must not exceed |max_quarterword|
+     and must be at most |font_base+256|}
+  font_mem_size = 20000;
+    {number of words of |font_info| for all fonts}
+  param_size = 60;
+    {maximum number of simultaneous macro parameters}
+  nest_size = 40;
+    {maximum number of semantic levels simultaneously active}
+  max_strings = 3000;
+    {maximum number of strings; must not exceed |max_halfword|}
+  string_vacancies = 8000;
+    {the minimum number of characters that should be
+     available for the user's control sequences and font names,
+     after \TeX's own error messages are stored}
+  pool_size = 32000;
+    {maximum number of characters in strings, including all
+     error messages and help texts, and the names of all fonts and
+     control sequences; must exceed |string_vacancies| by the total
+     length of \TeX's own strings, which is currently about 23000}
+  save_size = 600;
+    {space for saving values outside of current group; must be
+     at most |max_halfword|}
+  trie_size=8000;
+    {space for hyphenation patterns; should be larger for
+     \INITEX than it is in production versions of \TeX\}
+  trie_op_size = 500;
+    {space for ``opcodes'' in the hyphenation patterns}
+  dvi_buf_size = 800;
+    {size of the output buffer; must be a multiple of 8}
+  file_name_size = 40;
+    {file names shouldn't be longer than this}
+
+
+
 {Like the preceding parameters, the following quantities can be changed
 at compile time to extend or reduce \TeX's capacity. But if they are changed,
 it is necessary to rerun the initialization program \INITEX
@@ -1698,84 +1763,52 @@ BEGIN
       INPUTLN := TRUE;
     END;
 END;
-{:31}{37:}
-FUNCTION INPUTARGV: BOOLEAN;
+{:31}
 
-VAR ARGS: SHORTSTRING;
-  I: Int32;
-  LASTNONBLANK: 0..BUFSIZE;
-BEGIN
-  IF PARAMCOUNT=0 THEN INPUTARGV := FALSE
-  ELSE
-    BEGIN
-      LAST := FIRST;
-      LASTNONBLANK := FIRST;
-      ARGS := '';
-      FOR I:=1 TO PARAMCOUNT DO
-        ARGS := ARGS+PARAMSTR(I)+' ';
-      FOR I:=1 TO LENGTH(ARGS) DO
-        BEGIN
-          IF LAST>=MAXBUFSTACK THEN
-            BEGIN
-              MAXBUFSTACK := LAST+1;
-              IF MAXBUFSTACK=BUFSIZE THEN{35:}
-                IF FORMATIDENT=0 THEN
-                  BEGIN
-                    WRITELN(
-                            OUTPUT,'Buffer size exceeded!');
-                    halt(History);
-                  END
-              ELSE
-                BEGIN
-                  CURINPUT.LOCFIELD := FIRST;
-                  CURINPUT.LIMITFIELD := LAST-1;
-                  overflow('buffer size', BUFSIZE);
-                END{:35};
-            END;
-          BUFFER[LAST] := XORD[ARGS[I]];
-          LAST := LAST+1;
-          IF BUFFER[LAST-1]<>32 THEN LASTNONBLANK := LAST;
-        END;
-      LAST := LASTNONBLANK;
-      INPUTARGV := TRUE;
-    END;
-END;
-FUNCTION INITTERMINAL: BOOLEAN;
-
-LABEL 10;
-BEGIN
-  IF INPUTARGV THEN
-    BEGIN
-      INITTERMINAL := TRUE;
+{37:}
+procedure init_terminal;
+var
+  s: string;
+  p, i: integer;
+  len, j: sizeint;
+begin
+  if paramcount <> 0 then begin
+    i := FIRST;
+    for p := 1 to paramcount do begin
+      s := paramstr(p);
+      len := length(s);
+      if i+len >= BUFSIZE then begin
+        writeln(output, 'Buffer size exceeded!');
+        halt(History);
+      end;
+      for j := 1 to len do buffer[i+j-1] := ord(s[j]);
+      buffer[i+len] := ord(' ');
+      i := i + len + 1;
+    end;
+    LAST := i-1;
+    MAXBUFSTACK := LAST+1; {only for statistics?}
+    CURINPUT.LOCFIELD := FIRST;
+  end else begin
+    RESET(INPUT);
+    WHILE TRUE DO BEGIN;
+      WRITE(OUTPUT,'**');
+      FLUSH(OUTPUT);
+      IF NOT INPUTLN(INPUT, TRUE) THEN BEGIN
+        WRITELN(OUTPUT);
+        WRITE(OUTPUT,'! End of file on the terminal... why?');
+        halt(History);
+      END;
       CURINPUT.LOCFIELD := FIRST;
-    END
-  ELSE
-    BEGIN
-      RESET(INPUT);
-      WHILE TRUE DO
-        BEGIN;
-          WRITE(OUTPUT,'**');
-          FLUSH(OUTPUT);
-          IF NOT INPUTLN(INPUT,TRUE)THEN
-            BEGIN
-              WRITELN(OUTPUT);
-              WRITE(OUTPUT,'! End of file on the terminal... why?');
-              INITTERMINAL := FALSE;
-              GOTO 10;
-            END;
-          CURINPUT.LOCFIELD := FIRST;
-          WHILE (CURINPUT.LOCFIELD<LAST)AND(BUFFER[CURINPUT.LOCFIELD]=32) DO
-            CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-          IF CURINPUT.LOCFIELD<LAST THEN
-            BEGIN
-              INITTERMINAL := TRUE;
-              GOTO 10;
-            END;
-          WRITELN(OUTPUT,'Please type the name of your input file.');
-        END;
+      WHILE (CURINPUT.LOCFIELD<LAST)AND(BUFFER[CURINPUT.LOCFIELD]=32) DO
+        CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
+      IF CURINPUT.LOCFIELD<LAST THEN exit;
+      WRITELN(OUTPUT,'Please type the name of your input file.');
     END;
-  10:
-END;{:37}{43:}
+  end;
+end;
+{:37}
+
+{43:}
 FUNCTION MAKESTRING: STRNUMBER;
 BEGIN
   IF STRPTR=MAXSTRINGS THEN overflow('number of strings', MAXSTRINGS-INITSTRPTR);
@@ -9445,23 +9478,22 @@ BEGIN
   OLDSETTING := SELECTOR;
   IF JOBNAME=0 THEN
     BEGIN
-      JOBAREA := 338;
+      JOBAREA := 338; {''}
       NAMEOFJOBARE := '';
-      JOBNAME := 796;
+      JOBNAME := 796; {'texput'}
     END;
   PACKJOBNAME(797); {pack_job_name_str('.log');}
   WHILE NOT AOPENOUT(LOGFILE) DO{535:}
     BEGIN
       SELECTOR := 17;
-      PROMPTFILENA(799,797);
+      PROMPTFILENA(799,797); {'transcript file name', '.log'}
     END{:535};
   LOGNAME := MAKENAMESTRI;
   SELECTOR := 18;
   LOGOPENED := TRUE;
 {536:}
   BEGIN
-    WRITE(LOGFILE,'This is TeX, Version 3.141592653 Free Pascal'
-    );
+    WRITE(LOGFILE,'This is TeX, Version 3.141592653 Free Pascal');
     SLOWPRINT(FORMATIDENT);
     print_str('  ');
     PRINTINT(SYSDAY);
@@ -22339,7 +22371,7 @@ BEGIN
       CURINPUT.NAMEFIELD := 0;
       FORCEEOF := FALSE;
       ALIGNSTATE := 1000000;
-      IF NOT INITTERMINAL THEN halt(History);
+      init_terminal;
       CURINPUT.LIMITFIELD := LAST;
       FIRST := LAST+1;
     END{:331};
