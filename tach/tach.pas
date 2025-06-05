@@ -1,6 +1,6 @@
 {4:}{9:}{$C-,A+,D-}{$IFDEF DEBUGGING}{$C+,D+}{$ENDIF}
 {:9}
-
+{ $DEFINE STATS}
 PROGRAM TEX;
 
 CONST {11:}MEMMAX = 30000;
@@ -1221,46 +1221,49 @@ END;
 
 {60:}
 {print and escape control characters}
-procedure slow_print_str(s: string);
+procedure slow_print_char(ch: byte);
 const
   Hex: array [0..15] of char = '0123456789abcdef';
 var
-  i: integer;
-  ch: byte;
   t: string[4];
 begin
+  if ch < 32 then begin
+    t := '^^A';
+    t[3] := chr(ch + 64);
+    print_str(t);
+  end else if ch < 127 then begin
+    PRINTCHAR(ch);
+  end else if ch = 127 then begin
+    print_str('^^?');
+  end else begin
+    t := '^^00';
+    t[3] := Hex[ch shr 4];
+    t[4] := Hex[ch and 15];
+  end;
+end;
+
+procedure slow_print_str(s: string);
+var
+  i: integer;
+begin
   for i := 1 to length(s) do begin
-    ch := ord(s[i]);
-    if ch < 32 then begin
-      t := '^^A';
-      t[3] := chr(ch + 64);
-      print_str(t);
-    end else if ch < 127 then begin
-      PRINTCHAR(ch);
-    end else if ch = 127 then begin
-      print_str('^^?');
-    end else begin
-      t := '^^00';
-      t[3] := Hex[i shr 4];
-      t[4] := Hex[i and 15];
-    end;
+    slow_print_char(ord(s[i]));
   end;
 end;
 
 PROCEDURE SLOWPRINT(S:Int32);
 VAR J: POOLPOINTER;
 BEGIN
-  IF (S>=STRPTR)OR(S<256)THEN PRINT(S)
-  ELSE
-    BEGIN
-      J := STRSTART[S];
-      WHILE J<STRSTART[S+1] DO
-        BEGIN
-          PRINT(STRPOOL[J]);
-          J := J+1;
-        END;
+  if S<256 then slow_print_char(S)
+  else if S>=STRPTR then print_str('???')
+  else begin
+    J := STRSTART[S];
+    WHILE J<STRSTART[S+1] DO BEGIN
+      slow_print_char(STRPOOL[J]);
+      J := J+1;
     END;
-END;
+  end;
+end;
 {:60}
 
 {62:}
@@ -1281,10 +1284,10 @@ END;
 
 {63:}
 procedure print_esc_str(s: string);
-var C: int32;
+var ch: int32;
 begin
-  C := EQTB[5308].INT{:243};
-  IF (C>=0) AND (C<256) THEN PRINT(C);
+  ch := EQTB[5308].INT; {current escape character}
+  if (ch>=0) and (ch<256) then slow_print_char(ch);
   slow_print_str(s);
 end;
 
@@ -1293,7 +1296,7 @@ VAR C: Int32;
 BEGIN{243:}
   C := EQTB[5308].INT{:243};
   IF C>=0 THEN
-    IF C<256 THEN PRINT(C);
+    IF C<256 THEN slow_print_char(C);
   SLOWPRINT(S);
 END;
 {:63}
@@ -1356,13 +1359,13 @@ BEGIN
       IF P<1 THEN 
         print_esc_str('IMPOSSIBLE.')
       ELSE
-        PRINT(P-1)
+        slow_print_char(P-1)
   ELSE
     IF P>=2881 THEN
       print_esc_str('IMPOSSIBLE.')
     ELSE
       IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) THEN
-        PRINTESC(507)
+        print_esc_str('NONEXISTENT.')
       ELSE BEGIN
         PRINTESC(HASH[P].RH);
         PRINTCHAR(32);
@@ -1372,10 +1375,9 @@ END;
 PROCEDURE SPRINTCS(P:HALFWORD);
 BEGIN
   IF P<514 THEN
-    IF P<257 THEN PRINT(P-1)
+    IF P<257 THEN slow_print_char(P-1)
   ELSE
-    IF P<513 THEN PRINTESC(
-                           P-257)
+    IF P<513 THEN PRINTESC(P-257)
   ELSE
     BEGIN
       print_esc_str('csname');
@@ -1398,11 +1400,13 @@ BEGIN
     IF S=16 THEN print_esc_str('scriptfont')
   ELSE
     print_esc_str('scriptscriptfont');
-END;{:699}{1355:}
-PROCEDURE PRINTWRITEWH(S:STRNUMBER;
-                       P:HALFWORD);
+END;
+{:699}
+
+{1355:}
+procedure print_write_whatsit_str(s: string; P: HALFWORD);
 BEGIN
-  PRINTESC(S);
+  print_esc_str(s);
   IF MEM[P+1].HH.LH<16 THEN PRINTINT(MEM[P+1].HH.LH)
   ELSE
     IF MEM[P+1].HH.LH
@@ -3026,11 +3030,10 @@ PROCEDURE TERMINPUT;
 VAR K: 0..BUFSIZE;
 BEGIN
   FLUSH(OUTPUT);
-  IF NOT INPUTLN(INPUT,TRUE)THEN fatal_error('End of file on the terminal!');
+  IF NOT INPUTLN(INPUT, TRUE) THEN fatal_error('End of file on the terminal!');
   TERMOFFSET := 0;
   SELECTOR := SELECTOR-1;
-  IF LAST<>FIRST THEN FOR K:=FIRST TO LAST-1 DO
-                        PRINT(BUFFER[K]);
+  IF LAST<>FIRST THEN FOR K:=FIRST TO LAST-1 DO PRINT(BUFFER[K]);
   PRINTLN;
   SELECTOR := SELECTOR+1;
 END;{:71}{91:}
@@ -3273,11 +3276,11 @@ BEGIN
           ELSE{294:}
             CASE M OF 
               1,2,3,4,7,8,10,
-              11,12: PRINT(C);
+              11,12: slow_print_char(C);
               6:
                  BEGIN
-                   PRINT(C);
-                   PRINT(C);
+                   slow_print_char(C);
+                   slow_print_char(C);
                  END;
               5:
                  BEGIN
@@ -3292,7 +3295,7 @@ BEGIN
               13:
                   BEGIN
                     MATCHCHR := C;
-                    PRINT(C);
+                    slow_print_char(C);
                     N := N+1;
                     PRINTCHAR(N);
                     IF N>57 THEN GOTO 10;
@@ -3843,8 +3846,7 @@ BEGIN
                 BEGIN
                   IF (MEM[P].HH.B0<0)OR
                      (MEM[P].HH.B0>FONTMAX)THEN PRINTCHAR(42)
-                  ELSE{267:}PRINTESC(HASH[2624+MEM
-                                     [P].HH.B0].RH){:267};
+                  ELSE{267:}PRINTESC(HASH[2624+MEM[P].HH.B0].RH){:267};
                   PRINTCHAR(32);
                   FONTINSHORTD := MEM[P].HH.B0;
                 END;
@@ -3883,8 +3885,7 @@ BEGIN
     BEGIN
       IF (MEM[P].HH.B0<0)OR(MEM[
          P].HH.B0>FONTMAX)THEN PRINTCHAR(42)
-      ELSE{267:}PRINTESC(HASH[2624+MEM[P].
-                         HH.B0].RH){:267};
+      ELSE{267:}PRINTESC(HASH[2624+MEM[P].HH.B0].RH){:267};
       PRINTCHAR(32);
       PRINT(MEM[P].HH.B1-0);
     END;
@@ -3893,8 +3894,7 @@ PROCEDURE PRINTMARK(P:Int32);
 BEGIN
   PRINTCHAR(123);
   IF (P<HIMEMMIN)OR(P>MEMEND)THEN print_esc_str('CLOBBERED.')
-  ELSE SHOWTOKENLIS(MEM[P].HH.
-                    RH,0,MAXPRINTLINE-10);
+  ELSE SHOWTOKENLIS(MEM[P].HH.RH,0,MAXPRINTLINE-10);
   PRINTCHAR(125);
 END;
 PROCEDURE PRINTRULEDIM(D:SCALED);
@@ -3902,46 +3902,44 @@ BEGIN
   IF (D=-1073741824)THEN PRINTCHAR(42)
   ELSE PRINTSCALED(D);
 END;
-{:176}{177:}
-PROCEDURE PRINTGLUE(D:SCALED;ORDER:Int32;S:STRNUMBER);
+{:176}
+
+{177:}
+procedure print_glue_str(D:SCALED;ORDER:Int32; s: string);
 BEGIN
   PRINTSCALED(D);
-  IF (ORDER<0)OR(ORDER>3)THEN print_str('foul')
-  ELSE
-    IF ORDER>0 THEN
-      BEGIN
-        PRINT(
-              311);
-        WHILE ORDER>1 DO
-          BEGIN
-            PRINTCHAR(108);
-            ORDER := ORDER-1;
-          END;
-      END
-  ELSE
-    IF S<>0 THEN PRINT(S);
+  IF (ORDER<0)OR(ORDER>3) THEN print_str('foul')
+  ELSE IF ORDER>0 THEN BEGIN
+    print_str('fil');
+    WHILE ORDER>1 DO BEGIN
+      PRINTCHAR(108);
+      ORDER := ORDER-1;
+    END;
+  END ELSE IF s<>'' THEN print_str(s);
 END;
-{:177}{178:}
-PROCEDURE PRINTSPEC(P:Int32;S:STRNUMBER);
+{:177}
+
+{178:}
+procedure print_spec_str(P: Int32; s: string);
 BEGIN
   IF (P<MEMMIN)OR(P>=LOMEMMAX)THEN PRINTCHAR(42)
-  ELSE
-    BEGIN
-      PRINTSCALED(MEM[P+1].INT);
-      IF S<>0 THEN PRINT(S);
-      IF MEM[P+2].INT<>0 THEN
-        BEGIN
-          print_str(' plus ');
-          PRINTGLUE(MEM[P+2].INT,MEM[P].HH.B0,S);
-        END;
-      IF MEM[P+3].INT<>0 THEN
-        BEGIN
-          print_str(' minus ');
-          PRINTGLUE(MEM[P+3].INT,MEM[P].HH.B1,S);
-        END;
+  ELSE BEGIN
+    PRINTSCALED(MEM[P+1].INT);
+    IF S<>'' THEN print_str(s);
+    IF MEM[P+2].INT<>0 THEN BEGIN
+      print_str(' plus ');
+      print_glue_str(MEM[P+2].INT, MEM[P].HH.B0, s);
     END;
+    IF MEM[P+3].INT<>0 THEN BEGIN
+      print_str(' minus ');
+      print_glue_str(MEM[P+3].INT, MEM[P].HH.B1, s);
+    END;
+  END;
 END;
-{:178}{179:}{691:}
+{:178}
+
+{179:}
+{691:}
 PROCEDURE PRINTFAMANDC(P:HALFWORD);
 BEGIN
   print_esc_str('fam');
@@ -4068,10 +4066,8 @@ BEGIN
           0,1,
           13:{184:}
               BEGIN
-                IF MEM[P].HH.B0=0 THEN PRINTESC(104)
-                ELSE
-                  IF MEM[P].HH.B0=
-                     1 THEN PRINTESC(118)
+                IF MEM[P].HH.B0=0 THEN print_esc_str('h')
+                ELSE IF MEM[P].HH.B0=1 THEN print_esc_str('v')
                 ELSE print_esc_str('unset');
                 print_str('box(');
                 PRINTSCALED(MEM[P+3].INT);
@@ -4083,20 +4079,19 @@ BEGIN
                   BEGIN
                     IF MEM[P].HH.B1<>0 THEN
                       BEGIN
-                        PRINT(
-                              286);
+                        print_str(' (');
                         PRINTINT(MEM[P].HH.B1+1);
                         print_str(' columns)');
                       END;
                     IF MEM[P+6].INT<>0 THEN
                       BEGIN
                         print_str(', stretch ');
-                        PRINTGLUE(MEM[P+6].INT,MEM[P+5].HH.B1,0);
+                        print_glue_str(MEM[P+6].INT, MEM[P+5].HH.B1, '');
                       END;
                     IF MEM[P+4].INT<>0 THEN
                       BEGIN
                         print_str(', shrink ');
-                        PRINTGLUE(MEM[P+4].INT,MEM[P+5].HH.B0,0);
+                        print_glue_str(MEM[P+4].INT, MEM[P+5].HH.B0, '');
                       END;
                   END{:185}
                 ELSE
@@ -4112,9 +4107,9 @@ BEGIN
                             BEGIN
                               IF G>0.0 THEN PRINTCHAR(62)
                               ELSE print_str('< -');
-                              PRINTGLUE(20000*65536,MEM[P+5].HH.B1,0);
+                              print_glue_str(20000*65536, MEM[P+5].HH.B1, '');
                             END
-                        ELSE PRINTGLUE(ISORound(65536*G),MEM[P+5].HH.B1,0);
+                        ELSE print_glue_str(ISORound(65536*G), MEM[P+5].HH.B1, '');
                       END{:186};
                     IF MEM[P+4].INT<>0 THEN
                       BEGIN
@@ -4147,7 +4142,7 @@ BEGIN
                print_str(', natural size ');
                PRINTSCALED(MEM[P+3].INT);
                print_str('; split(');
-               PRINTSPEC(MEM[P+4].HH.RH,0);
+               print_spec_str(MEM[P+4].HH.RH, '');
                PRINTCHAR(44);
                PRINTSCALED(MEM[P+2].INT);
                print_str('); float cost ');
@@ -4165,16 +4160,16 @@ BEGIN
              CASE MEM[P].HH.B1 OF 
                0:
                   BEGIN
-                    PRINTWRITEWH(1285,P);
+                    print_write_whatsit_str('openout', P);
                     PRINTCHAR(61);
                     PRINTFILENAM(MEM[P+1].HH.RH,MEM[P+2].HH.LH,MEM[P+2].HH.RH);
                   END;
                1:
                   BEGIN
-                    PRINTWRITEWH(594,P);
+                    print_write_whatsit_str('write', P);
                     PRINTMARK(MEM[P+1].HH.RH);
                   END;
-               2: PRINTWRITEWH(1286,P);
+               2: print_write_whatsit_str('closeout', P);
                3:
                   BEGIN
                     print_esc_str('special');
@@ -4201,7 +4196,7 @@ BEGIN
                     IF MEM[P].HH.B1=102 THEN
                       PRINTCHAR(120);
                   print_str('leaders ');
-                  PRINTSPEC(MEM[P+1].HH.LH,0);
+                  print_spec_str(MEM[P+1].HH.LH, '');
                   BEGIN
                     BEGIN
                       STRPOOL[POOLPTR] := 46;
@@ -4227,9 +4222,8 @@ BEGIN
                   IF MEM[P].HH.B1<>98 THEN
                     BEGIN
                       PRINTCHAR(32);
-                      IF MEM[P].HH.B1<98 THEN PRINTSPEC(MEM[P+1].HH.LH,0)
-                      ELSE PRINTSPEC(MEM[P
-                                     +1].HH.LH,337);
+                      IF MEM[P].HH.B1<98 THEN print_spec_str(MEM[P+1].HH.LH, '')
+                      ELSE print_spec_str(MEM[P+1].HH.LH, 'mu');
                     END;
                 END{:189};
           11:{191:}
@@ -5059,13 +5053,13 @@ BEGIN
     92: print_esc_str('divide');
     67: print_esc_str('endcsname');
     62: print_esc_str('endgroup');
-    64: PRINTESC(32);
+    64: print_esc_str(' ');
     102: print_esc_str('expandafter');
     32: print_esc_str('halign');
     36: print_esc_str('hrule');
     39: print_esc_str('ignorespaces');
     37: print_esc_str('insert');
-    44: PRINTESC(47);
+    44: print_esc_str('/');
     18: print_esc_str('mark');
     46: print_esc_str('mathaccent');
     17: print_esc_str('mathchar');
@@ -5236,8 +5230,7 @@ BEGIN
     31:
         IF CHRCODE=100 THEN print_esc_str('leaders')
         ELSE
-          IF CHRCODE=101 THEN PRINTESC(
-                                       1064)
+          IF CHRCODE=101 THEN print_esc_str('cleaders')
         ELSE
           IF CHRCODE=102 THEN print_esc_str('xleaders')
         ELSE print_esc_str('shipout');
@@ -5260,7 +5253,7 @@ BEGIN
         ELSE print_esc_str('unvbox');
 {:1108}{1115:}
     47:
-        IF CHRCODE=1 THEN PRINTESC(45)
+        IF CHRCODE=1 THEN print_esc_str('-')
         ELSE print_esc_str('discretionary');
 {:1115}{1143:}
     48:
@@ -5450,9 +5443,8 @@ BEGIN
           PRINTSKIPPAR(N
                        -2882);
           PRINTCHAR(61);
-          IF N<2897 THEN PRINTSPEC(EQTB[N].HH.RH,397)
-          ELSE PRINTSPEC(EQTB[N].HH.RH,
-                         337);
+          IF N<2897 THEN print_spec_str(EQTB[N].HH.RH, 'pt')
+          ELSE print_spec_str(EQTB[N].HH.RH, 'mu');
         END
   ELSE
     IF N<3156 THEN
@@ -5460,14 +5452,14 @@ BEGIN
         print_esc_str('skip');
         PRINTINT(N-2900);
         PRINTCHAR(61);
-        PRINTSPEC(EQTB[N].HH.RH,397);
+        print_spec_str(EQTB[N].HH.RH, 'pt');
       END
   ELSE
     BEGIN
       print_esc_str('muskip');
       PRINTINT(N-3156);
       PRINTCHAR(61);
-      PRINTSPEC(EQTB[N].HH.RH,337);
+      print_spec_str(EQTB[N].HH.RH, 'mu');
     END{:229}
   ELSE
     IF N<5263 THEN{233:}
@@ -5538,7 +5530,7 @@ BEGIN
       BEGIN
         IF N<4239 THEN
           BEGIN
-            PRINTESC('catcode');
+            print_esc_str('catcode');
             PRINTINT(N-3983);
           END
         ELSE
@@ -5793,19 +5785,24 @@ BEGIN
       SAVEPTR := SAVEPTR+1;
     END;
 END;
-{:280}{281:}{284:}{$IFDEF STATS}
-PROCEDURE RESTORETRACE(P:HALFWORD;
-                       S:STRNUMBER);
+{:280}
+
+{281:}
+{284:}
+{$IFDEF STATS}
+PROCEDURE restore_trace_str(P:HALFWORD; s: string);
 BEGIN
   BEGINDIAGNOS;
   PRINTCHAR(123);
-  PRINT(S);
+  print_str(s);
   PRINTCHAR(32);
   SHOWEQTB(P);
   PRINTCHAR(125);
   ENDDIAGNOSTI(FALSE);
-END;{$ENDIF}
+END;
+{$ENDIF}
 {:284}
+
 PROCEDURE BACKINPUT;
 FORWARD;
 PROCEDURE UNSAVE;
@@ -5841,33 +5838,41 @@ BEGIN
                   SAVEPTR := SAVEPTR-1;
                 END
               ELSE SAVESTACK[SAVEPTR] := EQTB[2881];
-{283:}
+
+              {283:}
               IF P<5263 THEN
                 IF EQTB[P].HH.B1=1 THEN
                   BEGIN
-                    EQDESTROY(SAVESTACK[
-                              SAVEPTR]);{$IFDEF STATS}
-                    IF EQTB[5300].INT>0 THEN RESTORETRACE(P,544);
-{$ENDIF}
+                    EQDESTROY(SAVESTACK[SAVEPTR]);
+                    {$IFDEF STATS}
+                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
+                    {$ENDIF}
                   END
               ELSE
                 BEGIN
                   EQDESTROY(EQTB[P]);
                   EQTB[P] := SAVESTACK[SAVEPTR];
-{$IFDEF STATS}
-                  IF EQTB[5300].INT>0 THEN RESTORETRACE(P,545);{$ENDIF}
+                  {$IFDEF STATS}
+                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
+                  {$ENDIF}
                 END
               ELSE
                 IF XEQLEVEL[P]<>1 THEN
                   BEGIN
                     EQTB[P] := SAVESTACK[SAVEPTR];
-                    XEQLEVEL[P] := L;{$IFDEF STATS}
-                    IF EQTB[5300].INT>0 THEN RESTORETRACE(P,545);{$ENDIF}
+                    XEQLEVEL[P] := L;
+                    {$IFDEF STATS}
+                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
+                    {$ENDIF}
                   END
               ELSE
-                BEGIN{$IFDEF STATS}
-                  IF EQTB[5300].INT>0 THEN RESTORETRACE(P,544);{$ENDIF}
-                END{:283};
+                BEGIN
+                  {$IFDEF STATS}
+                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
+                  {$ENDIF}
+                END;
+              {:283}
+
             END;
         END;
       30: CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
@@ -6672,7 +6677,7 @@ BEGIN
                       PRINTLN;
                       FIRST := CURINPUT.STARTFIELD;
                       BEGIN;
-                        PRINT(42);
+                        PRINTCHAR(42);
                         TERMINPUT;
                       END;
                       CURINPUT.LIMITFIELD := LAST;
@@ -6768,14 +6773,12 @@ BEGIN
     IF INTERACTION>1 THEN
       BEGIN;
         PRINTLN;
-        IF CURINPUT.STARTFIELD<CURINPUT.LIMITFIELD THEN FOR K:=CURINPUT.
-                                                            STARTFIELD TO CURINPUT.LIMITFIELD-1 DO
-                                                          PRINT(BUFFER[K]);
+        IF CURINPUT.STARTFIELD<CURINPUT.LIMITFIELD THEN
+          FOR K:=CURINPUT.STARTFIELD TO CURINPUT.LIMITFIELD-1 DO
+            PRINT(BUFFER[K]);
         FIRST := CURINPUT.LIMITFIELD;
-        BEGIN;
-          print_str('=>');
-          TERMINPUT;
-        END;
+        print_str('=>');
+        TERMINPUT;
         IF LAST>FIRST THEN
           BEGIN
             FOR K:=FIRST TO LAST-1 DO
@@ -8576,19 +8579,16 @@ BEGIN
       B := POOLPTR;
       CASE CURVALLEVEL OF 
         0: PRINTINT(CURVAL);
-        1:
-           BEGIN
+        1: BEGIN
              PRINTSCALED(CURVAL);
              print_str('pt');
            END;
-        2:
-           BEGIN
-             PRINTSPEC(CURVAL,397);
+        2: BEGIN
+             print_spec_str(CURVAL, 'pt');
              DELETEGLUERE(CURVAL);
            END;
-        3:
-           BEGIN
-             PRINTSPEC(CURVAL,337);
+        3: BEGIN
+             print_spec_str(CURVAL, 'mu');
              DELETEGLUERE(CURVAL);
            END;
       END;
@@ -8884,7 +8884,7 @@ BEGIN
         PRINTLN;
         SPRINTCS(R);
         BEGIN;
-          PRINT(61);
+          PRINTCHAR(61);
           TERMINPUT;
         END;
         N := -1;
@@ -9420,11 +9420,11 @@ BEGIN
   CURNAME := JOBNAME;
   PACKFILENAME(CURNAME,CURAREA,CUREXT);
 END;
-{:529}{530:}
+{:529}
+
+{530:}
 PROCEDURE PROMPTFILENA(S,E:STRNUMBER);
-
 LABEL 30;
-
 VAR K: 0..BUFSIZE;
 BEGIN
   IF INTERACTION=2 THEN;
@@ -9467,7 +9467,9 @@ BEGIN
   IF CUREXT=338 THEN CUREXT := E;
   PACKFILENAME(CURNAME,CURAREA,CUREXT);
 END;
-{:530}{534:}
+{:530}
+
+{534:}
 PROCEDURE OPENLOGFILE;
 
 VAR OLDSETTING: 0..21;
@@ -10024,14 +10026,13 @@ END;
 {:560}
 
 {581:}
-PROCEDURE CHARWARNING(F:INTERNALFONT;
-                      C:EIGHTBITS);
+PROCEDURE CHARWARNING(F: INTERNALFONT; C: EIGHTBITS);
 BEGIN
   IF EQTB[5298].INT>0 THEN
     BEGIN
       BEGINDIAGNOS;
       print_nl_str('Missing character: There is no ');
-      PRINT(C);
+      slow_print_char(C);
       print_str(' in font ');
       SLOWPRINT(FONTNAME[F]);
       PRINTCHAR(33);
@@ -14152,8 +14153,7 @@ BEGIN{831:}
                       print_esc_str('discretionary')
                   ELSE
                     IF MEM[CURP].HH.B0=11 THEN print_esc_str('kern')
-                  ELSE PRINTESC(
-                                343);
+                  ELSE print_esc_str('math');
                 END;
             print_str(' via @@');
             IF MEM[R+1].HH.RH=0 THEN PRINTCHAR(48)
@@ -22279,7 +22279,7 @@ BEGIN;
                 END;
             16: PANICKING := NOT PANICKING;
 {:1339}
-            ELSE PRINT(63)
+            ELSE PRINTCHAR(63)
           END;
         END;
     END;
