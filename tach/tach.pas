@@ -79,7 +79,7 @@ in production versions of \TeX\.}
   save_size = 600;
     {space for saving values outside of current group; must be
      at most |max_halfword|}
-  trie_size=8000;
+  trie_size = 8000;
     {space for hyphenation patterns; should be larger for
      \INITEX than it is in production versions of \TeX\}
   trie_op_size = 500;
@@ -1090,6 +1090,7 @@ BEGIN{8:}{21:}
   EQTB[2622].HH.B0 := 113;
   EQTB[2622].HH.RH := 0;{:1369}{$ENDIF}{:8}
 END;
+
 {57:}
 PROCEDURE PRINTLN;
 BEGIN
@@ -1115,17 +1116,17 @@ BEGIN
     ELSE WRITELN(WRITEFILE[SELECTOR])
   END;
 END;
-{:57}{58:}
-PROCEDURE PRINTCHAR(S:ASCIICODE);
+{:57}
 
-LABEL 10;
+{58:}
+PROCEDURE PRINTCHAR(S:ASCIICODE);
 BEGIN
   {if @<Character |s| is the current new-line character@> then}
   IF {244:}S=EQTB[5312].INT{:244}THEN
     IF SELECTOR<20 THEN
       BEGIN
         PRINTLN;
-        GOTO 10;
+        exit;
       END;
   CASE SELECTOR OF 
     19:
@@ -1160,7 +1161,7 @@ BEGIN
     16:;
     20:
         IF TALLY<TRICKCOUNT THEN TRICKBUF[TALLY MOD ERRORLINE] := S;
-    21:
+    21: {write to string pool}
         BEGIN
           IF POOLPTR<POOLSIZE THEN
             BEGIN
@@ -1171,10 +1172,8 @@ BEGIN
     ELSE WRITE(WRITEFILE[SELECTOR],XCHR[S])
   END;
   TALLY := TALLY+1;
-  10:
-END;{:58}
-
-
+END;
+{:58}
 
 {59:}
 procedure print_str(const s: string);
@@ -1311,6 +1310,20 @@ BEGIN
       ELSE PRINTCHAR(55+DIG[K]);
     END;
 END;
+
+PROCEDURE alt_PRINTTHEDIGS(K:EIGHTBITS);
+var ch: byte;
+BEGIN
+  WHILE K>0 DO
+    BEGIN
+      K := K-1;
+      ch := DIG[K];
+      IF ch>=10 THEN ch := ch + 7;
+      PRINTCHAR(ch+48);
+    END;
+END;
+
+
 {:64}{65:}
 PROCEDURE PRINTINT(N:Int32);
 
@@ -9375,7 +9388,7 @@ FUNCTION MAKENAMESTRI: STRNUMBER;
 VAR K: 1..FILENAMESIZE;
 BEGIN
   IF (POOLPTR+NAMELENGTH>POOLSIZE)OR(STRPTR=MAXSTRINGS)OR((POOLPTR-
-     STRSTART[STRPTR])>0)THEN MAKENAMESTRI := 63
+     STRSTART[STRPTR])>0)THEN MAKENAMESTRI := 63 {'?'}
   ELSE
     BEGIN
       FOR K:=1 TO
@@ -9539,7 +9552,7 @@ BEGIN
           IF AOPENIN(INPUTFILE[CURINPUT.INDEXFIELD])THEN GOTO 30;
         END;
       ENDFILEREADI;
-      PROMPTFILENA(787,791);
+      PROMPTFILENA(787,791); { $787='input file name', $791='.tex'}
     END;
   30: CURINPUT.NAMEFIELD := MAKENAMESTRI;
   IF JOBNAME=0 THEN
@@ -11084,7 +11097,7 @@ BEGIN
       IF JOBNAME=0 THEN OPENLOGFILE;
       PACKJOBNAME(794); {pack_job_name_str('.dvi');}
       WHILE NOT BOPENOUT(DVIFILE) DO
-        PROMPTFILENA(795,794); {$795='file name for output' $794='.dvi'}
+        PROMPTFILENA(795,794); { $795='file name for output' $794='.dvi'}
       OUTPUTFILENA := MAKENAMESTRI;
     END;
   IF TOTALPAGES=0 THEN
@@ -20054,6 +20067,10 @@ BEGIN
   PRINTINT(EQTB[5286].INT);
   PRINTCHAR(46);
   PRINTINT(EQTB[5285].INT);
+  {P2(36);}
+     {BUG: if this call results in one character (e.g.'7') or you replace
+           this PRINTINT by a PRINTCHAR, the respective character is printed
+           twice. }
   PRINTCHAR(46);
   PRINTINT(EQTB[5284].INT);
   PRINTCHAR(41);
@@ -21294,14 +21311,6 @@ END;
 
 {1303:}
 
-{FIXME: catch I/O error}
-function UndumpMemoryWord(var f: WORDFILE) : MEMORYWORD;
-var mw: MEMORYWORD;
-begin
-  read(f, mw);
-  UndumpMemoryWord := mw;
-end;
-
 procedure too_small(ParameterName: array of char);
 var i: Integer;
 begin
@@ -21310,111 +21319,78 @@ begin
   writeln(output);
 end;
 
-function undump(var f: WORDFILE;
-                LimitLow: Int32;
-                LimitHigh: Int32;
-                var Result: Int32) : boolean;
-var i: Int32;
+function UInt32LE(Buf: array of byte; Ofs: SizeUInt) : UInt32;
 begin
-  i := UndumpMemoryWord(f).INT;
-  if (i >= LimitLow) and (i <= LimitHigh) then begin
-    Result := i;
-    undump := true;
-  end else begin
-    undump := false;
-  end;
+  UInt32LE :=  UInt32(Buf[Ofs])           or (UInt32(Buf[Ofs+1]) shl 8) or
+              (UInt32(Buf[Ofs+2]) shl 16) or (UInt32(Buf[Ofs+3]) shl 24);
 end;
 
-function undump_size(var f: WORDFILE;
-                     LimitLow: Int32;
-                     LimitHigh: Int32;
-                     ParameterName: array of char;
-                     var Result: Int32) : boolean;
-var i: Int32;
+function BlockReadSuccess(var f: file; var Buf; Len: UInt32) : boolean;
 begin
-  i := UndumpMemoryWord(f).INT;
-  undump_size := false;
-  if i >= LimitLow then begin
-    if i <= LimitHigh then begin
-      Result := i;
-      undump_size := true;
-    end else begin
-      too_small(ParameterName);
-    end;
-  end;
+  {$I-}
+  blockread(f, Buf, Len);
+  BlockReadSuccess :=  IOResult = 0;
+  {$I+}
 end;
 
-procedure undump_four_ASCII(var f: WORDFILE;
-                            IndexInStrPool: Int32);
-var qqqq: FOURQUARTERS;
-begin
-  qqqq := UndumpMemoryWord(f).QQQQ;
-  STRPOOL[IndexInStrPool]   := qqqq.B0;
-  STRPOOL[IndexInStrPool+1] := qqqq.B1;
-  STRPOOL[IndexInStrPool+2] := qqqq.B2;
-  STRPOOL[IndexInStrPool+3] := qqqq.B3;
-end;
+function ReadFormatFile(var f: file): boolean;
+VAR
+  P,Q: UInt32;
 
-function ReadFormatFile(var f: WORDFILE): boolean;
-VAR J,K: Int32;
-  P,Q: HALFWORD;
-  X: Int32;
-  W: FOURQUARTERS;
+  i, j, u32 : UInt32;
+  Buf: array [0..91] of byte;
+  Next: UInt32;
+  mw : MEMORYWORD;
+
 BEGIN
   ReadFormatFile := false;
 
   {1308: @<Undump constants for consistency check@>}
-  X := UndumpMemoryWord(f).INT;
-  IF X<>69577846 THEN exit;
-  X := UndumpMemoryWord(f).INT;
-  IF X<>mem_bot THEN exit;
-  X := UndumpMemoryWord(f).INT;
-  IF X<>mem_top THEN exit;
-  X := UndumpMemoryWord(f).INT;
-  IF X<>eqtb_size THEN exit;
-  X := UndumpMemoryWord(f).INT;
-  IF X<>hash_prime THEN exit;
-  X := UndumpMemoryWord(f).INT;
-  IF X<>hyph_size THEN exit;
+  if not BlockReadSuccess(f, Buf, 32) then exit;
+  if (UInt32LE(Buf,  0) <> 69577846) or
+     (UInt32LE(Buf,  4) <> mem_bot) or
+     (UInt32LE(Buf,  8) <> mem_top) or
+     (UInt32LE(Buf, 12) <> eqtb_size) or
+     (UInt32LE(Buf, 16) <> hash_prime) or
+     (UInt32LE(Buf, 20) <> hyph_size) then exit;
   {:1308}
 
   {1310: @<Undump the string pool@>}
-  if not undump_size(f, 0, POOLSIZE, 'string pool size', X) then exit;
-  POOLPTR := X;
-  if not undump_size(f, 0, MAXSTRINGS, 'max strings', X) then exit;
-  STRPTR := X;
-  FOR K:=0 TO STRPTR DO BEGIN
-    if not undump(f, 0, POOLPTR, X) then exit;
-    STRSTART[K] := X;
-  END;
-  K := 0;
-  WHILE K+4<POOLPTR DO BEGIN
-    undump_four_ASCII(f, K);
-    K := K+4;
-  END;
-  {FIXME: avoid special treatment of last word}
-  K := POOLPTR-4;
-  undump_four_ASCII(f, K);
+  u32 := UInt32LE(Buf, 24);
+  if (u32 > pool_size) then too_small('string_pool_size');
+  POOLPTR := u32;
+  u32 := UInt32LE(Buf, 28);
+  if (u32 > max_strings) then too_small('max string');
+  STRPTR := u32;
   INITSTRPTR := STRPTR;
   INITPOOLPTR := POOLPTR;
+  if not BlockReadSuccess(f, STRPOOL, STRPTR*4+4) then exit;
+  for i := 0 to STRPTR do STRSTART[i] := UInt32LE(STRPOOL, 4*i);
+
+  j := (POOLPTR + 3) and (not 3);
+  if not BlockReadSuccess(f, STRPOOL, j) then exit;
+  {Special treatment of last word. FIXME}
+  for i := 0 to 3 do STRPOOL[POOLPTR-4+i] := STRPOOL[j-4+i];
   {:1310}
 
   {1312: @<Undump the dynamic memory@>}
-  if not undump(f, lo_mem_stat_max+1000, hi_mem_stat_min-1, X) then exit;
-  LOMEMMAX := X;
-  if not undump(f, lo_mem_stat_max+1, LOMEMMAX, X) then exit;
-  ROVER := X;
+  if not BlockReadSuccess(f, Buf, 8) then exit;
+  LOMEMMAX := UInt32LE(Buf, 0);
+  if (LOMEMMAX < lo_mem_stat_max+1000 ) or (LOMEMMAX >= hi_mem_stat_min) then exit;
+  ROVER := UInt32LE(Buf, 4);
+  if (ROVER < lo_mem_stat_max+1) or (ROVER > LOMEMMAX) then exit;
+
   P := mem_bot;
   Q := ROVER;
-  REPEAT
-    FOR K:=P TO Q+1 DO BEGIN
-      MEM[K] := UndumpMemoryWord(f);
-    END;
-    P := Q+MEM[Q].HH.LH;
-    IF (P>LOMEMMAX)OR((Q>=MEM[Q+1].HH.RH)AND(MEM[Q+1].HH.RH<>ROVER)) THEN exit;
-    Q := MEM[Q+1].HH.RH;
-  UNTIL Q=ROVER;
-  FOR K:=P TO LOMEMMAX DO MEM[K] := UndumpMemoryWord(f);
+  repeat
+    if not BlockReadSuccess(f, MEM[P], (Q-P+2)*4) then exit;
+    P := Q+MEM[Q].HH.LH;        {next p := q+nodesize(q)}
+    Next := MEM[Q+1].HH.RH;     {next q := rlink(q)}
+    if (P>LOMEMMAX) or ((Next<=Q) and (Next<>ROVER)) then exit;
+    Q := Next;
+  until Q=ROVER;
+
+  if not BlockReadSuccess(f, MEM[P], (LOMEMMAX-P+1)*4) then exit;
   IF MEMMIN<-2 THEN BEGIN
     P := MEM[ROVER+1].HH.LH;
     Q := MEMMIN+1;
@@ -21427,173 +21403,238 @@ BEGIN
     MEM[Q].HH.RH := 65535;
     MEM[Q].HH.LH := -0-Q;
   END;
-  if not undump(f, LOMEMMAX+1, hi_mem_stat_min, X) then exit;
-  HIMEMMIN := X;
-  if not undump(f, 0, mem_top, X) then exit;
-  AVAIL := X;
+
+  if not BlockReadSuccess(f, Buf, 8) then exit;
+  HIMEMMIN := UInt32LE(Buf, 0);
+  if (HIMEMMIN <= LOMEMMAX) or (HIMEMMIN > hi_mem_stat_min) then exit;
+  AVAIL := UInt32LE(Buf, 4);
+  if AVAIL > mem_top then exit;
   MEMEND := mem_top;
-  FOR K:=HIMEMMIN TO MEMEND DO BEGIN
-    MEM[K] := UndumpMemoryWord(f);
-  END;
-  VARUSED := UndumpMemoryWord(f).INT;
-  DYNUSED := UndumpMemoryWord(f).INT;
+
+  if not BlockReadSuccess(f, MEM[HIMEMMIN], (MEMEND-HIMEMMIN+1)*4) then exit;
+  if not BlockReadSuccess(f, Buf, 8) then exit;
+  VARUSED := UInt32LE(Buf, 0);
+  DYNUSED := UInt32LE(Buf, 4);
   {:1312}
 
   {1314: @<Undump the table of equivalents@>}
   {1317: @<Undump regions 1 to 6 of |eqtb|@>}
-  K := active_base;
+  i := active_base;
   REPEAT
-    X := UndumpMemoryWord(f).INT;
-    IF (X<1)OR(K+X>eqtb_size+1)THEN exit;
-    FOR J:=K TO K+X-1 DO BEGIN
-      EQTB[J] := UndumpMemoryWord(f);
-    END;
-    K := K+X;
-    X := UndumpMemoryWord(f).INT;
-    IF (X<0)OR(K+X>eqtb_size+1)THEN exit;
-    FOR J:=K TO K+X-1 DO EQTB[J] := EQTB[K-1];
-    K := K+X;
-  UNTIL K>eqtb_size;
+    if not BlockReadSuccess(f, Buf, 4) then exit;
+    u32 := UInt32LE(Buf, 0);
+    if (u32<1) or (i+u32 > eqtb_size+1) then exit;
+
+    if not BlockReadSuccess(f, EQTB[i], u32*4) then exit;
+    i := i + u32;
+
+    if not BlockReadSuccess(f, Buf, 4) then exit;
+    u32 := UInt32LE(Buf, 0);
+    if i+u32 > eqtb_size+1 then exit;
+
+    for j := i to i+u32-1 do EQTB[j] := EQTB[i-1];
+    i := i + u32;
+  UNTIL i > eqtb_size;
   {:1317}
 
-  if not undump(f, hash_base, frozen_control_sequence, X) then exit;
-  PARLOC := X;
-  PARTOKEN := cs_token_flag+PARLOC;
-  if not undump(f, hash_base, frozen_control_sequence, X) then exit;
-  WRITELOC := X;
+  if not BlockReadSuccess(f, Buf, 8) then exit;
+  PARLOC := UInt32LE(Buf, 0);
+  if (PARLOC<hash_base) or (PARLOC>frozen_control_sequence) then exit;
+  WRITELOC := UInt32LE(Buf, 4);
+  if (WRITELOC<hash_base) or (WRITELOC>frozen_control_sequence) then exit;
+  PARTOKEN := PARLOC + cs_token_flag;
 
   {1319: @<Undump the hash table@>}
-  if not undump(f, hash_base, frozen_control_sequence, X) then exit;
-  HASHUSED := X;
-  P := hash_base-1;
-  REPEAT
-    if not undump(f, P+1, HASHUSED, X) then exit;
-    P := X;
-    HASH[P] := UndumpMemoryWord(f).HH;
-  UNTIL P=HASHUSED;
-  FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
-    HASH[P] := UndumpMemoryWord(f).HH;
-  END;
-  CSCOUNT := UndumpMemoryWord(f).INT;
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  HASHUSED := UInt32LE(Buf, 0);
+  if (HASHUSED<hash_base) or (HASHUSED>frozen_control_sequence) then exit;
+  i := hash_base - 1;
+  repeat
+    if not BlockReadSuccess(f, Buf, 8) then exit;
+    j := UInt32LE(Buf, 0);
+    if (j<=i) or (j>HASHUSED) then exit;
+    i := j;
+    u32 := UInt32LE(Buf, 4);
+    mw.INT := u32;
+    HASH[i] := mw.HH;
+  until i=HASHUSED;
+  {FIXME: combine to only one block read}
+  for i := HASHUSED+1 to undefined_control_sequence-1 do begin
+    if not BlockReadSuccess(f, Buf, 4) then exit;
+    u32 := UInt32LE(Buf, 0);
+    mw.INT := u32;
+    HASH[i] := mw.HH;
+  end;
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  CSCOUNT := UInt32LE(Buf, 4);
   {:1319}
   {:1314}
 
   {1321: @<Undump the font information@>}
-  if not undump_size(f, 7, FONTMEMSIZE, 'font mem size', X) then exit;
-  FMEMPTR := X;
-  FOR K:=0 TO FMEMPTR-1 DO FONTINFO[K] := UndumpMemoryWord(f);
-  if not undump_size(f, font_base, FONTMAX, 'font max', X) then exit;
-  FONTPTR := X;
-  FOR K:=0 TO FONTPTR DO BEGIN
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  u32 := UInt32LE(Buf, 0);
+  if (u32<7) then exit;
+  if (u32>FONTMEMSIZE) then too_small('font mem size');
+  FMEMPTR := u32;
+
+  if not BlockReadSuccess(f, FONTINFO, FMEMPTR*4) then exit;
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  u32 := UInt32LE(Buf, 0);
+  if (u32<font_base) then exit;
+  if (u32>FONTMAX) then too_small('font max');
+  FONTPTR := u32;
+
+  for i := 0 to FONTPTR do begin
     {1323: @<Undump the array info for internal font number |k|@>}
-    FONTCHECK[K] := UndumpMemoryWord(f).QQQQ;
-    FONTSIZE[K] := UndumpMemoryWord(f).INT;
-    FONTDSIZE[K] := UndumpMemoryWord(f).INT;
-    if not undump(f, min_halfword, max_halfword, X) then exit;
-    FONTPARAMS[K] := X;
-    HYPHENCHAR[K] := UndumpMemoryWord(f).INT;
-    SKEWCHAR[K] := UndumpMemoryWord(f).INT;
-    if not undump(f, 0, STRPTR, X) then exit;
-    FONTNAME[K] := X;
-    if not undump(f, 0, STRPTR, X) then exit;
-    FONTAREA[K] := X;
-    if not undump(f, 0, 255, X) then exit;
-    FONTBC[K] := X;
-    if not undump(f, 0, 255, X) then exit;
-    FONTEC[K] := X;
-    CHARBASE[K] := UndumpMemoryWord(f).INT;
-    WIDTHBASE[K] := UndumpMemoryWord(f).INT;
-    HEIGHTBASE[K] := UndumpMemoryWord(f).INT;
-    DEPTHBASE[K] := UndumpMemoryWord(f).INT;
-    ITALICBASE[K] := UndumpMemoryWord(f).INT;
-    LIGKERNBASE[K] := UndumpMemoryWord(f).INT;
-    KERNBASE[K] := UndumpMemoryWord(f).INT;
-    EXTENBASE[K] := UndumpMemoryWord(f).INT;
-    PARAMBASE[K] := UndumpMemoryWord(f).INT;
-    if not undump(f, min_halfword, LOMEMMAX, X) then exit;
-    FONTGLUE[K] := X;
-    if not undump(f, 0, FMEMPTR-1, X) then exit;
-    BCHARLABEL[K] := X;
-    if not undump(f, min_quarterword, non_char, X) then exit;
-    FONTBCHAR[K] := X;
-    if not undump(f, min_quarterword, non_char, X) then exit;
-    FONTFALSEBCH[K] := X;
+    if not BlockReadSuccess(f, Buf, 92) then exit;
+    mw.INT         := UInt32LE(Buf, 0);
+    FONTCHECK[i]   := mw.QQQQ;
+    FONTSIZE[i]    := UInt32LE(Buf, 4);
+    FONTDSIZE[i]   := UInt32LE(Buf, 8);
+    u32            := UInt32LE(Buf, 12);
+    if u32>max_halfword then exit;
+    FONTPARAMS[i]  := u32;
+    HYPHENCHAR[i]  := UInt32LE(Buf, 16);
+    SKEWCHAR[i]    := UInt32LE(Buf, 20);
+    u32            := UInt32LE(Buf, 24);
+    if u32>STRPTR then exit;
+    FONTNAME[i]    := u32;
+    u32            := UInt32LE(Buf, 28);
+    if u32>STRPTR then exit;
+    FONTAREA[i]    := u32;
+    u32            := UInt32LE(Buf, 32);
+    if u32>255 then exit;
+    FONTBC[i]      := u32;
+    u32            := UInt32LE(Buf, 36);
+    if u32>255 then exit;
+    FONTEC[i]      := u32;
+    CHARBASE[i]    := UInt32LE(Buf, 40);
+    WIDTHBASE[i]   := UInt32LE(Buf, 44);
+    HEIGHTBASE[i]  := UInt32LE(Buf, 48);
+    DEPTHBASE[i]   := UInt32LE(Buf, 52);
+    ITALICBASE[i]  := UInt32LE(Buf, 56);
+    LIGKERNBASE[i] := UInt32LE(Buf, 60);
+    KERNBASE[i]    := UInt32LE(Buf, 64);
+    EXTENBASE[i]   := UInt32LE(Buf, 68);
+    PARAMBASE[i]   := UInt32LE(Buf, 72);
+    u32            := UInt32LE(Buf, 76);
+    if u32>LOMEMMAX then exit;
+    FONTGLUE[i]    := u32;
+    u32            := UInt32LE(Buf, 80);
+    if u32>=FMEMPTR then exit;
+    BCHARLABEL[i]  := u32;
+    u32            := UInt32LE(Buf, 84);
+    if u32>non_char then exit;
+    FONTBCHAR[i]   := u32;
+    u32            := UInt32LE(Buf, 88);
+    if u32>non_char then exit;
+    FONTFALSEBCH[i]:= u32;
     {:1323}
-  END;
+  end;
   {:1321}
 
   {1325: @<Undump the hyphenation tables@>}
-  if not undump(f, 0, hyph_size, X) then exit;
-  HYPHCOUNT := X;
-  FOR K:=1 TO HYPHCOUNT DO BEGIN
-    if not undump(f, 0, hyph_size, J) then exit;
-    if not undump(f, 0, STRPTR, X) then exit;
-    HYPHWORD[J] := X;
-    if not undump(f, min_halfword, max_halfword, X) then exit;
-    HYPHLIST[J] := X;
-  END;
-  if not undump_size(f, 0, TRIESIZE, 'trie size', J) then exit;
-  {$IFDEF INITEX}
-  TRIEMAX := J;
-  {$ENDIF}
-  FOR K:=0 TO J DO TRIE[K] := UndumpMemoryWord(f).HH;
-  if not undump_size(f, 0, TRIEOPSIZE, 'trie op size', J) then exit;
-  {$IFDEF INITEX}
-  TRIEOPPTR := J;
-  {$ENDIF}
-  FOR K:=1 TO J DO BEGIN
-    if not undump(f, 0, 63, X) then exit;
-    HYFDISTANCE[K] := X;
-    if not undump(f, 0, 63, X) then exit;
-    HYFNUM[K] := X;
-    if not undump(f, min_quarterword, max_quarterword, X) then exit;
-    HYFNEXT[K] := X;
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  u32 := UInt32LE(Buf, 0);
+  if u32>hyph_size then exit;
+  HYPHCOUNT := u32;
+
+  for i := 1 to HYPHCOUNT do begin
+    if not BlockReadSuccess(f, Buf, 12) then exit;
+    j := UInt32LE(Buf, 0);
+    u32 := UInt32LE(Buf, 4);
+    if (j>hyph_size) or (u32>STRPTR) then exit;
+    HYPHWORD[j] := u32;
+    u32 := UInt32LE(Buf, 8);
+    if u32>max_halfword then exit;
+    HYPHLIST[j] := u32;
   END;
 
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  u32 := UInt32LE(Buf, 0);
+  if u32>TRIESIZE then too_small('trie size');
   {$IFDEF INITEX}
-  FOR K:=0 TO 255 DO TRIEUSED[K] := min_quarterword;
+  TRIEMAX := u32;
   {$ENDIF}
-  K := 256;
-  WHILE J>0 DO BEGIN
-    if not undump(f, 0, K-1, K) then exit;
-    if not undump(f, 1, J, X) then exit;
-    {$IFDEF INITEX}
-    TRIEUSED[K] := X;
-    {$ENDIF}
-    J := J-X;
-    OPSTART[K] := J;
-  END;
+  {FIXME: read in one block and pack halfwords}
+  for i := 0 to u32 do begin
+    if not BlockReadSuccess(f, Buf, 4) then exit;
+    mw.INT := UInt32LE(Buf, 0);
+    TRIE[i] := mw.HH;
+  end;
+
+  if not BlockReadSuccess(f, Buf, 4) then exit;
+  j := UInt32LE(Buf, 0);
+  if j>TRIEOPSIZE then too_small('trie op size');
   {$IFDEF INITEX}
+  TRIEOPPTR := j;
+  {$ENDIF}
+  for i := 1 to j do begin
+    if not BlockReadSuccess(f, Buf, 12) then exit;
+    u32 := UInt32LE(Buf, 0);
+    if u32>63 then exit;
+    HYFDISTANCE[i] := u32;
+    u32 := UInt32LE(Buf, 4);
+    if u32>63 then exit;
+    HYFNUM[i] := u32;
+    u32 := UInt32LE(Buf, 8);
+    if u32>max_quarterword then exit;
+    HYFNEXT[i] := u32;
+  end;
+
+  {$IFDEF INITEX}
+  for i := 0 to 255 do TRIEUSED[i] := 0;
   TRIENOTREADY := FALSE;
   {$ENDIF}
+  i := 256;
+  while j>0 do begin {j=TRIEOPPTR}
+    if not BlockReadSuccess(f, Buf, 8) then exit;
+    u32 := UInt32LE(Buf, 0);
+    if u32>=i then exit;
+    i := u32;
+    u32 := UInt32LE(Buf, 4);
+    if (u32<1) or (u32>j) then exit;
+    {$IFDEF INITEX}
+    TRIEUSED[i] := u32;
+    {$ENDIF}
+    j := j - u32;
+    OPSTART[i] := j;
+  END;
   {:1325}
 
   {1327: @<Undump a couple more things and the closing check word@>}
-  if not undump(f, batch_mode, error_stop_mode, X) then exit;
-  INTERACTION := X;
-  if not undump(f, 0, STRPTR, X) then exit;
-  FORMATIDENT := X;
-  X := UndumpMemoryWord(f).INT;
-  IF (X<>69069)THEN exit;
+  if not BlockReadSuccess(f, Buf, 12) then exit;
+  u32 := UInt32LE(Buf, 0);
+  if (u32<batch_mode) or (u32>error_stop_mode) then exit;
+  INTERACTION := u32;
+  u32 := UInt32LE(Buf, 4);
+  if u32>STRPTR then exit;
+  FORMATIDENT := u32;
+  if UInt32LE(Buf, 8)<>69069 then exit;
   {:1327}
 
   ReadFormatFile := true;
 END;
 {:1303}
 
+
+
 const
   FormatFileDirectory = 'TeXformats/';
   FormatFileFilename  = 'plain';
   FormatFileExtension = '.fmt';
 
-function OpenFormatFile(var f: WORDFILE; Filename: string) : boolean;
+type
+  MyFile = file;
+
+function OpenFormatFile(var f: MyFile; Filename: string) : boolean;
 BEGIN
   assign(f, Filename);
-  reset(f);
+  reset(f, 1);
   OpenFormatFile := IOResult=0;
 END;
 
-procedure FindFormatFile(var f: WORDFILE);
+procedure FindFormatFile(var f: MyFile);
 var
   i, j: 0..BUFSIZE;
   s: string;
@@ -21622,7 +21663,7 @@ END;
 
 procedure LoadFormatFile;
 var
-  f: WORDFILE;
+  f: MyFile;
 begin
   FindFormatFile(f);
   if not ReadFormatFile(f) then begin;
