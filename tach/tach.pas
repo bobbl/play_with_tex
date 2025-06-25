@@ -9497,13 +9497,12 @@ BEGIN
       NAMEOFJOBARE := '';
       JOBNAME := 796; {'texput'}
     END;
+  SELECTOR := 17;
+
   PACKJOBNAME(797); {pack_job_name_str('.log');}
-  WHILE NOT AOPENOUT(LOGFILE) DO{535:}
-    BEGIN
-      SELECTOR := 17;
-      PROMPTFILENA(799,797); {'transcript file name', '.log'}
-    END{:535};
+  WHILE NOT AOPENOUT(LOGFILE) DO PROMPTFILENA(799,797); {'transcript file name', '.log'}
   LOGNAME := MAKENAMESTRI;
+
   SELECTOR := 18;
   LOGOPENED := TRUE;
 {536:}
@@ -11095,10 +11094,11 @@ BEGIN
   IF OUTPUTFILENA=0 THEN
     BEGIN
       IF JOBNAME=0 THEN OPENLOGFILE;
+
       PACKJOBNAME(794); {pack_job_name_str('.dvi');}
-      WHILE NOT BOPENOUT(DVIFILE) DO
-        PROMPTFILENA(795,794); { $795='file name for output' $794='.dvi'}
+      WHILE NOT BOPENOUT(DVIFILE) DO PROMPTFILENA(795,794); { $795='file name for output' $794='.dvi'}
       OUTPUTFILENA := MAKENAMESTRI;
+
     END;
   IF TOTALPAGES=0 THEN
     BEGIN
@@ -20016,16 +20016,32 @@ BEGIN
 END;
 {:1293}
 
-procedure dump_int(var f: WORDFILE; i: Int32);
-var mw: MEMORYWORD;
-begin
-  mw.INT := i;
-  write(f, mw);
-end;
-
-
 {1302:}
 {$IFDEF INITEX}
+
+FUNCTION open4out(VAR F:file): BOOLEAN;
+BEGIN
+  ASSIGN(F,NAMEOFFILE);
+  REWRITE(F, 1);
+  open4out := IORESULT=0;
+END;{$I+}
+
+procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
+begin
+  Buf[Ofs] := Val;
+  Buf[Ofs+1] := Val shr 8;
+  Buf[Ofs+2] := Val shr 16;
+  Buf[Ofs+3] := Val shr 24;
+end;
+
+function BlockWriteSuccess(var f: file; var Buf; Len: UInt32) : boolean;
+begin
+  {$I-}
+  blockwrite(f, Buf, Len);
+  BlockWriteSuccess :=  IOResult = 0;
+  {$I+}
+end;
+
 PROCEDURE StoreFormatFile;
 LABEL 41,42,31,32;
 VAR J,K,L: Int32;
@@ -20033,7 +20049,9 @@ VAR J,K,L: Int32;
   X: Int32;
   W: FOURQUARTERS;
   mw: MEMORYWORD;
-  f: WORDFILE;
+
+  f: file;
+  Buf: array[0..91] of byte;
 BEGIN
   {1304:}
   IF SAVEPTR<>0 THEN
@@ -20067,10 +20085,6 @@ BEGIN
   PRINTINT(EQTB[5286].INT);
   PRINTCHAR(46);
   PRINTINT(EQTB[5285].INT);
-  {P2(36);}
-     {BUG: if this call results in one character (e.g.'7') or you replace
-           this PRINTINT by a PRINTCHAR, the respective character is printed
-           twice. }
   PRINTCHAR(46);
   PRINTINT(EQTB[5284].INT);
   PRINTCHAR(41);
@@ -20080,12 +20094,13 @@ BEGIN
     IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
   END;
   FORMATIDENT := MAKESTRING;
+
   PACKJOBNAME(786); {pack_job_name_str('.fmt');}
-  WHILE NOT WOPENOUT(f) DO
-    PROMPTFILENA(1273,786);
+  WHILE NOT open4out(f) DO PROMPTFILENA(1273,786);
+
   print_nl_str('Beginning to dump on file ');
   SLOWPRINT(MAKENAMESTRI);
-  BEGIN
+  BEGIN {remove string from pool}
     STRPTR := STRPTR-1;
     POOLPTR := STRSTART[STRPTR];
   END;
@@ -20094,39 +20109,28 @@ BEGIN
   {:1328}
 
   {1307: @<Dump constants for consistency check@>}
-  dump_int(f, 69577846);
-  dump_int(f, mem_bot);
-  dump_int(f, mem_top);
-  dump_int(f, eqtb_size);
-  dump_int(f, hash_prime);
-  dump_int(f, hyph_size);
+  SetUInt32LE(Buf, 0, 69577846);
+  SetUInt32LE(Buf, 4, mem_bot);
+  SetUInt32LE(Buf, 8, mem_top);
+  SetUInt32LE(Buf, 12, eqtb_size);
+  SetUInt32LE(Buf, 16, hash_prime);
+  SetUInt32LE(Buf, 20, hyph_size);
   {:1307}
 
   {1309: @<Dump the string pool@>}
-  dump_int(f, POOLPTR);
-  dump_int(f, STRPTR);
+  SetUInt32LE(Buf, 24, POOLPTR);
+  SetUInt32LE(Buf, 28, STRPTR);
+  blockwrite(f, Buf, 32);
 
-  FOR K:=0 TO STRPTR DO dump_int(f, STRSTART[K]);
-  K := 0;
-  WHILE K+4<POOLPTR DO BEGIN
+  {FIXME: pack in 16 bit and use one blockwrite}
+  for K := 0 to STRPTR do begin
+    SetUInt32LE(Buf, 0, STRSTART[K]);
+    blockwrite(f, Buf, 4);
+  end;
 
-      W.B0 := STRPOOL[K]+0;
-      W.B1 := STRPOOL[K+1]+0;
-      W.B2 := STRPOOL[K+2]+0;
-      W.B3 := STRPOOL[K+3]+0;
-      mw.QQQQ := W;
-      write(f, mw);
-
-      K := K+4;
-  END;
-  K := POOLPTR-4;
-
-  W.B0 := STRPOOL[K]+0;
-  W.B1 := STRPOOL[K+1]+0;
-  W.B2 := STRPOOL[K+2]+0;
-  W.B3 := STRPOOL[K+3]+0;
-  mw.QQQQ := W;
-  write(f, mw);
+  blockwrite(f, STRPOOL, POOLPTR and not 3);
+  {Special treatment of last word. FIXME}
+  if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
 
   PRINTLN;
   PRINTINT(STRPTR);
@@ -20135,15 +20139,17 @@ BEGIN
   {:1309}
 
   {1311: @<Dump the dynamic memory@>}
+
   SORTAVAIL;
   VARUSED := 0;
-  dump_int(f, LOMEMMAX);
-  dump_int(f, ROVER);
+  SetUInt32LE(Buf, 0, LOMEMMAX);
+  SetUInt32LE(Buf, 4, ROVER);
+  blockwrite(f, Buf, 8);
   P := 0;
   Q := ROVER;
   X := 0;
   REPEAT
-    FOR K:=P TO Q+1 DO write(f, MEM[K]);
+    blockwrite(f, MEM[P], (Q-P+2)*4);
     X := X+Q+2-P;
     VARUSED := VARUSED+Q-P;
     P := Q+MEM[Q].HH.LH;
@@ -20151,19 +20157,23 @@ BEGIN
   UNTIL Q=ROVER;
   VARUSED := VARUSED+LOMEMMAX-P;
   DYNUSED := MEMEND+1-HIMEMMIN;
-  FOR K:=P TO LOMEMMAX DO write(f, MEM[K]);
+  blockwrite(f, MEM[P], (LOMEMMAX-P+1)*4);
   X := X+LOMEMMAX+1-P;
-  dump_int(f, HIMEMMIN);
-  dump_int(f, AVAIL);
-  FOR K:=HIMEMMIN TO MEMEND DO write(f, MEM[K]);
+
+  SetUInt32LE(Buf, 0, HIMEMMIN);
+  SetUInt32LE(Buf, 4, AVAIL);
+  blockwrite(f, Buf, 8);
+  blockwrite(f, MEM[HIMEMMIN], (MEMEND-HIMEMMIN+1)*4);
   X := X+MEMEND+1-HIMEMMIN;
   P := AVAIL;
   WHILE P<>0 DO BEGIN
       DYNUSED := DYNUSED-1;
       P := MEM[P].HH.RH;
   END;
-  dump_int(f, VARUSED);
-  dump_int(f, DYNUSED);
+
+  SetUInt32LE(Buf, 0, VARUSED);
+  SetUInt32LE(Buf, 4, DYNUSED);
+  blockwrite(f, Buf, 8);
   PRINTLN;
   PRINTINT(X);
   print_str(' memory locations dumped; current usage is ');
@@ -20185,7 +20195,8 @@ BEGIN
       END;
     L := int_base;
     GOTO 31;
-    41: J := J+1;
+41:
+    J := J+1;
     L := J;
     WHILE J<int_base-1 DO
       BEGIN
@@ -20193,13 +20204,13 @@ BEGIN
            <>EQTB[J+1].HH.B0)OR(EQTB[J].HH.B1<>EQTB[J+1].HH.B1)THEN GOTO 31;
         J := J+1;
       END;
-    31: dump_int(f, L-K);
-    WHILE K<L DO BEGIN
-        write(f, EQTB[K]);
-        K := K+1;
-    END;
+31:
+    SetUInt32LE(Buf, 0, L-K);
+    blockwrite(f, Buf, 4);
+    blockwrite(f, EQTB[K], (L-K)*4);
     K := J+1;
-    dump_int(f, K-L);
+    SetUInt32LE(Buf, 0, K-L);
+    blockwrite(f, Buf, 4);
   UNTIL K=int_base;
   {:1315}
 
@@ -20213,43 +20224,46 @@ BEGIN
       END;
     L := eqtb_size+1;
     GOTO 32;
-    42: J := J+1;
+42:
+    J := J+1;
     L := J;
     WHILE J<eqtb_size DO
       BEGIN
         IF EQTB[J].INT<>EQTB[J+1].INT THEN GOTO 32;
         J := J+1;
       END;
-    32:
-    dump_int(f, L-K);
-    WHILE K<L DO BEGIN
-      write(f, EQTB[K]);
-      K := K+1;
-    END;
+32:
+    SetUInt32LE(Buf, 0, L-K);
+    blockwrite(f, Buf, 4);
+    blockwrite(f, EQTB[K], (L-K)*4);
     K := J+1;
-    dump_int(f, K-L);
+    SetUInt32LE(Buf, 0, K-L);
+    blockwrite(f, Buf, 4);
   UNTIL K>eqtb_size;
   {:1316}
 
-  dump_int(f, PARLOC);
-  dump_int(f, WRITELOC);
+  SetUInt32LE(Buf, 0, PARLOC);
+  SetUInt32LE(Buf, 4, WRITELOC);
 
   {1318: @<Dump the hash table@>}
-  dump_int(f, HASHUSED);
+  SetUInt32LE(Buf, 8, HASHUSED);
+  blockwrite(f, Buf, 12);
   CSCOUNT := frozen_control_sequence-1-HASHUSED;
   FOR P:=hash_base TO HASHUSED DO BEGIN
     IF HASH[P].RH<>0 THEN BEGIN
-      dump_int(f, P);
-      mw.hh := HASH[P];
-      write(f, mw);
+      SetUInt32LE(Buf, 0, P);
+      mw.HH := HASH[P];
+      SetUInt32LE(Buf, 4, mw.INT);
+      blockwrite(f, Buf, 8);
       CSCOUNT := CSCOUNT+1;
     END;
   END;
   FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
     mw.HH := HASH[P];
-    write(f, mw);
+    SetUInt32LE(Buf, 0, mw.INT);
+    blockwrite(f, Buf, 4);
   END;
-  dump_int(f, CSCOUNT);
+  SetUInt32LE(Buf, 0, CSCOUNT);
   PRINTLN;
   PRINTINT(CSCOUNT);
   print_str(' multiletter control sequences');
@@ -20257,35 +20271,38 @@ BEGIN
   {:1313}
 
   {1320:}
-  dump_int(f, FMEMPTR);
-  FOR K:=0 TO FMEMPTR-1 DO write(f, FONTINFO[K]);
-  dump_int(f, FONTPTR);
+  SetUInt32LE(Buf, 4, FMEMPTR);
+  blockwrite(f, Buf, 8);
+  blockwrite(f, FONTINFO, FMEMPTR*4);
+  SetUInt32LE(Buf, 0, FONTPTR);
+  blockwrite(f, Buf, 4);
   FOR K:=0 TO FONTPTR DO BEGIN
     {1322:}
     mw.QQQQ := FONTCHECK[K];
-    write(f, mw);
-    dump_int(f, FONTSIZE[K]);
-    dump_int(f, FONTDSIZE[K]);
-    dump_int(f, FONTPARAMS[K]);
-    dump_int(f, HYPHENCHAR[K]);
-    dump_int(f, SKEWCHAR[K]);
-    dump_int(f, FONTNAME[K]);
-    dump_int(f, FONTAREA[K]);
-    dump_int(f, FONTBC[K]);
-    dump_int(f, FONTEC[K]);
-    dump_int(f, CHARBASE[K]);
-    dump_int(f, WIDTHBASE[K]);
-    dump_int(f, HEIGHTBASE[K]);
-    dump_int(f, DEPTHBASE[K]);
-    dump_int(f, ITALICBASE[K]);
-    dump_int(f, LIGKERNBASE[K]);
-    dump_int(f, KERNBASE[K]);
-    dump_int(f, EXTENBASE[K]);
-    dump_int(f, PARAMBASE[K]);
-    dump_int(f, FONTGLUE[K]);
-    dump_int(f, BCHARLABEL[K]);
-    dump_int(f, FONTBCHAR[K]);
-    dump_int(f, FONTFALSEBCH[K]);
+    SetUInt32LE(Buf, 0, mw.INT);
+    SetUInt32LE(Buf, 4, FONTSIZE[K]);
+    SetUInt32LE(Buf, 8, FONTDSIZE[K]);
+    SetUInt32LE(Buf, 12, FONTPARAMS[K]);
+    SetUInt32LE(Buf, 16, HYPHENCHAR[K]);
+    SetUInt32LE(Buf, 20, SKEWCHAR[K]);
+    SetUInt32LE(Buf, 24, FONTNAME[K]);
+    SetUInt32LE(Buf, 28, FONTAREA[K]);
+    SetUInt32LE(Buf, 32, FONTBC[K]);
+    SetUInt32LE(Buf, 36, FONTEC[K]);
+    SetUInt32LE(Buf, 40, CHARBASE[K]);
+    SetUInt32LE(Buf, 44, WIDTHBASE[K]);
+    SetUInt32LE(Buf, 48, HEIGHTBASE[K]);
+    SetUInt32LE(Buf, 52, DEPTHBASE[K]);
+    SetUInt32LE(Buf, 56, ITALICBASE[K]);
+    SetUInt32LE(Buf, 60, LIGKERNBASE[K]);
+    SetUInt32LE(Buf, 64, KERNBASE[K]);
+    SetUInt32LE(Buf, 68, EXTENBASE[K]);
+    SetUInt32LE(Buf, 72, PARAMBASE[K]);
+    SetUInt32LE(Buf, 76, FONTGLUE[K]);
+    SetUInt32LE(Buf, 80, BCHARLABEL[K]);
+    SetUInt32LE(Buf, 84, FONTBCHAR[K]);
+    SetUInt32LE(Buf, 88, FONTFALSEBCH[K]);
+    blockwrite(f, Buf, 92);
     print_nl_str('\font');
     PRINTESC(HASH[2624+K].RH);
     PRINTCHAR(61);
@@ -20305,13 +20322,17 @@ BEGIN
   IF FONTPTR<>1 THEN PRINTCHAR(115);
   {:1320}
 
-  {1324:}
-  dump_int(f, HYPHCOUNT);
-  FOR K:=0 TO 307 DO BEGIN
+  {1324: @<Dump the hyphenation tables@>}
+
+  SetUInt32LE(Buf, 0, HYPHCOUNT);
+  blockwrite(f, Buf, 4);
+  FOR K:=0 TO hyph_size DO BEGIN
+    {possible BUG: why not HYPHCOUNT and no check for 0}
     IF HYPHWORD[K]<>0 THEN BEGIN
-      dump_int(f, K);
-      dump_int(f, HYPHWORD[K]);
-      dump_int(f, HYPHLIST[K]);
+      SetUInt32LE(Buf, 0, K);
+      SetUInt32LE(Buf, 4, HYPHWORD[K]);
+      SetUInt32LE(Buf, 8, HYPHLIST[K]);
+      blockwrite(f, Buf, 12);
     END;
   END;
   PRINTLN;
@@ -20319,17 +20340,23 @@ BEGIN
   print_str(' hyphenation exception');
   IF HYPHCOUNT<>1 THEN PRINTCHAR(115);
   IF TRIENOTREADY THEN INITTRIE;
-  dump_int(f, TRIEMAX);
+
+  SetUInt32LE(Buf, 0, TRIEMAX);
+  blockwrite(f, Buf, 4);
   FOR K:=0 TO TRIEMAX DO BEGIN
     mw.HH := TRIE[K];
-    write(f, mw);
+    SetUInt32LE(Buf, 0, mw.INT);
+    blockwrite(f, Buf, 4);
   END;
-  dump_int(f, TRIEOPPTR);
+  SetUInt32LE(Buf, 0, TRIEOPPTR);
+  blockwrite(f, Buf, 4);
   FOR K:=1 TO TRIEOPPTR DO BEGIN
-    dump_int(f, HYFDISTANCE[K]);
-    dump_int(f, HYFNUM[K]);
-    dump_int(f, HYFNEXT[K]);
+    SetUInt32LE(Buf, 0, HYFDISTANCE[K]);
+    SetUInt32LE(Buf, 4, HYFNUM[K]);
+    SetUInt32LE(Buf, 8, HYFNEXT[K]);
+    blockwrite(f, Buf, 12);
   END;
+
   print_nl_str('Hyphenation trie of length ');
   PRINTINT(TRIEMAX);
   print_str(' has ');
@@ -20344,21 +20371,25 @@ BEGIN
       PRINTINT(TRIEUSED[K]);
       print_str(' for language ');
       PRINTINT(K);
-      dump_int(f, K);
-      dump_int(f, TRIEUSED[K]);
+      SetUInt32LE(Buf, 0, K);
+      SetUInt32LE(Buf, 4, TRIEUSED[K]);
+      blockwrite(f, Buf, 8);
     END;
   END;
   {:1324}
 
   {1326:}
-  dump_int(f, INTERACTION);
-  dump_int(f, FORMATIDENT);
-  dump_int(f, 69069);
+  SetUInt32LE(Buf, 0, INTERACTION);
+  SetUInt32LE(Buf, 4, FORMATIDENT);
+  SetUInt32LE(Buf, 8, 69069);
+  blockwrite(f, Buf, 12);
   EQTB[5294].INT := 0;
   {:1326}
 
   close(f)
 END;
+
+
 {$ENDIF}
 {:1302}
 
