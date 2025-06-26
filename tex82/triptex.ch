@@ -51,6 +51,39 @@ SPDX-License-Identifier: 0BSD
 @d othercases == else {default for cases not listed explicitly}
 @z
 
+
+
+
+% modification for TRIP
+@x
+@!mem_max=30000; {greatest index in \TeX's internal |mem| array;
+@y
+@!mem_max=3000; {greatest index in \TeX's internal |mem| array;
+@z
+
+% modification for TRIP
+@x
+@!mem_min=0; {smallest index in \TeX's internal |mem| array;
+@y
+@!mem_min=1; {smallest index in \TeX's internal |mem| array;
+@z
+
+% modification for TRIP
+@x
+@!error_line=72; {width of context lines on terminal error messages}
+@!half_error_line=42; {width of first lines of contexts in terminal
+  error messages; should be between 30 and |error_line-15|}
+@!max_print_line=79; {width of longest text lines output; should be at least 60}
+@y
+@!error_line=64; {width of context lines on terminal error messages}
+@!half_error_line=32; {width of first lines of contexts in terminal
+  error messages; should be between 30 and |error_line-15|}
+@!max_print_line=72; {width of longest text lines output; should be at least 60}
+@z
+
+
+
+
 @x
 @!file_name_size=40; {file names shouldn't be longer than this}
 @!pool_name='TeXformats:TEX.POOL                     ';
@@ -58,6 +91,27 @@ SPDX-License-Identifier: 0BSD
 @!file_name_size=80; {file names shouldn't be longer than this}
 @!pool_name='TeXformats/tex.pool';
 @z
+
+
+
+
+% modification for TRIP
+@x
+@d mem_bot=0 {smallest index in the |mem| array dumped by \.{INITEX};
+  must not be less than |mem_min|}
+@d mem_top==30000 {largest index in the |mem| array dumped by \.{INITEX};
+  must be substantially larger than |mem_bot|
+  and not greater than |mem_max|}
+@y
+@d mem_bot=1 {smallest index in the |mem| array dumped by \.{INITEX};
+  must not be less than |mem_min|}
+@d mem_top==3000 {largest index in the |mem| array dumped by \.{INITEX};
+  must be substantially larger than |mem_bot|
+  and not greater than |mem_max|}
+@z
+
+
+
 
 % accept horizontal tab and form feed
 @x
