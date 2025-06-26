@@ -220,8 +220,8 @@ trip() {
     relaxed_compare trip.pl tmp.pl
 
     # Step 2: build special TeX version
-    ./tangle ../sources/dist/tex/tex.web ../sources/tex-fpc/triptex.ch triptex.p tex.pool > tmp.tangle
-    fpc -Fasysutils,baseunix,unix triptex.p > tmp.fpc
+    ./tangle ../sources/dist/tex/tex.web ../triptex.ch triptex.p tex.pool > tmp.tangle
+    fpc -dINITEX -dSTATS -Fasysutils,baseunix,unix triptex.p > tmp.fpc
 
     # Step 3: First run of TeX
     cp ../sources/dist/tex/trip.tex .
