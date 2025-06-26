@@ -126,6 +126,7 @@ build() {
         cp ../../sources/dist/cm/* .
         cp ../../sources/dist/lib/manfnt.mf .
         cp ../../sources/local/cm/* . # additional fonts
+        cp ../../sources/local/lib/random.mf .
 
         mkdir -p MFbases
         mv ../plain.base MFbases/

@@ -71,13 +71,11 @@ build() {
 check() {
     cd ref
 
+    rm -f *.dvi *.log
+
     # links to additional files
     ln -fs ../build/TeXformats
     ln -fs ../../tex82/build/TeXfonts
-
-    cd from
-    rm -f *.dvi *.log
-    cd ..
 
     for f in from/*.tex
     do
@@ -85,7 +83,7 @@ check() {
         echo "$b"
         ../build/tach "$f" > tmp.tach.log # || cat tmp.tach.log
 
-        diff from/$b.log to/$b.log
+        diff $b.log to/$b.log
 
         #dvitype "from/$b.dvi" | head -n 30000 > tmp.a
         #dvitype "to/$b.dvi"   | head -n 30000 > tmp.b
@@ -97,7 +95,7 @@ check() {
         #dvitype "from/$b.dvi" > tmp.a
         #dvitype "to/$b.dvi"   > tmp.b
 
-        tail -c +43 "from/$b.dvi" > tmp.a
+        tail -c +43 "$b.dvi" > tmp.a
         tail -c +43 "to/$b.dvi"   > tmp.b
         diff tmp.a tmp.b
     done
