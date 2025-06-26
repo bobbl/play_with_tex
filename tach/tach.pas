@@ -312,11 +312,15 @@ TYPE {18:}ASCIICODE = 0..255;{:18}{25:}
 {:920}{925:}
   HYPHPOINTER = 0..307;{:925}
 
+  alpha_file = text;
+  byte_file = file of byte;
+
 VAR {13:}BAD: Int32;
 {:13}{20:}
   XORD: ARRAY[CHAR] OF ASCIICODE;
   XCHR: ARRAY[ASCIICODE] OF CHAR;
 {:20}{26:}
+  name_of_file: string;
   NAMEOFFILE: PACKED ARRAY[1..FILENAMESIZE] OF CHAR;
   NAMELENGTH: 0..FILENAMESIZE;
 {:26}{30:}
@@ -464,7 +468,7 @@ VAR {13:}BAD: Int32;
   JOBAREA: STRNUMBER;
   NAMEOFJOBARE: SHORTSTRING;
   LOGOPENED: BOOLEAN;{:527}{532:}
-  DVIFILE: BYTEFILE;
+  DVIFILE: byte_file;
   OUTPUTFILENA: STRNUMBER;
   LOGNAME: STRNUMBER;{:532}{539:}
 {:539}{549:}
@@ -1714,31 +1718,23 @@ BEGIN
   REWRITE(F);
   AOPENOUT := IORESULT=0;
 END;
-FUNCTION BOPENIN(VAR F:BYTEFILE): BOOLEAN;
-BEGIN
-  ASSIGN(F,NAMEOFFILE);
-  RESET(F);
-  BOPENIN := IORESULT=0;
+
+function b_open_in(var f: byte_file): boolean;
+begin
+  ASSIGN(F, NAMEOFFILE);
+  reset(f);
+  b_open_in := ioresult=0;
 END;
-FUNCTION BOPENOUT(VAR F:BYTEFILE): BOOLEAN;
+
+function b_open_out(var f: byte_file): boolean;
 BEGIN
-  ASSIGN(F,NAMEOFFILE);
-  REWRITE(F);
-  BOPENOUT := IORESULT=0;
-END;
-FUNCTION WOPENIN(VAR F:WORDFILE): BOOLEAN;
-BEGIN
-  ASSIGN(F,NAMEOFFILE);
-  RESET(F);
-  WOPENIN := IORESULT=0;
-END;
-FUNCTION WOPENOUT(VAR F:WORDFILE): BOOLEAN;
-BEGIN
-  ASSIGN(F,NAMEOFFILE);
-  REWRITE(F);
-  WOPENOUT := IORESULT=0;
-END;{$I+}
+  ASSIGN(F, NAMEOFFILE);
+  rewrite(f);
+  b_open_out := ioresult=0;
+end;
+{$I+}
 {:27}
+
 {31:}
 FUNCTION INPUTLN(VAR F:ALPHAFILE;BYPASSEOLN:BOOLEAN): BOOLEAN;
 
@@ -3374,7 +3370,7 @@ BEGIN
       HIMEMMIN := HIMEMMIN-1;
       P := HIMEMMIN;
       IF HIMEMMIN<=LOMEMMAX THEN
-        BEGIN
+        BEGIN   
           RUNAWAY;
           overflow('main memory size', MEMMAX+1-MEMMIN);
         END;
@@ -9319,36 +9315,10 @@ BEGIN
     END;
 END;
 {:517}{519:}
-PROCEDURE pack_file_name(N,A:STRNUMBER; Extension: string);
-VAR
-  K: Int32;
-  C: ASCIICODE;
-  J: POOLPOINTER;
+PROCEDURE pack_file_name(Name, Area, Extension: string);
 BEGIN
-  K := 0;
-  FOR J:=STRSTART[A]TO STRSTART[A+1]-1 DO
-    BEGIN
-      C := STRPOOL[J];
-      K := K+1;
-      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-    END;
-  FOR J:=STRSTART[N]TO STRSTART[N+1]-1 DO
-    BEGIN
-      C := STRPOOL[J];
-      K := K+1;
-      IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-    END;
-
-  for J := 1 to length(Extension) do begin
-    C := ord(Extension[J]);
-    K := K+1;
-    IF K<=FILENAMESIZE THEN NAMEOFFILE[K] := XCHR[C];
-  end;
-
-  IF K<=FILENAMESIZE THEN NAMELENGTH := K
-  ELSE NAMELENGTH := FILENAMESIZE;
-  FOR K:=NAMELENGTH+1 TO FILENAMESIZE DO
-    NAMEOFFILE[K] := #0;
+  name_of_file := Area + Name + Extension;
+  NAMELENGTH := length(name_of_file);
 END;
 
 PROCEDURE PACKFILENAME(N,A,E:STRNUMBER);
@@ -9597,7 +9567,7 @@ END;{:537}
 
 {Read 16 bit bigendian from TFM file.
  Return false if I/O error or if sign bit of value is set}
-function read_sixteen(var TFMFile: BYTEFILE; var Dest: HALFWORD) : boolean;
+function read_sixteen(var TFMFile: byte_file; var Dest: HALFWORD) : boolean;
 var Lo, Hi: EIGHTBITS;
 begin
   {$I-}
@@ -9613,7 +9583,7 @@ end;
 
 {Read 4 bytes from TFM file.
  Return false if I/O error}
-function store_four_quaters(var TFMFile: BYTEFILE; var qw: FOURQUARTERS) : boolean;
+function store_four_quaters(var TFMFile: byte_file; var qw: FOURQUARTERS) : boolean;
 var a,b, c, d : EIGHTBITS;
 begin
   {$I-}
@@ -9650,7 +9620,7 @@ if $a=0$, or the same quantity minus $\alpha=2^{4+e}z^\prime$ if $a=255$.
 This calculation must be done exactly, in order to guarantee portability
 of \TeX\ between computers.
 *)
-function store_scaled(var TFMFile: BYTEFILE;
+function store_scaled(var TFMFile: byte_file;
                       Alpha: SCALED;
                       Beta: SCALED;
                       Z: SCALED;
@@ -9694,7 +9664,7 @@ VAR K: FONTINDEX;
   Z: SCALED;
   ALPHA: Int32;
   BETA: 1..16;
-  TFMFILE: BYTEFILE;
+  TFMFILE: byte_file;
 BEGIN
   G := 0;
   {562: @<Read and check the font data; |abort| if the .TFM file is
@@ -9705,7 +9675,7 @@ BEGIN
   FILEOPENED := FALSE;
   IF AIRE=338 THEN PACKFILENAME(NOM,785,811)
   ELSE PACKFILENAME(NOM,AIRE,811);
-  IF NOT BOPENIN(TFMFILE)THEN GOTO 11;
+  IF NOT b_open_in(TFMFILE)THEN GOTO 11;
   FILEOPENED := TRUE{:563};
 
   {565: @<Read the .TFM size fields@>}
@@ -10073,15 +10043,18 @@ BEGIN
   NEWCHARACTER := 0;
   10:
 END;
-{:582}{597:}
+{:582}
+
+{597:}
 PROCEDURE WRITEDVI(A,B:DVIINDEX);
 
 VAR K: DVIINDEX;
 BEGIN
-  FOR K:=A TO B DO
-    WRITE(DVIFILE,DVIBUF[K]);
+  blockwrite(DVIFILE, DVIBUF[A], B-A+1);
 END;
-{:597}{598:}
+{:597}
+
+{598:}
 PROCEDURE DVISWAP;
 BEGIN
   IF DVILIMIT=DVIBUFSIZE THEN
@@ -11096,7 +11069,7 @@ BEGIN
       IF JOBNAME=0 THEN OPENLOGFILE;
 
       PACKJOBNAME(794); {pack_job_name_str('.dvi');}
-      WHILE NOT BOPENOUT(DVIFILE) DO PROMPTFILENA(795,794); { $795='file name for output' $794='.dvi'}
+      WHILE NOT b_open_out(DVIFILE) DO PROMPTFILENA(795,794); { $795='file name for output' $794='.dvi'}
       OUTPUTFILENA := MAKENAMESTRI;
 
     END;
@@ -20019,13 +19992,6 @@ END;
 {1302:}
 {$IFDEF INITEX}
 
-FUNCTION open4out(VAR F:file): BOOLEAN;
-BEGIN
-  ASSIGN(F,NAMEOFFILE);
-  REWRITE(F, 1);
-  open4out := IORESULT=0;
-END;{$I+}
-
 procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
 begin
   Buf[Ofs] := Val;
@@ -20050,7 +20016,7 @@ VAR J,K,L: Int32;
   W: FOURQUARTERS;
   mw: MEMORYWORD;
 
-  f: file;
+  f: byte_file;
   Buf: array[0..91] of byte;
 BEGIN
   {1304:}
@@ -20096,7 +20062,7 @@ BEGIN
   FORMATIDENT := MAKESTRING;
 
   PACKJOBNAME(786); {pack_job_name_str('.fmt');}
-  WHILE NOT open4out(f) DO PROMPTFILENA(1273,786);
+  WHILE NOT b_open_out(f) DO PROMPTFILENA(1273,786);
 
   print_nl_str('Beginning to dump on file ');
   SLOWPRINT(MAKENAMESTRI);
@@ -21356,7 +21322,7 @@ begin
               (UInt32(Buf[Ofs+2]) shl 16) or (UInt32(Buf[Ofs+3]) shl 24);
 end;
 
-function BlockReadSuccess(var f: file; var Buf; Len: UInt32) : boolean;
+function BlockReadSuccess(var f: byte_file; var Buf; Len: UInt32) : boolean;
 begin
   {$I-}
   blockread(f, Buf, Len);
@@ -21364,7 +21330,7 @@ begin
   {$I+}
 end;
 
-function ReadFormatFile(var f: file): boolean;
+function ReadFormatFile(var f: byte_file): boolean;
 VAR
   P,Q: UInt32;
 
@@ -21655,17 +21621,14 @@ const
   FormatFileFilename  = 'plain';
   FormatFileExtension = '.fmt';
 
-type
-  MyFile = file;
-
-function OpenFormatFile(var f: MyFile; Filename: string) : boolean;
+function OpenFormatFile(var f: byte_file; Filename: string) : boolean;
 BEGIN
   assign(f, Filename);
-  reset(f, 1);
+  reset(f);
   OpenFormatFile := IOResult=0;
 END;
 
-procedure FindFormatFile(var f: MyFile);
+procedure FindFormatFile(var f: byte_file);
 var
   i, j: 0..BUFSIZE;
   s: string;
@@ -21694,7 +21657,7 @@ END;
 
 procedure LoadFormatFile;
 var
-  f: MyFile;
+  f: byte_file;
 begin
   FindFormatFile(f);
   if not ReadFormatFile(f) then begin;
