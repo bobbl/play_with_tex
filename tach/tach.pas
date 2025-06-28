@@ -457,10 +457,10 @@ VAR {13:}BAD: Int32;
   TEXFORMATDEF: PACKED ARRAY[1..20] OF CHAR;
 {:520}{527:}
   NAMEINPROGRE: BOOLEAN;
-  JOBNAME: STRNUMBER;
+  job_name: string;
   LOGOPENED: BOOLEAN;{:527}{532:}
   DVIFILE: byte_file;
-  OUTPUTFILENA: STRNUMBER;
+  output_file_name: string;
   LOGNAME: STRNUMBER;{:532}{539:}
 {:539}{549:}
   FONTINFO: ARRAY[FONTINDEX] OF MEMORYWORD;
@@ -3107,7 +3107,7 @@ PROCEDURE NORMALIZESEL;
 BEGIN
   IF LOGOPENED THEN SELECTOR := 19
   ELSE SELECTOR := 17;
-  IF JOBNAME=0 THEN OPENLOGFILE;
+  IF job_name='' THEN OPENLOGFILE;
   IF INTERACTION=0 THEN SELECTOR := SELECTOR-1;
 END;
 {:92}{98:}
@@ -8679,7 +8679,7 @@ BEGIN
          END;
     4: SCANFONTIDEN;
     5:
-       IF JOBNAME=0 THEN OPENLOGFILE;
+       IF job_name='' THEN OPENLOGFILE;
   END{:471};
   OLDSETTING := SELECTOR;
   SELECTOR := 21;
@@ -8701,10 +8701,7 @@ BEGIN
              print_str('pt');
            END;
        END;
-    5:
-       BEGIN
-         PRINT(JOBNAME);
-       END;
+    5: print_str(job_name);
   END{:472};
   SELECTOR := OLDSETTING;
   MEM[29988].HH.RH := STRTOKS(B);
@@ -9444,13 +9441,10 @@ VAR OLDSETTING: 0..21;
   FileName : string;
 BEGIN
   OLDSETTING := SELECTOR;
-  IF JOBNAME=0 THEN
-    BEGIN
-      JOBNAME := 796; {'texput'}
-    END;
+  if job_name='' then job_name := 'texput';
   SELECTOR := 17;
 
-  FileName := GetString(JOBNAME) + '.log';
+  FileName := job_name + '.log';
   while not a_open_out(LOGFILE, FileName) do begin
     FileName := prompt_file_name(FileName, 'transcript file name', '.log');
   end;
@@ -9509,13 +9503,13 @@ BEGIN
     FileName := prompt_file_name(FileName, 'input file name', '.tex');
   end;
   CURINPUT.NAMEFIELD := AddString(FileName);
-  IF JOBNAME=0 THEN BEGIN
+  if job_name='' then begin
     Slash := pos('/', FileName);
     Dot := pos('.', FileName);
     if Dot=0 then Dot := length(FileName);
-    JOBNAME := AddString(copy(FileName, Slash+1, Dot-Slash-1));
+    job_name := copy(FileName, Slash+1, Dot-Slash-1);
     OPENLOGFILE;
-  END;
+  end;
 
   IF TERMOFFSET+(STRSTART[CURINPUT.NAMEFIELD+1]-STRSTART[CURINPUT.
      NAMEFIELD])>MAXPRINTLINE-2 THEN PRINTLN
@@ -10992,7 +10986,6 @@ VAR PAGELOC: Int32;
   J,K: 0..9;
   S: POOLPOINTER;
   OLDSETTING: 0..21;
-  FileName: string;
 BEGIN
   IF EQTB[5297].INT>0 THEN
     BEGIN
@@ -11054,17 +11047,15 @@ BEGIN
   DVIV := 0;
   CURH := EQTB[5848].INT;
   DVIF := 0;
-  IF OUTPUTFILENA=0 THEN
-    BEGIN
-      IF JOBNAME=0 THEN OPENLOGFILE;
 
-      FileName := GetString(JOBNAME) + '.dvi';
-      while not b_open_out(DVIFILE, FileName) do begin
-        prompt_file_name(FileName, 'file name for output', '.dvi');
-      end;
-      OUTPUTFILENA := AddString(FileName);
+  if output_file_name='' then begin
+    if job_name='' then OPENLOGFILE;
+    output_file_name := job_name + '.dvi';
+    while not b_open_out(DVIFILE, output_file_name) do begin
+      prompt_file_name(output_file_name, 'file name for output', '.dvi');
+    end;
+  end;
 
-    END;
   IF TOTALPAGES=0 THEN
     BEGIN
       BEGIN
@@ -19199,7 +19190,7 @@ VAR U: HALFWORD;
   OLDSETTING: 0..21;
   FLUSHABLESTR: STRNUMBER;
 BEGIN
-  IF JOBNAME=0 THEN OPENLOGFILE;
+  IF job_name='' THEN OPENLOGFILE;
   GETRTOKEN;
   U := CURCS;
   IF U>=514 THEN T := HASH[U].RH
@@ -20042,7 +20033,7 @@ BEGIN
   {1328:}
   SELECTOR := 21;
   print_str(' (preloaded format=');
-  PRINT(JOBNAME);
+  print_str(job_name);
   PRINTCHAR(32);
   PRINTINT(EQTB[5286].INT);
   PRINTCHAR(46);
@@ -20057,7 +20048,7 @@ BEGIN
   END;
   FORMATIDENT := MAKESTRING;
 
-  FileName := GetString(JOBNAME) + '.fmt';
+  FileName := job_name + '.fmt';
   while not b_open_out(f, FileName) do begin
     prompt_file_name(FileName, 'format file name', '.fmt');
   end;
@@ -21785,7 +21776,7 @@ BEGIN{1378:}
       IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,DVIBUFSIZE-1);
       IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
       print_nl_str('Output written on ');
-      SLOWPRINT(OUTPUTFILENA);
+      slow_print_str(output_file_name);
       print_str(' (');
       PRINTINT(TOTALPAGES);
       print_str(' page');
@@ -21819,7 +21810,7 @@ VAR C: SMALLNUMBER;
 BEGIN
   C := CURCHR;
   IF C<>1 THEN EQTB[5312].INT := -1;
-  IF JOBNAME=0 THEN OPENLOGFILE;
+  IF job_name='' THEN OPENLOGFILE;
   WHILE INPUTPTR>0 DO
     IF CURINPUT.STATEFIELD=0 THEN ENDTOKENLIST
     ELSE
@@ -22369,10 +22360,10 @@ BEGIN
       PRINTLN;
     END;
   FLUSH(OUTPUT);{:61}{528:}
-  JOBNAME := 0;
+  job_name := '';
   NAMEINPROGRE := FALSE;
   LOGOPENED := FALSE;{:528}{533:}
-  OUTPUTFILENA := 0;{:533};
+  output_file_name := '';{:533};
 {1337:}
   BEGIN{331:}
     BEGIN
