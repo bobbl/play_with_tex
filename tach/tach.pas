@@ -85,12 +85,12 @@ in production versions of \TeX\.}
     {space for ``opcodes'' in the hyphenation patterns}
   dvi_buf_size = 800;
     {size of the output buffer; must be a multiple of 8}
-  {file_name_size = 40;}
+  file_name_size = 40; {better 255 for shortstring}
     {file names shouldn't be longer than this}
 
 
 
-{Like the preceding parameters, the following quantities can be changed
+{@ Like the preceding parameters, the following quantities can be changed
 at compile time to extend or reduce \TeX's capacity. But if they are changed,
 it is necessary to rerun the initialization program \INITEX
 to generate new tables for the production \TeX\ program.
@@ -118,7 +118,7 @@ emphasize this distinction.}
 
 
 
-{Many locations in |eqtb| have symbolic names. The purpose of the next
+{@ Many locations in |eqtb| have symbolic names. The purpose of the next
 paragraphs is to define these names, and to set up the initial values of the
 equivalents.
 
@@ -190,7 +190,7 @@ parameters have larger numbers than the others.}
   mu_skip_base = skip_base+256;         {table of 256 ``muskip'' registers}
   local_base = mu_skip_base+256;        {beginning of region 4}
 
-{Region 4 of |eqtb| contains the local quantities defined here. The
+{@ Region 4 of |eqtb| contains the local quantities defined here. The
 bulk of this region is taken up by five tables that are indexed by eight-bit
 characters; these tables are important to both the syntactic and semantic
 portions of \TeX. There are also a bunch of special things like font and
@@ -231,6 +231,7 @@ registers.}
 
 
 
+
   eqtb_size = 6106;
 
   lo_mem_stat_max = 19;
@@ -248,6 +249,207 @@ registers.}
   tagLig  = 1; {character has a ligature/kerning program}
   tagList = 2; {character has a successor in a charlist}
   tagExt  = 3; {character is extensible}
+
+
+
+
+{@ [15] The command codes.
+Before we can go any further, we need to define symbolic names for the internal
+code numbers that represent the various commands obeyed by \TeX. These codes
+are somewhat arbitrary, but not completely so. For example, the command
+codes for character types are fixed by the language, since a user says,
+e.g., `\catcode  = 3' to make \char'44 a math delimiter,
+and the command code |math_shift| is equal to~3. Some other codes have
+been made adjacent so that |case| statements in the program need not consider
+cases that are widely spaced, or so that |case| statements can be replaced
+by |if| statements.
+
+At any rate, here is the list, for future reference. First come the
+``catcode'' commands, several of which share their numeric codes with
+ordinary commands when the catcode cannot emerge from \TeX's scanning routine.}
+
+  escape=0; {escape delimiter (called \.\\ in The \TeX book\)}
+  relax=0; {do nothing ( \relax )}
+  left_brace=1; {beginning of a group}
+  right_brace=2; {ending of a group}
+  math_shift=3; {mathematics shift character ( '$' )}
+  tab_mark=4; {alignment delimiter ( \&, \span )}
+  car_ret=5; {end of line ( |carriage_return|, \cr, \crcr )}
+  out_param=5; {output a macro parameter}
+  mac_param=6; {macro parameter symbol ( '#' )}
+  sup_mark=7; {superscript ( '^' )}
+  sub_mark=8; {subscript ( '_' )}
+  ignore=9; {characters to ignore ( \.\^\^@@ )}
+  endv=9; {end of \<v_j> list in alignment template}
+  spacer=10; {characters equivalent to blank space ( \.\  )}
+  letter=11; {characters regarded as letters ( \.A..Z, \.a..z )}
+  other_char=12; {none of the special character types}
+  active_char=13; {characters that invoke macros ( )}
+  par_end=13; {end of paragraph ( \par )}
+  match=13; {match a macro parameter}
+  comment=14; {characters that introduce comments ( '%' )}
+  end_match=14; {end of parameters to macro}
+  stop=14; {end of job ( \end, \dump )}
+  invalid_char=15; {characters that shouldn't appear ( ^^? )}
+  delim_num=15; {specify delimiter numerically ( \delimiter )}
+  max_char_code=15; {largest catcode for individual characters}
+
+{@ Next are the ordinary run-of-the-mill command codes.  Codes that are
+|min_internal| or more represent internal quantities that might be
+expanded by \the.}
+
+  char_num=16; {character specified numerically ( \char )}
+  math_char_num=17; {explicit math code ( \mathchar )}
+  mark=18; {mark definition ( \mark )}
+  xray=19; {peek inside of \TeX\ ( \show, \showbox, etc.~)}
+  make_box=20; {make a box ( \box, \copy, \hbox, etc.~)}
+  hmove=21; {horizontal motion ( \moveleft, \moveright )}
+  vmove=22; {vertical motion ( \raise, \lower )}
+  un_hbox=23; {unglue a box ( \unhbox, \unhcopy )}
+  un_vbox=24; {unglue a box ( \unvbox, \unvcopy )}
+  remove_item=25; {nullify last item ( \unpenalty, \unkern, \unskip )}
+  hskip=26; {horizontal glue ( \hskip, \hfil, etc.~)}
+  vskip=27; {vertical glue ( \vskip, \vfil, etc.~)}
+  mskip=28; {math glue ( \mskip )}
+  kern=29; {fixed space ( \kern )}
+  mkern=30; {math kern ( \mkern )}
+  leader_ship=31; {use a box ( \shipout, \leaders, etc.~)}
+  halign=32; {horizontal table alignment ( \halign )}
+  valign=33; {vertical table alignment ( \valign )}
+  no_align=34; {temporary escape from alignment ( \noalign )}
+  vrule=35; {vertical rule ( \vrule )}
+  hrule=36; {horizontal rule ( \hrule )}
+  insert=37; {vlist inserted in box ( \insert )}
+  vadjust=38; {vlist inserted in enclosing paragraph ( \vadjust )}
+  ignore_spaces=39; {gobble |spacer| tokens ( \ignorespaces )}
+  after_assignment=40; {save till assignment is done ( \afterassignment )}
+  after_group=41; {save till group is done ( \aftergroup )}
+  break_penalty=42; {additional badness ( \penalty )}
+  start_par=43; {begin paragraph ( \indent, \noindent )}
+  ital_corr=44; {italic correction ( \/ )}
+  accent=45; {attach accent in text ( \accent )}
+  math_accent=46; {attach accent in math ( \mathaccent )}
+  discretionary=47; {discretionary texts ( \-, \discretionary )}
+  eq_no=48; {equation number ( \eqno, \leqno )}
+  left_right=49; {variable delimiter ( \left, \right )}
+  math_comp=50; {component of formula ( \mathbin, etc.~)}
+  limit_switch=51; {diddle limit conventions ( \displaylimits, etc. )}
+  above=52; {generalized fraction ( \above, \atop, etc.~)}
+  math_style=53; {style specification ( \displaystyle, etc.~)}
+  math_choice=54; {choice specification ( \mathchoice )}
+  non_script=55; {conditional math glue ( \nonscript )}
+  vcenter=56; {vertically center a vbox ( \vcenter )}
+  case_shift=57; {force specific case ( \lowercase, \uppercase )}
+  message=58; {send to user ( \message, \errmessage )}
+  extension=59; {extensions to \TeX\ ( \write, \special, etc.~)}
+  in_stream=60; {files for reading ( \openin, \closein )}
+  begin_group=61; {begin local grouping ( \begingroup )}
+  end_group=62; {end local grouping ( \endgroup )}
+  omit=63; {omit alignment template ( \omit )}
+  ex_space=64; {explicit space ( \\  )}
+  no_boundary=65; {suppress boundary ligatures ( \noboundary )}
+  radical=66; {square root and similar signs ( \radical )}
+  end_cs_name=67; {end control sequence ( \endcsname )}
+  min_internal=68; {the smallest code that can follow \the}
+  char_given=68; {character code defined by \chardef}
+  math_given=69; {math code defined by \mathchardef}
+  last_item=70; {most recent item ( \lastpenalty, \lastkern, \lastskip )}
+  max_non_prefixed_command=70; {largest command code that can't be \global}
+
+{@ The next codes are special; they all relate to mode-independent
+assignment of values to \TeX's internal registers or tables.
+Codes that are |max_internal| or less represent internal quantities
+that might be expanded by \the.}
+
+  toks_register=71; {token list register ( \toks )}
+  assign_toks=72; {special token list ( \output, \everypar, etc.~)}
+  assign_int=73; {user-defined integer ( \tolerance, \day, etc.~)}
+  assign_dimen=74; {user-defined length ( \hsize, etc.~)}
+  assign_glue=75; {user-defined glue ( \baselineskip, etc.~)}
+  assign_mu_glue=76; {user-defined muglue ( \thinmuskip, etc.~)}
+  assign_font_dimen=77; {user-defined font dimension ( \fontdimen )}
+  assign_font_int=78; {user-defined font integer ( \hyphenchar,
+  \skewchar )}
+  set_aux=79; {specify state info ( \spacefactor, \prevdepth )}
+  set_prev_graf=80; {specify state info ( \prevgraf )}
+  set_page_dimen=81; {specify state info ( \pagegoal, etc.~)}
+  set_page_int=82; {specify state info ( \deadcycles,
+  \insertpenalties )}
+  set_box_dimen=83; {change dimension of box ( \wd, \ht, \dp )}
+  set_shape=84; {specify fancy paragraph shape ( \parshape )}
+  def_code=85; {define a character code ( \catcode, etc.~)}
+  def_family=86; {declare math fonts ( \textfont, etc.~)}
+  set_font=87; {set current font ( font identifiers )}
+  def_font=88; {define a font file ( \font )}
+  register=89; {internal register ( \count, \dimen, etc.~)}
+  max_internal=89; {the largest code that can follow \the}
+  advance=90; {advance a register or parameter ( \advance )}
+  multiply=91; {multiply a register or parameter ( \multiply )}
+  divide=92; {divide a register or parameter ( \divide )}
+  prefix=93; {qualify a definition ( \global, \long, \outer )}
+  let=94; {assign a command code ( \let, \futurelet )}
+  shorthand_def=95; {code definition ( \chardef, \countdef, etc.~)}
+  read_to_cs=96; {read into a control sequence ( \read )}
+  def=97; {macro definition ( \def, \gdef, \xdef, \edef )}
+  set_box=98; {set a box ( \setbox )}
+  hyph_data=99; {hyphenation data ( \hyphenation, \patterns )}
+  set_interaction=100; {define level of interaction ( \batchmode, etc.~)}
+  max_command=100; {the largest command code seen at |big_switch|}
+
+{@ The remaining command codes are extra special, since they cannot get through
+\TeX's scanner to the main control routine. They have been given values higher
+than |max_command| so that their special nature is easily discernible.
+The ``expandable'' commands come first.}
+
+  undefined_cs=max_command+1; {initial state of most |eq_type| fields}
+  expand_after=max_command+2; {special expansion ( \expandafter )}
+  no_expand=max_command+3; {special nonexpansion ( \noexpand )}
+  {input=max_command+4;} {input a source file ( \input, \endinput )}
+  if_test=max_command+5; {conditional text ( \if, \ifcase, etc.~)}
+  fi_or_else=max_command+6; {delimiters for conditionals ( \else, etc.~)}
+  cs_name=max_command+7; {make a control sequence from tokens ( \csname )}
+  convert=max_command+8; {convert to text ( \number, \string, etc.~)}
+  the=max_command+9; {expand an internal quantity ( \the )}  
+  top_bot_mark=max_command+10; {inserted mark ( \topmark, etc.~)}
+  call=max_command+11; {non-long, non-outer control sequence}
+  long_call=max_command+12; {long, non-outer control sequence}
+  outer_call=max_command+13; {non-long, outer control sequence}
+  long_outer_call=max_command+14; {long, outer control sequence}
+  end_template=max_command+15; {end of an alignment template}
+  dont_expand=max_command+16; {the following token was marked by \noexpand}
+  glue_ref=max_command+17; {the equivalent points to a glue specification}
+  shape_ref=max_command+18; {the equivalent points to a parshape specification}
+  box_ref=max_command+19; {the equivalent points to a box node, or is |null|}
+  data=max_command+20; {the equivalent is simply a halfword number}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 TYPE {18:}ASCIICODE = 0..255;{:18}{25:}
@@ -446,11 +648,8 @@ VAR {13:}BAD: Int32;
   CURIF: SMALLNUMBER;
   IFLINE: Int32;{:489}{493:}
   SKIPLINE: Int32;
-{:493}{512:}
-  CURNAME: STRNUMBER;
-  CURAREA: STRNUMBER;
-  CUREXT: STRNUMBER;
-{:512}{513:}
+{:493}
+{513:}
   AREADELIMITE: POOLPOINTER;
   EXTDELIMITER: POOLPOINTER;
 {:513}{520:}
@@ -1696,7 +1895,8 @@ END;
 {:95}
 {:4}
 
-{27:}{$I-}
+{27:}
+{$I-}
 function a_open_in(var f: alpha_file; FileName: string): boolean;
 begin
   assign(f, FileName);
@@ -1795,7 +1995,7 @@ begin
     CURINPUT.LOCFIELD := FIRST;
   end else begin
     RESET(INPUT);
-    WHILE TRUE DO BEGIN;
+    WHILE TRUE DO BEGIN
       WRITE(OUTPUT,'**');
       FLUSH(OUTPUT);
       IF NOT INPUTLN(INPUT, TRUE) THEN BEGIN
@@ -6059,8 +6259,7 @@ BEGIN
                     BEGIN
                       print_nl_str('<read ');
                       IF CURINPUT.NAMEFIELD=17 THEN PRINTCHAR(42)
-                      ELSE PRINTINT(CURINPUT.
-                                    NAMEFIELD-1);
+                      ELSE PRINTINT(CURINPUT.NAMEFIELD-1);
                       PRINTCHAR(62);
                     END
                   ELSE
@@ -9306,60 +9505,7 @@ BEGIN{495:}
       ELSE IFLIMIT := 2;
   10:
 END;
-{:498}{515:}
-PROCEDURE BEGINNAME;
-BEGIN
-  AREADELIMITE := 0;
-  EXTDELIMITER := 0;
-END;{:515}{516:}
-FUNCTION MORENAME(C:ASCIICODE): BOOLEAN;
-BEGIN
-  IF C=32 THEN MORENAME := FALSE
-  ELSE
-    BEGIN
-      BEGIN
-        IF POOLPTR+1>
-           POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-      END;
-      BEGIN
-        STRPOOL[POOLPTR] := C;
-        POOLPTR := POOLPTR+1;
-      END;
-      IF C=47 THEN
-        BEGIN
-          AREADELIMITE := (POOLPTR-STRSTART[STRPTR]);
-          EXTDELIMITER := 0;
-        END
-      ELSE
-        IF (C=46)AND(EXTDELIMITER=0)THEN EXTDELIMITER := (POOLPTR-STRSTART
-                                                         [STRPTR]);
-      MORENAME := TRUE;
-    END;
-END;{:516}{517:}
-PROCEDURE ENDNAME;
-BEGIN
-  IF STRPTR+3>MAXSTRINGS THEN overflow('number of strings', MAXSTRINGS-INITSTRPTR);
-  IF AREADELIMITE=0 THEN CURAREA := 338
-  ELSE
-    BEGIN
-      CURAREA := STRPTR;
-      STRSTART[STRPTR+1] := STRSTART[STRPTR]+AREADELIMITE;
-      STRPTR := STRPTR+1;
-    END;
-  IF EXTDELIMITER=0 THEN
-    BEGIN
-      CUREXT := 338;
-      CURNAME := MAKESTRING;
-    END
-  ELSE
-    BEGIN
-      CURNAME := STRPTR;
-      STRSTART[STRPTR+1] := STRSTART[STRPTR]+EXTDELIMITER-AREADELIMITE-1;
-      STRPTR := STRPTR+1;
-      CUREXT := MAKESTRING;
-    END;
-END;
-{:517}
+{:498}
 
 {519:}
 function pack_file_name(Name, Area, Extension: STRNUMBER) : string;
@@ -9369,27 +9515,40 @@ end;
 {:519}
 
 {526:}
-PROCEDURE SCANFILENAME;
-
-LABEL 30;
+{Add .tex if no extension given}
+function scan_file_name : string;
+var
+  s: string[file_name_size];
+  i: SizeInt;
+  WithExtension: boolean;
 BEGIN
   NAMEINPROGRE := TRUE;
-  BEGINNAME;{406:}
-  REPEAT
+
+  repeat
     GETXTOKEN;
-  UNTIL CURCMD<>10{:406};
-  WHILE TRUE DO
-    BEGIN
-      IF (CURCMD>12)OR(CURCHR>255)THEN
-        BEGIN
-          BACKINPUT;
-          GOTO 30;
-        END;
-      IF NOT MORENAME(CURCHR)THEN GOTO 30;
-      GETXTOKEN;
-    END;
-  30: ENDNAME;
+  until CURCMD<>spacer;
+
+  WithExtension := false;
+  setlength(s, file_name_size);
+  i := 0;
+  while true do begin
+    if (CURCMD>other_char) or (CURCHR>255) then begin
+      BACKINPUT;
+      break;
+    end;
+    if CURCHR=32{' '} then break;
+    if CURCHR=46{'.'} then WithExtension := true;
+    if i < file_name_size then begin
+      i := i + 1;
+      s[i] := chr(CURCHR);
+    end;
+    GETXTOKEN;
+  end;
+  setlength(s, i);
+  if not WithExtension then s := s + '.tex';
+
   NAMEINPROGRE := FALSE;
+  scan_file_name := s;
 END;
 {:526}
 
@@ -9485,13 +9644,11 @@ PROCEDURE STARTINPUT;
 VAR 
   J: POOLPOINTER;
   FileName: string;
+  BaseName: string;
   Slash: SizeInt;
   Dot: SizeInt;
 BEGIN
-  SCANFILENAME;
-  IF CUREXT=338 THEN CUREXT := 791;
-
-  FileName := pack_file_name(CURNAME,CURAREA,CUREXT);
+  FileName := scan_file_name;
   while true do begin
     BEGINFILEREA;
     if a_open_in(INPUTFILE[CURINPUT.INDEXFIELD], FileName) then break;
@@ -9502,33 +9659,27 @@ BEGIN
     ENDFILEREADI;
     FileName := prompt_file_name(FileName, 'input file name', '.tex');
   end;
-  CURINPUT.NAMEFIELD := AddString(FileName);
+
+  {remove path and file extension}
+  Slash := pos('/', FileName);
+  Dot := pos('.', FileName);
+  if Dot=0 then Dot := length(FileName);
+  BaseName := copy(FileName, Slash+1, Dot-Slash-1);
+  CURINPUT.NAMEFIELD := AddString(BaseName); {FileName also possible?}
+
   if job_name='' then begin
-    Slash := pos('/', FileName);
-    Dot := pos('.', FileName);
-    if Dot=0 then Dot := length(FileName);
-    job_name := copy(FileName, Slash+1, Dot-Slash-1);
+    job_name := BaseName;
     OPENLOGFILE;
   end;
 
-  IF TERMOFFSET+(STRSTART[CURINPUT.NAMEFIELD+1]-STRSTART[CURINPUT.
-     NAMEFIELD])>MAXPRINTLINE-2 THEN PRINTLN
-  ELSE
-    IF (TERMOFFSET>0)OR(
-       FILEOFFSET>0)THEN PRINTCHAR(32);
+  IF TERMOFFSET + length(FileName) > MAXPRINTLINE-2 THEN PRINTLN
+  ELSE IF (TERMOFFSET>0) OR (FILEOFFSET>0) THEN PRINTCHAR(32);
   PRINTCHAR(40);
   OPENPARENS := OPENPARENS+1;
-  SLOWPRINT(CURINPUT.NAMEFIELD);
+  slow_print_str(FileName);
   FLUSH(OUTPUT);
   CURINPUT.STATEFIELD := 33;
-  IF CURINPUT.NAMEFIELD=STRPTR-1 THEN
-    BEGIN
-      BEGIN
-        STRPTR := STRPTR-1;
-        POOLPTR := STRSTART[STRPTR];
-      END;
-      CURINPUT.NAMEFIELD := CURNAME;
-    END;
+
 {538:}
   BEGIN
     LINE := 1;
@@ -9688,8 +9839,6 @@ BEGIN
   IF (FONTPTR=FONTMAX)OR(FMEMPTR+LF>FONTMEMSIZE) THEN BEGIN
     {567: @<Use size fields to allocate font information@>}
       BEGIN
-        IF 
-           INTERACTION=3 THEN;
         print_nl_str('! ');
         print_str('Font ');
       END;
@@ -10473,12 +10622,13 @@ BEGIN
                    ELSE
                      IF J<16 THEN
                        BEGIN
+(*
                          CURNAME := MEM[P+1].HH.RH;
                          CURAREA := MEM[P+2].HH.LH;
                          CUREXT := MEM[P+2].HH.RH;
-                         IF CUREXT=338{''} THEN CUREXT := 791{'.tex'};
-
                          FileName := pack_file_name(CURNAME, CURAREA, CUREXT);
+*)
+                         FileName := GetString(MEM[P+1].HH.RH);
                          while not a_open_out(WRITEFILE[J], FileName) do begin
                            FileName := prompt_file_name(FileName, 'output file name', '.tex');
                          end;
@@ -19180,15 +19330,21 @@ BEGIN
 END;
 {:1247}{1257:}
 PROCEDURE NEWFONT(A:SMALLNUMBER);
-
 LABEL 50;
-
-VAR U: HALFWORD;
+VAR
+  U: HALFWORD;
   S: SCALED;
   F: INTERNALFONT;
   T: STRNUMBER;
   OLDSETTING: 0..21;
   FLUSHABLESTR: STRNUMBER;
+
+  Filename: string;
+  Slash: SizeInt;
+  Dot: SizeInt;
+  ThisFontArea: STRNUMBER;
+  ThisFontName: STRNUMBER;
+
 BEGIN
   IF job_name='' THEN OPENLOGFILE;
   GETRTOKEN;
@@ -19213,7 +19369,21 @@ BEGIN
   IF (A>=4)THEN GEQDEFINE(U,87,0)
   ELSE EQDEFINE(U,87,0);
   SCANOPTIONAL;
-  SCANFILENAME;{1258:}
+
+
+  {FIXME: simplify font name and area handling here and in READFONTINFO}
+  FileName := scan_file_name;
+    {'.tex' is added if no extension, but extension is ignored anyway}
+  Slash := pos('/', FileName); {0 if no path}
+  Dot := pos('.', FileName);
+  if Slash=0 then ThisFontArea := 338{''}
+             else ThisFontArea := AddString(copy(FileName, 1, Slash-1));
+  ThisFontName := AddString(copy(FileName, Slash+1, Dot-Slash-1));
+
+
+
+
+{1258:}
   NAMEINPROGRE := TRUE;
   IF scan_keyword_str('at')THEN{1259:}
     BEGIN
@@ -19260,26 +19430,21 @@ BEGIN
   ELSE S := -1000;
   NAMEINPROGRE := FALSE{:1258};{1260:}
   FLUSHABLESTR := STRPTR-1;
-  FOR F:=1 TO FONTPTR DO
-    IF STREQSTR(FONTNAME[F],CURNAME)AND STREQSTR(
-       FONTAREA[F],CURAREA)THEN
-      BEGIN
-        IF CURNAME=FLUSHABLESTR THEN
-          BEGIN
-            BEGIN
-              STRPTR := STRPTR-1;
-              POOLPTR := STRSTART[STRPTR];
-            END;
-            CURNAME := FONTNAME[F];
-          END;
-        IF S>0 THEN
-          BEGIN
-            IF S=FONTSIZE[F]THEN GOTO 50;
-          END
-        ELSE
-          IF FONTSIZE[F]=XNOVERD(FONTDSIZE[F],-S,1000)THEN GOTO 50;
-      END{:1260};
-  F := READFONTINFO(U,CURNAME,CURAREA,S);
+  FOR F:=1 TO FONTPTR DO begin
+    IF STREQSTR(FONTNAME[F], ThisFontName) AND STREQSTR(FONTAREA[F], ThisFontArea) THEN BEGIN
+      IF ThisFontName=FLUSHABLESTR THEN BEGIN
+        BEGIN
+          STRPTR := STRPTR-1;
+          POOLPTR := STRSTART[STRPTR];
+        END;
+        ThisFontName := FONTNAME[F];
+      END;
+      IF S>0 THEN BEGIN
+        IF S=FONTSIZE[F]THEN GOTO 50;
+      END ELSE IF FONTSIZE[F]=XNOVERD(FONTDSIZE[F],-S,1000) THEN GOTO 50;
+    END{:1260};
+  end;
+  F := READFONTINFO(U, ThisFontName, ThisFontArea,S);
   50: EQTB[U].HH.RH := F;
   EQTB[2624+F] := EQTB[U];
   HASH[2624+F].RH := T;
@@ -19786,9 +19951,7 @@ BEGIN
   END;
   IF C<>0 THEN BEGIN
     SCANOPTIONAL;
-    SCANFILENAME;
-    IF CUREXT=338{''} THEN CUREXT := 791;{'tex'}
-    FileName := pack_file_name(CURNAME, CURAREA, CUREXT);
+    FileName := scan_file_name;
     if a_open_in(READFILE[N], FileName) then READOPEN[N] := 1;
   END;
 END;
@@ -20379,10 +20542,14 @@ BEGIN
        BEGIN
          NEWWRITEWHAT(3);
          SCANOPTIONAL;
+(*
          SCANFILENAME;
+         IF CUREXT=338{''} THEN CUREXT := 791{'.tex'};
          MEM[CURLIST.TAILFIELD+1].HH.RH := CURNAME;
          MEM[CURLIST.TAILFIELD+2].HH.LH := CURAREA;
          MEM[CURLIST.TAILFIELD+2].HH.RH := CUREXT;
+*)
+         MEM[CURLIST.TAILFIELD+1].HH.RH := AddString(scan_file_name);
        END{:1351};
     1:{1352:}
        BEGIN
