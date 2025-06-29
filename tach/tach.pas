@@ -108,6 +108,8 @@ emphasize this distinction.}
      must be substantially larger than |mem_bot| and not greater than |mem_max|}
   font_base = 0;
     {smallest internal font number; must not be less than |min_quarterword|}
+  null_font = font_base;
+    {an undefined font is represented by the internal code |font_base|}
   hash_size = 2100;
     {maximum number of control sequences; it should be at most about
      |(mem_max-mem_min)/10|}
@@ -9639,14 +9641,52 @@ BEGIN
 END;
 {:534}
 
+
+function CharPosLast(Match: char; const s: string) : sizeint;
+var i: sizeint;
+begin
+  i := length(s);
+  while (i > 0) and{_then} (s[i] <> Match) do i := i - 1;
+  CharPosLast := i;
+end;
+
+function BaseOfFileName(FileName: string) : string;
+var
+  Slash: sizeint;
+  Dot: sizeint;
+begin
+  Slash := CharPosLast('/', FileName);
+  Dot := pos('.', FileName);
+  if Dot=0 then Dot := length(FileName);
+  BaseOfFileName := copy(FileName, Slash+1, Dot-Slash-1);
+end;
+
+(*
+function PathOfFileName(FileName: string) : string;
+var
+  Slash: sizeint;
+begin
+  Slash := CharPosLast('/', FileName);
+  PathOfFileName := copy(FileName, 1, Slash);
+end;
+*)
+
+function RemoveFileExtension(const FileName: string) : string;
+var i: sizeint;
+begin
+  i := pos('.', FileName);
+  if i=0 then RemoveFileExtension := FileName
+         else RemoveFileExtension := copy(FileName, 1, i-1);
+end;
+
+
+
 {537:}
 PROCEDURE STARTINPUT;
 VAR 
   J: POOLPOINTER;
   FileName: string;
   BaseName: string;
-  Slash: SizeInt;
-  Dot: SizeInt;
 BEGIN
   FileName := scan_file_name;
   while true do begin
@@ -9660,13 +9700,8 @@ BEGIN
     FileName := prompt_file_name(FileName, 'input file name', '.tex');
   end;
 
-  {remove path and file extension}
-  Slash := pos('/', FileName);
-  Dot := pos('.', FileName);
-  if Dot=0 then Dot := length(FileName);
-  BaseName := copy(FileName, Slash+1, Dot-Slash-1);
+  BaseName := BaseOfFileName(FileName);
   CURINPUT.NAMEFIELD := AddString(BaseName); {FileName also possible?}
-
   if job_name='' then begin
     job_name := BaseName;
     OPENLOGFILE;
@@ -9692,448 +9727,6 @@ BEGIN
     CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
   END{:538};
 END;{:537}
-
-{Read 16 bit bigendian from TFM file.
- Return false if I/O error or if sign bit of value is set}
-function read_sixteen(var TFMFile: byte_file; var Dest: HALFWORD) : boolean;
-var Lo, Hi: EIGHTBITS;
-begin
-  {$I-}
-  read(TFMFile, Hi, Lo);
-  {$I+}
-  if (IOResult = 0) and (Hi < 128) then begin
-    Dest := HALFWORD(Hi)*256 + Lo;
-    read_sixteen := true;
-  end else begin
-    read_sixteen := false;
-  end
-end;
-
-{Read 4 bytes from TFM file.
- Return false if I/O error}
-function store_four_quaters(var TFMFile: byte_file; var qw: FOURQUARTERS) : boolean;
-var a,b, c, d : EIGHTBITS;
-begin
-  {$I-}
-  read(TFMFile, a, b, c, d);
-  {$I+}
-  if IOResult = 0 then begin
-    qw.b0 := a;
-    qw.b1 := b;
-    qw.b2 := c;
-    qw.b3 := d;
-    store_four_quaters := true;
-  end else begin
-    store_four_quaters := false;
-  end
-end;
-
-
-(*
-@ A |fix_word| whose four bytes are $(a,b,c,d)$ from left to right represents
-the number
-$$x=\left\{\vcenter{\halign{$#$,\hfil\qquad&if $#$\hfil\cr
-b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=0;\cr
--16+b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=255.\cr}}\right.$$
-(No other choices of |a| are allowed, since the magnitude of a number in
-design-size units must be less than 16.)  We want to multiply this
-quantity by the integer~|z|, which is known to be less than $2^{27}$.
-If $|z|<2^{23}$, the individual multiplications $b\cdot z$,
-$c\cdot z$, $d\cdot z$ cannot overflow; otherwise we will divide |z| by 2,
-4, 8, or 16, to obtain a multiplier less than $2^{23}$, and we can
-compensate for this later. If |z| has thereby been replaced by
-$|z|^\prime=|z|/2^e$, let $\beta=2^{4-e}$; we shall compute
-$$\lfloor(b+c\cdot2^{-8}+d\cdot2^{-16})\,z^\prime/\beta\rfloor$$
-if $a=0$, or the same quantity minus $\alpha=2^{4+e}z^\prime$ if $a=255$.
-This calculation must be done exactly, in order to guarantee portability
-of \TeX\ between computers.
-*)
-function store_scaled(var TFMFile: byte_file;
-                      Alpha: SCALED;
-                      Beta: SCALED;
-                      Z: SCALED;
-                      var Result: SCALED) : boolean;
-var
-  a, b, c, d: EIGHTBITS;
-  sw: SCALED;
-begin
-  {$I-}
-  read(TFMFile, a, b, c, d);
-  {$I+}
-  store_scaled := false;
-  if IOResult = 0 then begin
-    sw := (((((d*Z) DIV 256)+(c*Z)) DIV 256)+(b*Z)) DIV Beta;
-    if a=0 then begin
-      Result := sw;
-      store_scaled := true;
-    end else if a=255 then begin
-      Result := sw - Alpha;
-      store_scaled := true;
-    end
-  end
-end;
-
-{560:}
-FUNCTION READFONTINFO(U:HALFWORD;
-                      NOM,AIRE:STRNUMBER;S:SCALED): INTERNALFONT;
-
-LABEL 30,11,45;
-
-VAR K: FONTINDEX;
-  FILEOPENED: BOOLEAN;
-  LF,LH,BC,EC,NW,NH,ND,NI,NL,NK,NE,NP: HALFWORD;
-  F: INTERNALFONT;
-  G: INTERNALFONT;
-  A,B,C,D: EIGHTBITS;
-  QW: FOURQUARTERS;
-  SW: SCALED;
-  BCHLABEL: Int32;
-  BCHAR: 0..256;
-  Z: SCALED;
-  ALPHA: Int32;
-  BETA: 1..16;
-  TFMFILE: byte_file;
-  FileName: string;
-BEGIN
-  G := 0;
-  {562: @<Read and check the font data; |abort| if the .TFM file is
-        malformed; if there's no room for this font, say so and |goto
-        done|; otherwise |incr(font_ptr)| and |goto done|@>}
-
-  {563: @<Open |tfm_file| for input@>}
-  FILEOPENED := FALSE;
-  if AIRE=338{''} then FileName := 'TeXfonts/'
-                  else FileName := GetString(AIRE);
-  FileName := FileName + GetString(NOM) + '.tfm';
-  if not b_open_in(TFMFILE, FileName) then goto 11;
-  FILEOPENED := TRUE{:563};
-
-  {565: @<Read the .TFM size fields@>}
-  if not read_sixteen(TFMFILE, LF) then goto 11;
-  if not read_sixteen(TFMFILE, LH) then goto 11;
-  if not read_sixteen(TFMFILE, BC) then goto 11;
-  if not read_sixteen(TFMFILE, EC) then goto 11;
-
-  IF (BC>EC+1)OR(EC>255)THEN GOTO 11;
-  IF BC>255 THEN BEGIN
-    BC := 1;
-    EC := 0;
-  END;
-
-  if not read_sixteen(TFMFILE, NW) then goto 11;
-  if not read_sixteen(TFMFILE, NH) then goto 11;
-  if not read_sixteen(TFMFILE, ND) then goto 11;
-  if not read_sixteen(TFMFILE, NI) then goto 11;
-  if not read_sixteen(TFMFILE, NL) then goto 11;
-  if not read_sixteen(TFMFILE, NK) then goto 11;
-  if not read_sixteen(TFMFILE, NE) then goto 11;
-  if not read_sixteen(TFMFILE, NP) then goto 11;
-
-  IF LF<>6+LH+(EC-BC+1)+NW+NH+ND+NI+NL+NK+NE+NP THEN GOTO 11;
-  IF (NW=0)OR(NH=0)OR(ND=0)OR(NI=0) THEN GOTO 11;
-  {:565};
-
-  {566: @<Use size fields to allocate font information@>}
-  LF := LF-6-LH;
-  IF NP<7 THEN LF := LF+7-NP;
-  IF (FONTPTR=FONTMAX)OR(FMEMPTR+LF>FONTMEMSIZE) THEN BEGIN
-    {567: @<Use size fields to allocate font information@>}
-      BEGIN
-        print_nl_str('! ');
-        print_str('Font ');
-      END;
-      SPRINTCS(U);
-      PRINTCHAR(61);
-      PRINTFILENAM(NOM,AIRE,338);
-      IF S>=0 THEN
-        BEGIN
-          print_str(' at ');
-          PRINTSCALED(S);
-          print_str('pt');
-        END
-      ELSE
-        IF S<>-1000 THEN
-          BEGIN
-            print_str(' scaled ');
-            PRINTINT(-S);
-          END;
-      print_str(' not loaded: Not enough room left');
-      BEGIN
-        HELPPTR := 4;
-        help_line[3] := 'I''m afraid I won''t be able to make use of this font,';
-        help_line[2] := 'because my memory for character-size data is too small.';
-        help_line[1] := 'If you''re really stuck, ask a wizard to enlarge me.';
-        help_line[0] := 'Or maybe try `I\font<same font id>=<name of loaded font>''.';
-      END;
-      ERROR;
-      GOTO 30;
-    {:567}
-  END;
-  F := FONTPTR+1;
-  CHARBASE[F] := FMEMPTR-BC;
-  WIDTHBASE[F] := CHARBASE[F]+EC+1;
-  HEIGHTBASE[F] := WIDTHBASE[F]+NW;
-  DEPTHBASE[F] := HEIGHTBASE[F]+NH;
-  ITALICBASE[F] := DEPTHBASE[F]+ND;
-  LIGKERNBASE[F] := ITALICBASE[F]+NI;
-  KERNBASE[F] := LIGKERNBASE[F]+NL-256*(128);
-  EXTENBASE[F] := KERNBASE[F]+256*(128)+NK;
-  PARAMBASE[F] := EXTENBASE[F]+NE;
-  {:566}
- 
-  {568: @<Read the .TFM header@>}
-  IF LH<2 THEN GOTO 11;
-  if not store_four_quaters(TFMFILE, FONTCHECK[F]) then goto 11;
-  {$I-}
-  read(TFMFILE, A, B, C, D);
-  {$I+}
-  if IOResult <> 0 then goto 11;
-  if A > 127 then goto 11; {this rejects a negative design size}
-  Z := (A * $100000) + (B * $1000) + (C * 16) + (D div 16);
-  if Z < fixUnity then goto 11;
-
-  {ignore the rest of the header}
-  WHILE LH>2 DO BEGIN 
-    {$I-}
-    read(TFMFILE, A, B, C, D);
-    {$I+}
-    if IOResult <> 0 then goto 11;
-    LH := LH-1;
-  END;
-  FONTDSIZE[F] := Z;
-  IF S<>-1000 THEN BEGIN
-    IF S>=0 THEN Z := S
-    ELSE Z := XNOVERD(Z,-S,1000);
-  END;
-  FONTSIZE[F] := Z;
-  {:568};
-
-  {569: @<Read character data@>}
-  FOR K:=FMEMPTR TO WIDTHBASE[F]-1 DO BEGIN
-    if not store_four_quaters(TFMFILE, QW) then goto 11;
-    FONTINFO[K].QQQQ := QW;
-    A := QW.B0;
-    B := QW.B1;
-    C := QW.B2;
-    D := QW.B3;
-    IF (A>=NW)OR(B DIV 16>=NH)OR(B MOD 16>=ND)OR(C DIV 4>=NI)THEN GOTO 11;
-    CASE C MOD 4 OF 
-      tagLig:  IF D>=NL THEN GOTO 11;
-      tagExt:  IF D>=NE THEN GOTO 11;
-      tagList: BEGIN
-                 {570:}
-                 IF (D<BC)OR(D>EC)THEN GOTO 11;
-                 WHILE D<K+BC-FMEMPTR DO BEGIN
-                   QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-                   IF ((QW.B2-0)MOD 4)<>2 THEN GOTO 45;
-                   D := QW.B3-0;
-                 END;
-                 IF D=K+BC-FMEMPTR THEN GOTO 11;
-             45:
-                 {:570}
-               END;
-    END;
-  END;
-  {:569}
-
-  {571: @<Read box dimensions@>}
-  BEGIN
-    {572: @<Replace |z| b< $|z|^\prime$ and compute $\alpha,\beta$@>}
-    BEGIN
-      ALPHA := 16;
-      WHILE Z>=8388608 DO
-        BEGIN
-          Z := Z DIV 2;
-          ALPHA := ALPHA+ALPHA;
-        END;
-      BETA := 256 DIV ALPHA;
-      ALPHA := ALPHA*Z;
-    END;
-    {:572}
-    FOR K:=WIDTHBASE[F]TO LIGKERNBASE[F]-1 DO BEGIN
-      if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
-    END;
-    IF FONTINFO[WIDTHBASE[F]].INT<>0 THEN GOTO 11;
-    IF FONTINFO[HEIGHTBASE[F]].INT<>0 THEN GOTO 11;
-    IF FONTINFO[DEPTHBASE[F]].INT<>0 THEN GOTO 11;
-    IF FONTINFO[ITALICBASE[F]].INT<>0 THEN GOTO 11;
-  END;
-  {:571}
-
-  {573: @<Read ligature/kern program@>}
-  BCHLABEL := 32767;
-  BCHAR := 256;
-  IF NL>0 THEN BEGIN
-    FOR K:=LIGKERNBASE[F]TO KERNBASE[F]+256*(128)-1 DO BEGIN
-      if not store_four_quaters(TFMFILE, QW) then goto 11;
-      FONTINFO[K].QQQQ := QW;
-      A := QW.B0;
-      B := QW.B1;
-      C := QW.B2;
-      D := QW.B3;
-      IF A>128 THEN BEGIN
-        IF 256*C+D>=NL THEN GOTO 11;
-        IF A=255 THEN
-          IF K=LIGKERNBASE[F]THEN BCHAR := B;
-      END ELSE BEGIN
-        IF B<>BCHAR THEN BEGIN
-          IF (B<BC)OR(B>EC)THEN GOTO 11;
-          QW := FONTINFO[CHARBASE[F]+B].QQQQ;
-          IF NOT(QW.B0>0)THEN GOTO 11;
-        END;
-        IF C<128 THEN BEGIN
-          IF (D<BC)OR(D>EC)THEN GOTO 11;
-          QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-          IF NOT(QW.B0>0)THEN GOTO 11;
-        END ELSE IF 256*(C-128)+D>=NK THEN GOTO 11;
-        IF A<128 THEN
-          IF K-LIGKERNBASE[F]+A+1>=NL THEN GOTO 11;
-      END;
-    END;
-    IF A=255 THEN BCHLABEL := 256*C+D;
-  END;
-  FOR K:=KERNBASE[F]+256*(128)TO EXTENBASE[F]-1 DO BEGIN
-    if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
-  END;
-  {:573}
-
-  {574: @<Read extensible character recipes@>}
-  FOR K:=EXTENBASE[F]TO PARAMBASE[F]-1 DO BEGIN
-    if not store_four_quaters(TFMFILE, QW) then goto 11;
-    FONTINFO[K].QQQQ := QW;
-    A := QW.B0;
-    B := QW.B1;
-    C := QW.B2;
-    D := QW.B3;
-
-      IF A<>0 THEN
-        BEGIN
-          BEGIN
-            IF (A<BC)OR(A>EC)THEN GOTO 11
-          END;
-          QW := FONTINFO[CHARBASE[F]+A].QQQQ;
-          IF NOT(QW.B0>0)THEN GOTO 11;
-        END;
-      IF B<>0 THEN
-        BEGIN
-          BEGIN
-            IF (B<BC)OR(B>EC)THEN GOTO 11
-          END;
-          QW := FONTINFO[CHARBASE[F]+B].QQQQ;
-          IF NOT(QW.B0>0)THEN GOTO 11;
-        END;
-      IF C<>0 THEN
-        BEGIN
-          BEGIN
-            IF (C<BC)OR(C>EC)THEN GOTO 11
-          END;
-          QW := FONTINFO[CHARBASE[F]+C].QQQQ;
-          IF NOT(QW.B0>0)THEN GOTO 11;
-        END;
-      BEGIN
-        BEGIN
-          IF (D<BC)OR(D>EC)THEN GOTO 11
-        END;
-        QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-        IF NOT(QW.B0>0)THEN GOTO 11;
-      END;
-  END;
-  {:574}
-
-  {575: @<Read font parameters@>}
-  FOR K:=1 TO NP DO BEGIN
-    IF K=1 THEN BEGIN
-      {$I-}
-      read(TFMFILE, A, B, C, D);
-      {$I+}
-      if IOResult <> 0 then goto 11;
-      if A > 127 then SW := SCALED(A) - 256 else SW := A;
-      SW := (SW * $100000) + (B * $1000) + (C*16) + (D div 16);
-      FONTINFO[PARAMBASE[F]].INT := SW;
-    END ELSE BEGIN
-      if not store_scaled(TFMFILE, ALPHA, BETA, Z, SW) then goto 11;
-      FONTINFO[PARAMBASE[F]+K-1].INT := SW;
-    END;
-  END;
-  FOR K:=NP+1 TO 7 DO
-    FONTINFO[PARAMBASE[F]+K-1].INT := 0;
-  {:575}
-
-  {576: @<Make final adjustments and |goto done|@>}
-  IF NP>=7 THEN FONTPARAMS[F] := NP
-  ELSE FONTPARAMS[F] := 7;
-  HYPHENCHAR[F] := EQTB[5309].INT;
-  SKEWCHAR[F] := EQTB[5310].INT;
-  IF BCHLABEL<NL THEN BCHARLABEL[F] := BCHLABEL+LIGKERNBASE[F]
-  ELSE
-    BCHARLABEL[F] := 0;
-  FONTBCHAR[F] := BCHAR+0;
-  FONTFALSEBCH[F] := BCHAR+0;
-  IF BCHAR<=EC THEN
-    IF BCHAR>=BC THEN
-      BEGIN
-        QW := FONTINFO[CHARBASE[F]+BCHAR
-              ].QQQQ;
-        IF (QW.B0>0)THEN FONTFALSEBCH[F] := 256;
-      END;
-  FONTNAME[F] := NOM;
-  FONTAREA[F] := AIRE;
-  FONTBC[F] := BC;
-  FONTEC[F] := EC;
-  FONTGLUE[F] := 0;
-  CHARBASE[F] := CHARBASE[F]-0;
-  WIDTHBASE[F] := WIDTHBASE[F]-0;
-  LIGKERNBASE[F] := LIGKERNBASE[F]-0;
-  KERNBASE[F] := KERNBASE[F]-0;
-  EXTENBASE[F] := EXTENBASE[F]-0;
-  PARAMBASE[F] := PARAMBASE[F]-1;
-  FMEMPTR := FMEMPTR+LF;
-  FONTPTR := F;
-  G := F;
-  GOTO 30
-  {:576}
-  {:562};
-
-  11: {label bad_tfm}
-  {561: @<Report that the font won't be loaded@>}
-      BEGIN
-        IF INTERACTION=3 THEN;
-        print_nl_str('! ');
-        print_str('Font ');
-      END;
-  SPRINTCS(U);
-  PRINTCHAR(61);
-  PRINTFILENAM(NOM,AIRE,338);
-  IF S>=0 THEN
-    BEGIN
-      print_str(' at ');
-      PRINTSCALED(S);
-      print_str('pt');
-    END
-  ELSE
-    IF S<>-1000 THEN
-      BEGIN
-        print_str(' scaled ');
-        PRINTINT(-S);
-      END;
-  IF FILEOPENED THEN print_str(' not loadable: Bad metric (TFM) file')
-  ELSE print_str(' not loadable: Metric (TFM) file not found');
-  BEGIN
-    HELPPTR := 5;
-    help_line[4] := 'I wasn''t able to read the size data for this font,';
-    help_line[3] := 'so I will ignore the font specification.';
-    help_line[2] := '[Wizards can fix TFM files using TFtoPL/PLtoTF.]';
-    help_line[1] := 'You might try inserting a different font spec;';
-    help_line[0] := 'e.g., type `I\font<same font id>=<substitute font name>''.';
-  END;
-  ERROR;
-  {:561}
-
-  30:
-      IF FILEOPENED THEN close(TFMFILE);
-  READFONTINFO := G;
-END;
-{:560}
 
 {581:}
 PROCEDURE CHARWARNING(F: INTERNALFONT; C: EIGHTBITS);
@@ -19328,7 +18921,490 @@ BEGIN
   SCANDIMEN(FALSE,FALSE,FALSE);
   IF EQTB[3678+B].HH.RH<>0 THEN MEM[EQTB[3678+B].HH.RH+C].INT := CURVAL;
 END;
-{:1247}{1257:}
+{:1247}
+
+
+
+
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  Handle font files
+  ---------------------------------------------------------------------- }
+
+{Read 16 bit bigendian from TFM file.
+ Return false if I/O error or if sign bit of value is set}
+function read_sixteen(var TFMFile: byte_file; var Dest: HALFWORD) : boolean;
+var Lo, Hi: EIGHTBITS;
+begin
+  {$I-}
+  read(TFMFile, Hi, Lo);
+  {$I+}
+  if (IOResult = 0) and (Hi < 128) then begin
+    Dest := HALFWORD(Hi)*256 + Lo;
+    read_sixteen := true;
+  end else begin
+    read_sixteen := false;
+  end
+end;
+
+{Read 4 bytes from TFM file.
+ Return false if I/O error}
+function store_four_quaters(var TFMFile: byte_file; var qw: FOURQUARTERS) : boolean;
+var a,b, c, d : EIGHTBITS;
+begin
+  {$I-}
+  read(TFMFile, a, b, c, d);
+  {$I+}
+  if IOResult = 0 then begin
+    qw.b0 := a;
+    qw.b1 := b;
+    qw.b2 := c;
+    qw.b3 := d;
+    store_four_quaters := true;
+  end else begin
+    store_four_quaters := false;
+  end
+end;
+
+
+(*
+@ A |fix_word| whose four bytes are $(a,b,c,d)$ from left to right represents
+the number
+$$x=\left\{\vcenter{\halign{$#$,\hfil\qquad&if $#$\hfil\cr
+b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=0;\cr
+-16+b\cdot2^{-4}+c\cdot2^{-12}+d\cdot2^{-20}&a=255.\cr}}\right.$$
+(No other choices of |a| are allowed, since the magnitude of a number in
+design-size units must be less than 16.)  We want to multiply this
+quantity by the integer~|z|, which is known to be less than $2^{27}$.
+If $|z|<2^{23}$, the individual multiplications $b\cdot z$,
+$c\cdot z$, $d\cdot z$ cannot overflow; otherwise we will divide |z| by 2,
+4, 8, or 16, to obtain a multiplier less than $2^{23}$, and we can
+compensate for this later. If |z| has thereby been replaced by
+$|z|^\prime=|z|/2^e$, let $\beta=2^{4-e}$; we shall compute
+$$\lfloor(b+c\cdot2^{-8}+d\cdot2^{-16})\,z^\prime/\beta\rfloor$$
+if $a=0$, or the same quantity minus $\alpha=2^{4+e}z^\prime$ if $a=255$.
+This calculation must be done exactly, in order to guarantee portability
+of \TeX\ between computers.
+*)
+function store_scaled(var TFMFile: byte_file;
+                      Alpha: SCALED;
+                      Beta: SCALED;
+                      Z: SCALED;
+                      var Result: SCALED) : boolean;
+var
+  a, b, c, d: EIGHTBITS;
+  sw: SCALED;
+begin
+  {$I-}
+  read(TFMFile, a, b, c, d);
+  {$I+}
+  store_scaled := false;
+  if IOResult = 0 then begin
+    sw := (((((d*Z) DIV 256)+(c*Z)) DIV 256)+(b*Z)) DIV Beta;
+    if a=0 then begin
+      Result := sw;
+      store_scaled := true;
+    end else if a=255 then begin
+      Result := sw - Alpha;
+      store_scaled := true;
+    end
+  end
+end;
+
+{ 0 all fine
+  1 out of memory
+  2 invalid format}
+function ReadFontFile(var TFMFILE: byte_file;
+                      F: INTERNALFONT;
+                      S: SCALED) : uint32;
+LABEL 11,45;
+VAR K: FONTINDEX;
+  LF,LH,BC,EC,NW,NH,ND,NI,NL,NK,NE,NP: HALFWORD;
+  A,B,C,D: EIGHTBITS;
+  QW: FOURQUARTERS;
+  SW: SCALED;
+  BCHLABEL: Int32;
+  BCHAR: 0..256;
+  Z: SCALED;
+  ALPHA: Int32;
+  BETA: 1..16;
+  FileName: string;
+BEGIN
+  ReadFontFile := 2; {invalid format error}
+
+  {565: @<Read the .TFM size fields@>}
+  if not read_sixteen(TFMFILE, LF) then goto 11;
+  if not read_sixteen(TFMFILE, LH) then goto 11;
+  if not read_sixteen(TFMFILE, BC) then goto 11;
+  if not read_sixteen(TFMFILE, EC) then goto 11;
+
+  IF (BC>EC+1)OR(EC>255)THEN GOTO 11;
+  IF BC>255 THEN BEGIN
+    BC := 1;
+    EC := 0;
+  END;
+
+  if not read_sixteen(TFMFILE, NW) then goto 11;
+  if not read_sixteen(TFMFILE, NH) then goto 11;
+  if not read_sixteen(TFMFILE, ND) then goto 11;
+  if not read_sixteen(TFMFILE, NI) then goto 11;
+  if not read_sixteen(TFMFILE, NL) then goto 11;
+  if not read_sixteen(TFMFILE, NK) then goto 11;
+  if not read_sixteen(TFMFILE, NE) then goto 11;
+  if not read_sixteen(TFMFILE, NP) then goto 11;
+
+  IF LF<>6+LH+(EC-BC+1)+NW+NH+ND+NI+NL+NK+NE+NP THEN GOTO 11;
+  IF (NW=0)OR(NH=0)OR(ND=0)OR(NI=0) THEN GOTO 11;
+  {:565};
+
+  {566: @<Use size fields to allocate font information@>}
+  LF := LF-6-LH;
+  IF NP<7 THEN LF := LF+7-NP;
+  IF (FMEMPTR+LF>FONTMEMSIZE) THEN BEGIN
+    ReadFontFile := 1; {out of memory error}
+    exit;
+  END;
+  CHARBASE[F] := FMEMPTR-BC;
+  WIDTHBASE[F] := CHARBASE[F]+EC+1;
+  HEIGHTBASE[F] := WIDTHBASE[F]+NW;
+  DEPTHBASE[F] := HEIGHTBASE[F]+NH;
+  ITALICBASE[F] := DEPTHBASE[F]+ND;
+  LIGKERNBASE[F] := ITALICBASE[F]+NI;
+  KERNBASE[F] := LIGKERNBASE[F]+NL-256*(128);
+  EXTENBASE[F] := KERNBASE[F]+256*(128)+NK;
+  PARAMBASE[F] := EXTENBASE[F]+NE;
+  {:566}
+ 
+  {568: @<Read the .TFM header@>}
+  IF LH<2 THEN GOTO 11;
+  if not store_four_quaters(TFMFILE, FONTCHECK[F]) then goto 11;
+  {$I-}
+  read(TFMFILE, A, B, C, D);
+  {$I+}
+  if IOResult <> 0 then goto 11;
+  if A > 127 then goto 11; {this rejects a negative design size}
+  Z := (A * $100000) + (B * $1000) + (C * 16) + (D div 16);
+  if Z < fixUnity then goto 11;
+
+  {ignore the rest of the header}
+  WHILE LH>2 DO BEGIN 
+    {$I-}
+    read(TFMFILE, A, B, C, D);
+    {$I+}
+    if IOResult <> 0 then goto 11;
+    LH := LH-1;
+  END;
+  FONTDSIZE[F] := Z;
+  IF S<>-1000 THEN BEGIN
+    IF S>=0 THEN Z := S
+    ELSE Z := XNOVERD(Z,-S,1000);
+  END;
+  FONTSIZE[F] := Z;
+  {:568};
+
+  {569: @<Read character data@>}
+  FOR K:=FMEMPTR TO WIDTHBASE[F]-1 DO BEGIN
+    if not store_four_quaters(TFMFILE, QW) then goto 11;
+    FONTINFO[K].QQQQ := QW;
+    A := QW.B0;
+    B := QW.B1;
+    C := QW.B2;
+    D := QW.B3;
+    IF (A>=NW)OR(B DIV 16>=NH)OR(B MOD 16>=ND)OR(C DIV 4>=NI)THEN GOTO 11;
+    CASE C MOD 4 OF 
+      tagLig:  IF D>=NL THEN GOTO 11;
+      tagExt:  IF D>=NE THEN GOTO 11;
+      tagList: BEGIN
+                 {570:}
+                 IF (D<BC)OR(D>EC)THEN GOTO 11;
+                 WHILE D<K+BC-FMEMPTR DO BEGIN
+                   QW := FONTINFO[CHARBASE[F]+D].QQQQ;
+                   IF ((QW.B2-0)MOD 4)<>2 THEN GOTO 45;
+                   D := QW.B3-0;
+                 END;
+                 IF D=K+BC-FMEMPTR THEN GOTO 11;
+             45:
+                 {:570}
+               END;
+    END;
+  END;
+  {:569}
+
+  {571: @<Read box dimensions@>}
+  BEGIN
+    {572: @<Replace |z| b< $|z|^\prime$ and compute $\alpha,\beta$@>}
+    BEGIN
+      ALPHA := 16;
+      WHILE Z>=8388608 DO
+        BEGIN
+          Z := Z DIV 2;
+          ALPHA := ALPHA+ALPHA;
+        END;
+      BETA := 256 DIV ALPHA;
+      ALPHA := ALPHA*Z;
+    END;
+    {:572}
+    FOR K:=WIDTHBASE[F]TO LIGKERNBASE[F]-1 DO BEGIN
+      if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
+    END;
+    IF FONTINFO[WIDTHBASE[F]].INT<>0 THEN GOTO 11;
+    IF FONTINFO[HEIGHTBASE[F]].INT<>0 THEN GOTO 11;
+    IF FONTINFO[DEPTHBASE[F]].INT<>0 THEN GOTO 11;
+    IF FONTINFO[ITALICBASE[F]].INT<>0 THEN GOTO 11;
+  END;
+  {:571}
+
+  {573: @<Read ligature/kern program@>}
+  BCHLABEL := 32767;
+  BCHAR := 256;
+  IF NL>0 THEN BEGIN
+    FOR K:=LIGKERNBASE[F]TO KERNBASE[F]+256*(128)-1 DO BEGIN
+      if not store_four_quaters(TFMFILE, QW) then goto 11;
+      FONTINFO[K].QQQQ := QW;
+      A := QW.B0;
+      B := QW.B1;
+      C := QW.B2;
+      D := QW.B3;
+      IF A>128 THEN BEGIN
+        IF 256*C+D>=NL THEN GOTO 11;
+        IF A=255 THEN
+          IF K=LIGKERNBASE[F]THEN BCHAR := B;
+      END ELSE BEGIN
+        IF B<>BCHAR THEN BEGIN
+          IF (B<BC)OR(B>EC)THEN GOTO 11;
+          QW := FONTINFO[CHARBASE[F]+B].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END;
+        IF C<128 THEN BEGIN
+          IF (D<BC)OR(D>EC)THEN GOTO 11;
+          QW := FONTINFO[CHARBASE[F]+D].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END ELSE IF 256*(C-128)+D>=NK THEN GOTO 11;
+        IF A<128 THEN
+          IF K-LIGKERNBASE[F]+A+1>=NL THEN GOTO 11;
+      END;
+    END;
+    IF A=255 THEN BCHLABEL := 256*C+D;
+  END;
+  FOR K:=KERNBASE[F]+256*(128)TO EXTENBASE[F]-1 DO BEGIN
+    if not store_scaled(TFMFILE, ALPHA, BETA, Z, FONTINFO[K].INT) then goto 11;
+  END;
+  {:573}
+
+  {574: @<Read extensible character recipes@>}
+  FOR K:=EXTENBASE[F]TO PARAMBASE[F]-1 DO BEGIN
+    if not store_four_quaters(TFMFILE, QW) then goto 11;
+    FONTINFO[K].QQQQ := QW;
+    A := QW.B0;
+    B := QW.B1;
+    C := QW.B2;
+    D := QW.B3;
+
+      IF A<>0 THEN
+        BEGIN
+          BEGIN
+            IF (A<BC)OR(A>EC)THEN GOTO 11
+          END;
+          QW := FONTINFO[CHARBASE[F]+A].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END;
+      IF B<>0 THEN
+        BEGIN
+          BEGIN
+            IF (B<BC)OR(B>EC)THEN GOTO 11
+          END;
+          QW := FONTINFO[CHARBASE[F]+B].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END;
+      IF C<>0 THEN
+        BEGIN
+          BEGIN
+            IF (C<BC)OR(C>EC)THEN GOTO 11
+          END;
+          QW := FONTINFO[CHARBASE[F]+C].QQQQ;
+          IF NOT(QW.B0>0)THEN GOTO 11;
+        END;
+      BEGIN
+        BEGIN
+          IF (D<BC)OR(D>EC)THEN GOTO 11
+        END;
+        QW := FONTINFO[CHARBASE[F]+D].QQQQ;
+        IF NOT(QW.B0>0)THEN GOTO 11;
+      END;
+  END;
+  {:574}
+
+  {575: @<Read font parameters@>}
+  FOR K:=1 TO NP DO BEGIN
+    IF K=1 THEN BEGIN
+      {$I-}
+      read(TFMFILE, A, B, C, D);
+      {$I+}
+      if IOResult <> 0 then goto 11;
+      if A > 127 then SW := SCALED(A) - 256 else SW := A;
+      SW := (SW * $100000) + (B * $1000) + (C*16) + (D div 16);
+      FONTINFO[PARAMBASE[F]].INT := SW;
+    END ELSE BEGIN
+      if not store_scaled(TFMFILE, ALPHA, BETA, Z, SW) then goto 11;
+      FONTINFO[PARAMBASE[F]+K-1].INT := SW;
+    END;
+  END;
+  FOR K:=NP+1 TO 7 DO
+    FONTINFO[PARAMBASE[F]+K-1].INT := 0;
+  {:575}
+
+  {576: @<Make final adjustments and |goto done|@>}
+  IF NP>=7 THEN FONTPARAMS[F] := NP
+  ELSE FONTPARAMS[F] := 7;
+  HYPHENCHAR[F] := EQTB[5309].INT;
+  SKEWCHAR[F] := EQTB[5310].INT;
+  IF BCHLABEL<NL THEN BCHARLABEL[F] := BCHLABEL+LIGKERNBASE[F]
+  ELSE
+    BCHARLABEL[F] := 0;
+  FONTBCHAR[F] := BCHAR+0;
+  FONTFALSEBCH[F] := BCHAR+0;
+  IF BCHAR<=EC THEN
+    IF BCHAR>=BC THEN
+      BEGIN
+        QW := FONTINFO[CHARBASE[F]+BCHAR
+              ].QQQQ;
+        IF (QW.B0>0)THEN FONTFALSEBCH[F] := 256;
+      END;
+  FONTBC[F] := BC;
+  FONTEC[F] := EC;
+  FONTGLUE[F] := 0;
+  CHARBASE[F] := CHARBASE[F]-0;
+  WIDTHBASE[F] := WIDTHBASE[F]-0;
+  LIGKERNBASE[F] := LIGKERNBASE[F]-0;
+  KERNBASE[F] := KERNBASE[F]-0;
+  EXTENBASE[F] := EXTENBASE[F]-0;
+  PARAMBASE[F] := PARAMBASE[F]-1;
+  FMEMPTR := FMEMPTR+LF;
+  ReadFontFile := 0; {successful, no error}
+  {:576}
+  {:562}
+11:
+END;
+
+FUNCTION READFONTINFO(U:HALFWORD;
+                      FileName: string;
+                      S:SCALED): INTERNALFONT;
+VAR
+  TFMFile: byte_file;
+  FontNo: INTERNALFONT;
+  ErrorCode: uint32;
+BEGIN
+  ErrorCode := 1; {out of memory. Better: too many fonts loaded}
+  if FONTPTR < font_max then begin
+    ErrorCode := 3; {file not found}
+    if b_open_in(TFMFile, FileName) then begin
+      FontNo := FONTPTR+1;
+      ErrorCode := ReadFontFile(TFMFile, FontNo, S);
+      close(TFMFile);
+
+      if ErrorCode = 0 then begin
+        FONTPTR := FontNo; {finally reserve font entry}
+        READFONTINFO := FontNo;
+        exit;
+      end;
+    end;
+  end;
+
+  {Report an error according to ErrorCode}
+  print_nl_str('! ');
+  print_str('Font ');
+  SPRINTCS(U);
+  PRINTCHAR(61);
+  print_str(RemoveFileExtension(FileName));
+  IF S>=0 THEN BEGIN
+     print_str(' at ');
+     PRINTSCALED(S);
+     print_str('pt');
+  END ELSE IF S<>-1000 THEN BEGIN
+     print_str(' scaled ');
+     PRINTINT(-S);
+  END;
+
+  if ErrorCode = 1 then begin
+    print_str(' not loaded: Not enough room left');
+    BEGIN
+      HELPPTR := 4;
+      help_line[3] := 'I''m afraid I won''t be able to make use of this font,';
+      help_line[2] := 'because my memory for character-size data is too small.';
+      help_line[1] := 'If you''re really stuck, ask a wizard to enlarge me.';
+      help_line[0] := 'Or maybe try `I\font<same font id>=<name of loaded font>''.';
+    END;
+  end else begin
+    if ErrorCode = 2 then print_str(' not loadable: Bad metric (TFM) file')
+                     else print_str(' not loadable: Metric (TFM) file not found');
+    BEGIN
+      HELPPTR := 5;
+      help_line[4] := 'I wasn''t able to read the size data for this font,';
+      help_line[3] := 'so I will ignore the font specification.';
+      help_line[2] := '[Wizards can fix TFM files using TFtoPL/PLtoTF.]';
+      help_line[1] := 'You might try inserting a different font spec;';
+      help_line[0] := 'e.g., type `I\font<same font id>=<substitute font name>''.';
+    END;
+  end;
+  ERROR;
+
+  READFONTINFO := null_font;
+END;
+
+function FindFont(UserFontId: HALFWORD;
+                  const FileNameArea: string;
+                  ScaleFactor: SCALED) : INTERNALFONT;
+var
+  FontNo: INTERNALFONT;
+  Slash: SizeInt;
+  Area: string;
+  Name: string;
+  AreaIndex: STRNUMBER;
+  NameIndex: STRNUMBER;
+begin
+  AreaIndex := 0;
+  NameIndex := 0;
+  FOR FontNo := 1 TO FONTPTR DO begin
+    if GetString(FONTAREA[FontNo])+GetString(FONTNAME[FontNo]) = FileNameArea then begin
+      AreaIndex := FONTAREA[FontNo];
+      NameIndex := FONTNAME[FontNo];
+
+      IF ((ScaleFactor>0) and (ScaleFactor=FONTSIZE[FontNo])) or
+         ((ScaleFactor<=0) and (FONTSIZE[FontNo]=
+         XNOVERD(FONTDSIZE[FontNo],-ScaleFactor,1000))) then begin
+        FindFont := FontNo;
+        exit;
+      end;
+    END;
+  end;
+
+  Slash := pos('/', FileNameArea); {0 if no path}
+  if Slash=0 then begin
+    {special case: without path use standard directory}
+    Area := 'TeXfonts/';
+    AreaIndex := 338{''};
+  end else begin
+    Area := copy(FileNameArea, 1, Slash-1);
+  end;
+  Name := copy(FileNameArea, Slash+1);
+
+  FontNo := READFONTINFO(UserFontId, Area+Name+'.tfm', ScaleFactor);
+
+  if FontNo <> null_font then begin
+    if AreaIndex=0 then AreaIndex := AddString(Area);
+    FONTAREA[FontNo] := AreaIndex;
+    if NameIndex=0 then NameIndex := AddString(Name);
+    FONTNAME[FontNo] := NameIndex;
+  end;
+  FindFont := FontNo;
+end;
+
+{1257:}
 PROCEDURE NEWFONT(A:SMALLNUMBER);
 LABEL 50;
 VAR
@@ -19337,13 +19413,9 @@ VAR
   F: INTERNALFONT;
   T: STRNUMBER;
   OLDSETTING: 0..21;
-  FLUSHABLESTR: STRNUMBER;
 
-  Filename: string;
-  Slash: SizeInt;
-  Dot: SizeInt;
-  ThisFontArea: STRNUMBER;
-  ThisFontName: STRNUMBER;
+  i: sizeint;
+  FileNameArea: string;
 
 BEGIN
   IF job_name='' THEN OPENLOGFILE;
@@ -19370,86 +19442,65 @@ BEGIN
   ELSE EQDEFINE(U,87,0);
   SCANOPTIONAL;
 
-
-  {FIXME: simplify font name and area handling here and in READFONTINFO}
-  FileName := scan_file_name;
-    {'.tex' is added if no extension, but extension is ignored anyway}
-  Slash := pos('/', FileName); {0 if no path}
-  Dot := pos('.', FileName);
-  if Slash=0 then ThisFontArea := 338{''}
-             else ThisFontArea := AddString(copy(FileName, 1, Slash-1));
-  ThisFontName := AddString(copy(FileName, Slash+1, Dot-Slash-1));
-
-
-
+  FileNameArea := RemoveFileExtension(scan_file_name);
 
 {1258:}
   NAMEINPROGRE := TRUE;
-  IF scan_keyword_str('at')THEN{1259:}
-    BEGIN
-      SCANDIMEN(FALSE,FALSE,FALSE);
-      S := CURVAL;
-      IF (S<=0)OR(S>=134217728)THEN
-        BEGIN
-          BEGIN
-            IF INTERACTION=3 THEN;
-            print_nl_str('! ');
-            print_str('Improper `at'' size (');
-          END;
-          PRINTSCALED(S);
-          print_str('pt), replaced by 10pt');
-          BEGIN
-            HELPPTR := 2;
-            help_line[1] := 'I can only handle fonts at positive sizes that are';
-            help_line[0] := 'less than 2048pt, so I''ve changed what you said to 10pt.';
-          END;
-          ERROR;
-          S := 10*65536;
-        END;
-    END{:1259}
-  ELSE
-    IF scan_keyword_str('scaled')THEN
+  IF scan_keyword_str('at')THEN BEGIN
+
+    {1259:}
+    SCANDIMEN(FALSE,FALSE,FALSE);
+    S := CURVAL;
+    IF (S<=0)OR(S>=134217728) THEN BEGIN
+      print_nl_str('! Improper `at'' size (');
+      PRINTSCALED(S);
+      print_str('pt), replaced by 10pt');
       BEGIN
-        SCANINT;
-        S := -CURVAL;
-        IF (CURVAL<=0)OR(CURVAL>32768)THEN
-          BEGIN
-            BEGIN
-              IF INTERACTION=3 THEN;
-              print_nl_str('! ');
-              print_str('Illegal magnification has been changed to 1000');
-            END;
-            BEGIN
-              HELPPTR := 1;
-              help_line[0] := 'The magnification ratio must be between 1 and 32768.';
-            END;
-            INTERROR(CURVAL);
-            S := -1000;
-          END;
-      END
-  ELSE S := -1000;
-  NAMEINPROGRE := FALSE{:1258};{1260:}
-  FLUSHABLESTR := STRPTR-1;
-  FOR F:=1 TO FONTPTR DO begin
-    IF STREQSTR(FONTNAME[F], ThisFontName) AND STREQSTR(FONTAREA[F], ThisFontArea) THEN BEGIN
-      IF ThisFontName=FLUSHABLESTR THEN BEGIN
-        BEGIN
-          STRPTR := STRPTR-1;
-          POOLPTR := STRSTART[STRPTR];
-        END;
-        ThisFontName := FONTNAME[F];
+        HELPPTR := 2;
+        help_line[1] := 'I can only handle fonts at positive sizes that are';
+        help_line[0] := 'less than 2048pt, so I''ve changed what you said to 10pt.';
       END;
-      IF S>0 THEN BEGIN
-        IF S=FONTSIZE[F]THEN GOTO 50;
-      END ELSE IF FONTSIZE[F]=XNOVERD(FONTDSIZE[F],-S,1000) THEN GOTO 50;
-    END{:1260};
-  end;
-  F := READFONTINFO(U, ThisFontName, ThisFontArea,S);
-  50: EQTB[U].HH.RH := F;
+      ERROR;
+      S := 10*65536;
+    END;
+    {:1259}
+
+  END ELSE IF scan_keyword_str('scaled') THEN BEGIN
+    SCANINT;
+    S := -CURVAL;
+    IF (CURVAL<=0)OR(CURVAL>32768) THEN BEGIN
+      print_nl_str('! Illegal magnification has been changed to 1000');
+      BEGIN
+        HELPPTR := 1;
+        help_line[0] := 'The magnification ratio must be between 1 and 32768.';
+      END;
+      INTERROR(CURVAL);
+      S := -1000;
+    END;
+  END ELSE S := -1000;
+  NAMEINPROGRE := FALSE;
+{:1258}
+
+  F := FindFont(U, FileNameArea, S);
+
+  EQTB[U].HH.RH := F;
   EQTB[2624+F] := EQTB[U];
   HASH[2624+F].RH := T;
 END;
-{:1257}{1265:}
+{:1257}
+
+
+
+
+
+
+
+
+
+
+
+
+{1265:}
 PROCEDURE NEWINTERACTI;
 BEGIN
   PRINTLN;
@@ -21628,8 +21679,7 @@ BEGIN
   if not BlockReadSuccess(f, FONTINFO, FMEMPTR*4) then exit;
   if not BlockReadSuccess(f, Buf, 4) then exit;
   u32 := UInt32LE(Buf, 0);
-  if (u32<font_base) then exit;
-  if (u32>FONTMAX) then too_small('font max');
+  if u32>font_max then too_small('font max');
   FONTPTR := u32;
 
   for i := 0 to FONTPTR do begin
