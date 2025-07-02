@@ -516,8 +516,8 @@ TYPE {18:}ASCIICODE = 0..255;{:18}{25:}
   HYPHPOINTER = 0..307;{:925}
 
 
-VAR {13:}BAD: Int32;
-{:13}{20:}
+VAR
+{20:}
   XORD: ARRAY[CHAR] OF ASCIICODE;
   XCHR: ARRAY[ASCIICODE] OF CHAR;
 {:20}
@@ -550,7 +550,6 @@ VAR {13:}BAD: Int32;
   SETBOXALLOWE: BOOLEAN;
   HISTORY: 0..3;
   ERRORCOUNT: -1..100;{:76}{79:}
-  HELPLINE: ARRAY[0..5] OF STRNUMBER;
   help_line: array[0..5] of string;
   HELPPTR: 0..6;
   USEERRHELP: BOOLEAN;{:79}{96:}
@@ -651,12 +650,7 @@ VAR {13:}BAD: Int32;
   IFLINE: Int32;{:489}{493:}
   SKIPLINE: Int32;
 {:493}
-{513:}
-  AREADELIMITE: POOLPOINTER;
-  EXTDELIMITER: POOLPOINTER;
-{:513}{520:}
-  TEXFORMATDEF: PACKED ARRAY[1..20] OF CHAR;
-{:520}{527:}
+{527:}
   NAMEINPROGRE: BOOLEAN;
   job_name: string;
   LOGOPENED: BOOLEAN;{:527}{532:}
@@ -1114,7 +1108,9 @@ BEGIN{8:}{21:}
 {:1300}{1343:}
   FOR K:=0 TO 17 DO
     WRITEOPEN[K] := FALSE;
-{:1343}{$IFDEF INITEX}{164:}
+{:1343}
+{$IFDEF INITEX}
+{164:}
   FOR K:=1 TO 19 DO
     MEM[K].INT := 0;
   K := 0;
@@ -2008,10 +2004,12 @@ begin
       CURINPUT.LOCFIELD := FIRST;
       WHILE (CURINPUT.LOCFIELD<LAST)AND(BUFFER[CURINPUT.LOCFIELD]=32) DO
         CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-      IF CURINPUT.LOCFIELD<LAST THEN exit;
+      IF CURINPUT.LOCFIELD<LAST THEN break;
       WRITELN(OUTPUT,'Please type the name of your input file.');
     END;
   end;
+  CURINPUT.LIMITFIELD := LAST;
+  FIRST := LAST+1;
 end;
 {:37}
 
@@ -2064,48 +2062,21 @@ END;
 
 {45:}
 FUNCTION STREQBUF(S:STRNUMBER;K:Int32): BOOLEAN;
-
-LABEL 45;
-
-VAR J: POOLPOINTER;
+VAR
+  J: POOLPOINTER;
   RESULT: BOOLEAN;
 BEGIN
   J := STRSTART[S];
-  WHILE J<STRSTART[S+1] DO
-    BEGIN
-      IF STRPOOL[J]<>BUFFER[K]THEN
-        BEGIN
-          RESULT 
-          := FALSE;
-          GOTO 45;
-        END;
-      J := J+1;
-      K := K+1;
+  WHILE J<STRSTART[S+1] DO BEGIN
+    IF STRPOOL[J]<>BUFFER[K] THEN BEGIN
+      STREQBUF := FALSE;
+      exit;
     END;
-  RESULT := TRUE;
-  45: STREQBUF := RESULT;
-END;{:45}{46:}
-FUNCTION STREQSTR(S,T:STRNUMBER): BOOLEAN;
-
-LABEL 45;
-
-VAR J,K: POOLPOINTER;
-  RESULT: BOOLEAN;
-BEGIN
-  RESULT := FALSE;
-  IF (STRSTART[S+1]-STRSTART[S])<>(STRSTART[T+1]-STRSTART[T])THEN GOTO 45;
-  J := STRSTART[S];
-  K := STRSTART[T];
-  WHILE J<STRSTART[S+1] DO
-    BEGIN
-      IF STRPOOL[J]<>STRPOOL[K]THEN GOTO 45;
-      J := J+1;
-      K := K+1;
-    END;
-  RESULT := TRUE;
-  45: STREQSTR := RESULT;
-END;
-{:46}
+    J := J+1;
+    K := K+1;
+  END;
+  STREQBUF := TRUE;
+END;{:45}
 
 {47:}
 {$IFDEF INITEX}
@@ -9683,11 +9654,10 @@ end;
 
 {537:}
 PROCEDURE STARTINPUT;
-VAR 
-  J: POOLPOINTER;
+var
   FileName: string;
   BaseName: string;
-BEGIN
+begin
   FileName := scan_file_name;
   while true do begin
     BEGINFILEREA;
@@ -9715,18 +9685,16 @@ BEGIN
   FLUSH(OUTPUT);
   CURINPUT.STATEFIELD := 33;
 
-{538:}
-  BEGIN
-    LINE := 1;
-    IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD],FALSE)THEN;
-    FIRMUPTHELIN;
-    IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)THEN CURINPUT.LIMITFIELD := 
-                                                                           CURINPUT.LIMITFIELD-1
+  LINE := 1;
+  IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD],FALSE) THEN;
+  FIRMUPTHELIN;
+  IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
+    THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
     ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
-    FIRST := CURINPUT.LIMITFIELD+1;
-    CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
-  END{:538};
-END;{:537}
+  FIRST := CURINPUT.LIMITFIELD+1;
+  CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
+END;
+{:537}
 
 {581:}
 PROCEDURE CHARWARNING(F: INTERNALFONT; C: EIGHTBITS);
@@ -19033,7 +19001,6 @@ VAR K: FONTINDEX;
   Z: SCALED;
   ALPHA: Int32;
   BETA: 1..16;
-  FileName: string;
 BEGIN
   ReadFontFile := 2; {invalid format error}
 
@@ -19406,7 +19373,6 @@ end;
 
 {1257:}
 PROCEDURE NEWFONT(A:SMALLNUMBER);
-LABEL 50;
 VAR
   U: HALFWORD;
   S: SCALED;
@@ -21822,18 +21788,12 @@ const
   FormatFileFilename  = 'plain';
   FormatFileExtension = '.fmt';
 
-function OpenFormatFile(var f: byte_file; Filename: string) : boolean;
-BEGIN
-  assign(f, Filename);
-  reset(f);
-  OpenFormatFile := IOResult=0;
-END;
-
-procedure FindFormatFile(var f: byte_file);
+function FindFormatFile(var f: byte_file) : boolean;
 var
   i, j: 0..BUFSIZE;
   s: string;
 begin
+  FindFormatFile := true;
   if BUFFER[CURINPUT.LOCFIELD]=ord('&') then begin
 
     {Get filename from input line}
@@ -21844,28 +21804,41 @@ begin
     SetLength(s, j - CURINPUT.LOCFIELD);
     for i := CURINPUT.LOCFIELD to j-1 do 
       s[i-CURINPUT.LOCFIELD+1] := chr(BUFFER[i]);
+
+    {skip spaces after filename}
+    while (j<CURINPUT.LIMITFIELD) and (BUFFER[j]=32) do j := j + 1;
     CURINPUT.LOCFIELD := j;
 
-    if OpenFormatFile(f, s+FormatFileExtension) then exit;
-    if OpenFormatFile(f, FormatFileDirectory+s+FormatFileExtension) then exit;
+    if b_open_in(f, s+FormatFileExtension) then exit;
+    if b_open_in(f, FormatFileDirectory+s+FormatFileExtension) then exit;
     writeln(output, 'Sorry, I can''t find that format;',' will try PLAIN.');
+  end else begin
+
+{$IFDEF INITEX}
+    {if INITEX no implicit load of plain.fmt}
+    FindFormatFile := false;
+    exit;
+{$ENDIF}
+
   end;
-  if not OpenFormatFile(f, FormatFileDirectory+FormatFileFilename+FormatFileExtension) then begin
+
+  if not b_open_in(f, FormatFileDirectory+FormatFileFilename+FormatFileExtension) then begin
     writeln(output, 'I can''t find the PLAIN format file!');
     halt(History);
   end;
 END;
 
-procedure LoadFormatFile;
+procedure TryToLoadFormatFile;
 var
   f: byte_file;
 begin
-  FindFormatFile(f);
-  if not ReadFormatFile(f) then begin;
-    writeln(Output, '(Fatal format file error; I''m stymied)');
-    halt(History);
+  if FindFormatFile(f) then begin
+    if not ReadFormatFile(f) then begin
+      writeln(Output, '(Fatal format file error; I''m stymied)');
+      halt(History);
+    end;
+    close(f);
   end;
-  close(f);
 end;
 
 
@@ -22018,11 +21991,10 @@ BEGIN{1378:}
     END;
   halt(History);
 END;
-{:1333}{1335:}
+{:1333}
+
+{1335:}
 PROCEDURE FINALCLEANUP;
-
-LABEL 10;
-
 VAR C: SMALLNUMBER;
 BEGIN
   C := CURCHR;
@@ -22082,7 +22054,11 @@ BEGIN
       print_nl_str('(\dump is performed only by INITEX)');
     {$ENDIF}
   END;
-END;{:1335}{1336:}{$IFDEF INITEX}
+END;
+{:1335}
+
+{1336:}
+{$IFDEF INITEX}
 PROCEDURE INITPRIM;
 BEGIN
   NONEWCONTROL := FALSE;
@@ -22520,115 +22496,111 @@ BEGIN;
         END;
     END;
   10:
-END;{$ENDIF}
-{:1338}{:1330}{1332:}
+END;
+{$ENDIF}
+{:1338}
+{:1330}
+
+{1332:}
 BEGIN
   HISTORY := 3;
-  REWRITE(OUTPUT);{14:}
-  BAD := 0;
-  IF (HALFERRORLIN<30)OR(HALFERRORLIN>ERRORLINE-15)THEN BAD := 1;
-  IF MAXPRINTLINE<60 THEN BAD := 2;
-  IF DVIBUFSIZE MOD 8<>0 THEN BAD := 3;
-  IF 1100>30000 THEN BAD := 4;
-  IF 1777>2100 THEN BAD := 5;
-  IF MAXINOPEN>=128 THEN BAD := 6;
-  IF 30000<267 THEN BAD := 7;
-{:14}{111:}{$IFDEF INITEX}
-  IF (MEMMIN<>0)OR(MEMMAX<>30000)THEN BAD := 10;
+  REWRITE(OUTPUT);
+
+  assert((half_error_line>=30) and (half_error_line<=error_line-15));
+  assert(max_print_line>=60);
+  assert((dvi_buf_size mod 8) = 0);
+  assert(mem_bot+1100 <= mem_top);
+  assert(hash_prime <= hash_size);
+  assert(max_in_open < 128);
+  assert(mem_top >= 256+11);
+
+{$IFDEF INITEX}
+  assert((mem_min = mem_bot) and (mem_max = mem_top));
 {$ENDIF}
-  IF (MEMMIN>0)OR(MEMMAX<30000)THEN BAD := 10;
-  IF (0>0)OR(255<127)THEN BAD := 11;
-  IF (0>0)OR(65535<32767)THEN BAD := 12;
-  IF (0<0)OR(255>65535)THEN BAD := 13;
-  IF (MEMMIN<0)OR(MEMMAX>=65535)OR(-0-MEMMIN>65536)THEN BAD := 14;
-  IF (0<0)OR(FONTMAX>255)THEN BAD := 15;
-  IF FONTMAX>256 THEN BAD := 16;
-  IF (SAVESIZE>65535)OR(MAXSTRINGS>65535)THEN BAD := 17;
-  IF BUFSIZE>65535 THEN BAD := 18;
-  IF 255<255 THEN BAD := 19;
-{:111}{290:}
-  IF 6976>65535 THEN BAD := 21;
-{:290}
-{1249:}
-  IF 2*65535<30000-MEMMIN THEN BAD := 41;
-{:1249}
-  IF BAD>0 THEN
-    BEGIN
-      WRITELN(OUTPUT,
-              'Ouch---my internal constants have been clobbered!','---case ',BAD:1);
-      halt(History);
-    END;
-  INITIALIZE;{$IFDEF INITEX}
+
+  assert((mem_min<=mem_bot) and (mem_max>=mem_top));
+  assert((min_quarterword <= 0) and (max_quarterword>=127));
+  assert((min_halfword <= 0) and (max_halfword>=32767));
+  assert((min_quarterword >= min_halfword) and (max_quarterword <= max_halfword));
+  assert((mem_min >= min_halfword) and (mem_max<max_halfword) and (mem_bot-mem_min<=max_halfword+1));
+  assert((font_base>=min_quarterword) and (font_max<=max_quarterword));
+  assert(font_max <= font_base+256);
+  assert((save_size <= max_halfword) or (max_strings <= max_halfword));
+  assert(buf_size <= max_halfword);
+  assert(max_quarterword-min_quarterword >= 255);
+
+  assert(cs_token_flag+undefined_control_sequence <= max_halfword);
+  assert(2*max_halfword >= mem_top-mem_min);
+
+  INITIALIZE;
+
+{$IFDEF INITEX}
   GetStringsStarted;
   INITPRIM;
   INITSTRPTR := STRPTR;
   INITPOOLPTR := POOLPTR;
-  FIXDATEANDTI;{$ENDIF}
-{55:}SELECTOR := 17;
+  FIXDATEANDTI;
+{$ENDIF}
+{55:}
   TALLY := 0;
   TERMOFFSET := 0;
   FILEOFFSET := 0;
-{:55}{61:}
+{:55}
+{61:}
   WRITE(OUTPUT,'This is TeX, Version 3.141592653 Free Pascal');
-  IF FORMATIDENT=0 THEN WRITELN(OUTPUT,' (no format preloaded)')
-  ELSE
-    BEGIN
-      SLOWPRINT(FORMATIDENT);
-      PRINTLN;
-    END;
-  FLUSH(OUTPUT);{:61}{528:}
+
+  {At this point, FORMATIDENT is either 1257 for /INITEX/ or 0 for /VIRTEX/.
+   Therefore the format can be hardcoded.}
+{$IFDEF INITEX}
+  writeln(output, ' (INITEX)');
+{$ELSE}
+  writeln(output, ' (no format preloaded)');
+{$ENDIF}
+
   job_name := '';
   NAMEINPROGRE := FALSE;
-  LOGOPENED := FALSE;{:528}{533:}
-  output_file_name := '';{:533};
-{1337:}
-  BEGIN{331:}
-    BEGIN
-      INPUTPTR := 0;
-      MAXINSTACK := 0;
-      INOPEN := 0;
-      OPENPARENS := 0;
-      MAXBUFSTACK := 0;
-      PARAMPTR := 0;
-      MAXPARAMSTAC := 0;
-      FIRST := BUFSIZE;
-      REPEAT
-        BUFFER[FIRST] := 0;
-        FIRST := FIRST-1;
-      UNTIL FIRST=0;
-      SCANNERSTATU := 0;
-      WARNINGINDEX := 0;
-      FIRST := 1;
-      CURINPUT.STATEFIELD := 33;
-      CURINPUT.STARTFIELD := 1;
-      CURINPUT.INDEXFIELD := 0;
-      LINE := 0;
-      CURINPUT.NAMEFIELD := 0;
-      FORCEEOF := FALSE;
-      ALIGNSTATE := 1000000;
-      init_terminal;
-      CURINPUT.LIMITFIELD := LAST;
-      FIRST := LAST+1;
-    END{:331};
-    IF (FORMATIDENT=0)OR(BUFFER[CURINPUT.LOCFIELD]=38)THEN
-      BEGIN
-        IF FORMATIDENT<>0 THEN INITIALIZE;
-        LoadFormatFile;
-        WHILE (CURINPUT.LOCFIELD<CURINPUT.LIMITFIELD)AND(BUFFER[CURINPUT.LOCFIELD
-              ]=32) DO
-          CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-      END;
-    IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)THEN CURINPUT.LIMITFIELD := 
-                                                                           CURINPUT.LIMITFIELD-1
+  LOGOPENED := FALSE;
+  output_file_name := '';
+
+  INPUTPTR := 0;
+  MAXINSTACK := 0;
+  INOPEN := 0;
+  OPENPARENS := 0;
+  MAXBUFSTACK := 0;
+  PARAMPTR := 0;
+  MAXPARAMSTAC := 0;
+
+  for FIRST := 1 to BUFSIZE do BUFFER[FIRST] := 0;
+  FIRST := 1;
+
+  SCANNERSTATU := 0;
+  WARNINGINDEX := 0;
+  CURINPUT.STATEFIELD := 33;
+  CURINPUT.STARTFIELD := 1;
+  CURINPUT.INDEXFIELD := 0;
+  LINE := 0;
+  CURINPUT.NAMEFIELD := 0;
+  FORCEEOF := FALSE;
+  ALIGNSTATE := 1000000;
+
+  init_terminal;
+
+  TryToLoadFormatFile;
+
+  IF (EQTB[5311].INT<0) OR (EQTB[5311].INT>255) 
+    THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
     ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
-    FIXDATEANDTI;{765:}
-    MAGICOFFSET := STRSTART[892]-9*16{:765};
-{75:}
-    IF INTERACTION=0 THEN SELECTOR := 16
-    ELSE SELECTOR := 17{:75};
-    IF (CURINPUT.LOCFIELD<CURINPUT.LIMITFIELD)AND(EQTB[3983+BUFFER[CURINPUT.
-       LOCFIELD]].HH.RH<>0)THEN STARTINPUT;
-  END{:1337};
+
+  FIXDATEANDTI;
+
+  MAGICOFFSET := STRSTART[892]-9*16{:765};
+  IF INTERACTION=0 THEN SELECTOR := 16
+                   ELSE SELECTOR := 17;
+
+  IF (CURINPUT.LOCFIELD<CURINPUT.LIMITFIELD) AND
+     (EQTB[3983+BUFFER[CURINPUT.LOCFIELD]].HH.RH<>0)
+    THEN STARTINPUT;
+
   HISTORY := 0;
   MAINCONTROL;
   FINALCLEANUP;

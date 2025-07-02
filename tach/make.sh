@@ -59,8 +59,8 @@ build() {
     cp ../../tex82/sources/dist/lib/plain.tex .
     cp ../../tex82/sources/dist/lib/hyphen.tex .
 
-    ./initach plain \\dump
-    # echo "plain \\dump" | ./initach
+    #./initach plain \\dump
+    echo "plain \\dump" | ./initach
 
     cp plain.fmt TeXformats/
     cd ..
@@ -81,7 +81,10 @@ check() {
     do
         b=$(basename "$f" .tex)
         echo "$b"
-        ../build/tach "$f" > tmp.tach.log # || cat tmp.tach.log
+
+        #../build/tach "$f" > tmp.tach.log # || cat tmp.tach.log
+        #echo "&plain $f" | ../build/initach > tmp.tach.log # || cat tmp.tach.log
+        echo "$f" | ../build/tach > tmp.tach.log # || cat tmp.tach.log
 
         diff $b.log to/$b.log
 
