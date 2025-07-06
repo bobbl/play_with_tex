@@ -80,7 +80,7 @@ in production versions of \TeX\.}
      at most |max_halfword|}
   trie_size = 8000;
     {space for hyphenation patterns; should be larger for
-     \INITEX than it is in production versions of \TeX\}
+     \INITEX\ than it is in production versions of \TeX\}
   trie_op_size = 500;
     {space for ``opcodes'' in the hyphenation patterns}
   dvi_buf_size = 800;
@@ -92,7 +92,7 @@ in production versions of \TeX\.}
 
 {@ Like the preceding parameters, the following quantities can be changed
 at compile time to extend or reduce \TeX's capacity. But if they are changed,
-it is necessary to rerun the initialization program \INITEX
+it is necessary to rerun the initialization program \INITEX\
 to generate new tables for the production \TeX\ program.
 One can't simply make helter-skelter changes to the following constants,
 since certain rather complex initialization
@@ -872,24 +872,27 @@ VAR
   HYPHWORD: ARRAY[HYPHPOINTER] OF STRNUMBER;
   HYPHLIST: ARRAY[HYPHPOINTER] OF HALFWORD;
   HYPHCOUNT: HYPHPOINTER;
-{:926}{943:}{$IFDEF INITEX}
+{:926}
+
+{$IFDEF INITEX}
   TRIEOPHASH: ARRAY[-TRIEOPSIZE..TRIEOPSIZE] OF 0..TRIEOPSIZE;
   TRIEUSED: ARRAY[ASCIICODE] OF QUARTERWORD;
   TRIEOPLANG: ARRAY[1..TRIEOPSIZE] OF ASCIICODE;
   TRIEOPVAL: ARRAY[1..TRIEOPSIZE] OF QUARTERWORD;
   TRIEOPPTR: 0..TRIEOPSIZE;
-{$ENDIF}{:943}{947:}{$IFDEF INITEX}
   TRIEC: PACKED ARRAY[TRIEPOINTER] OF PACKEDASCIIC;
   TRIEO: PACKED ARRAY[TRIEPOINTER] OF QUARTERWORD;
   TRIEL: PACKED ARRAY[TRIEPOINTER] OF TRIEPOINTER;
   TRIER: PACKED ARRAY[TRIEPOINTER] OF TRIEPOINTER;
   TRIEPTR: TRIEPOINTER;
-  TRIEHASH: PACKED ARRAY[TRIEPOINTER] OF TRIEPOINTER;{$ENDIF}
-{:947}{950:}{$IFDEF INITEX}
+  TRIEHASH: PACKED ARRAY[TRIEPOINTER] OF TRIEPOINTER;
   TRIETAKEN: PACKED ARRAY[1..TRIESIZE] OF BOOLEAN;
   TRIEMIN: ARRAY[ASCIICODE] OF TRIEPOINTER;
   TRIEMAX: TRIEPOINTER;
-  TRIENOTREADY: BOOLEAN;{$ENDIF}{:950}{971:}
+  TRIENOTREADY: BOOLEAN;
+{$ENDIF}
+
+{971:}
   BESTHEIGHTPL: SCALED;
 {:971}{980:}
   PAGETAIL: HALFWORD;
@@ -955,13 +958,12 @@ begin
 end;
 
 
-PROCEDURE INITIALIZE;
-
-VAR {19:}I: Int32;{:19}{163:}
+procedure InitGeneral;
+VAR
+  I: Int32;
   K: Int32;
-{:163}{927:}
-  Z: HYPHPOINTER;{:927}
-BEGIN{8:}{21:}
+  Z: HYPHPOINTER;
+BEGIN{21:}
   XCHR[32] := ' ';
   XCHR[33] := '!';
   XCHR[34] := '"';
@@ -1198,179 +1200,7 @@ BEGIN{8:}{21:}
   FOR K:=0 TO 17 DO
     WRITEOPEN[K] := FALSE;
 {:1343}
-{$IFDEF INITEX}
-{164:}
-  FOR K:=1 TO 19 DO
-    MEM[K].INT := 0;
-  K := 0;
-  WHILE K<=19 DO
-    BEGIN
-      MEM[K].HH.RH := 1;
-      MEM[K].HH.B0 := 0;
-      MEM[K].HH.B1 := 0;
-      K := K+4;
-    END;
-  MEM[6].INT := 65536;
-  MEM[4].HH.B0 := 1;
-  MEM[10].INT := 65536;
-  MEM[8].HH.B0 := 2;
-  MEM[14].INT := 65536;
-  MEM[12].HH.B0 := 1;
-  MEM[15].INT := 65536;
-  MEM[12].HH.B1 := 1;
-  MEM[18].INT := -65536;
-  MEM[16].HH.B0 := 1;
-  ROVER := 20;
-  MEM[ROVER].HH.RH := 65535;
-  MEM[ROVER].HH.LH := 1000;
-  MEM[ROVER+1].HH.LH := ROVER;
-  MEM[ROVER+1].HH.RH := ROVER;
-  LOMEMMAX := ROVER+1000;
-  MEM[LOMEMMAX].HH.RH := 0;
-  MEM[LOMEMMAX].HH.LH := 0;
-  FOR K:=29987 TO 30000 DO
-    MEM[K] := MEM[LOMEMMAX];
-{790:}
-  MEM[29990].HH.LH := 6714;{:790}{797:}
-  MEM[29991].HH.RH := 256;
-  MEM[29991].HH.LH := 0;{:797}{820:}
-  MEM[29993].HH.B0 := 1;
-  MEM[29994].HH.LH := 65535;
-  MEM[29993].HH.B1 := 0;
-{:820}{981:}
-  MEM[30000].HH.B1 := 255;
-  MEM[30000].HH.B0 := 1;
-  MEM[30000].HH.RH := 30000;{:981}{988:}
-  MEM[29998].HH.B0 := 10;
-  MEM[29998].HH.B1 := 0;{:988};
-  AVAIL := 0;
-  MEMEND := 30000;
-  HIMEMMIN := 29987;
-  VARUSED := 20;
-  DYNUSED := 14;{:164}{222:}
-  EQTB[2881].HH.B0 := 101;
-  EQTB[2881].HH.RH := 0;
-  EQTB[2881].HH.B1 := 0;
-  FOR K:=1 TO 2880 DO
-    EQTB[K] := EQTB[2881];{:222}{228:}
-  EQTB[2882].HH.RH := 0;
-  EQTB[2882].HH.B1 := 1;
-  EQTB[2882].HH.B0 := 117;
-  FOR K:=2883 TO 3411 DO
-    EQTB[K] := EQTB[2882];
-  MEM[0].HH.RH := MEM[0].HH.RH+530;{:228}{232:}
-  EQTB[3412].HH.RH := 0;
-  EQTB[3412].HH.B0 := 118;
-  EQTB[3412].HH.B1 := 1;
-  FOR K:=3413 TO 3677 DO
-    EQTB[K] := EQTB[2881];
-  EQTB[3678].HH.RH := 0;
-  EQTB[3678].HH.B0 := 119;
-  EQTB[3678].HH.B1 := 1;
-  FOR K:=3679 TO 3933 DO
-    EQTB[K] := EQTB[3678];
-  EQTB[3934].HH.RH := 0;
-  EQTB[3934].HH.B0 := 120;
-  EQTB[3934].HH.B1 := 1;
-  FOR K:=3935 TO 3982 DO
-    EQTB[K] := EQTB[3934];
-  EQTB[3983].HH.RH := 0;
-  EQTB[3983].HH.B0 := 120;
-  EQTB[3983].HH.B1 := 1;
-  FOR K:=3984 TO 5262 DO
-    EQTB[K] := EQTB[3983];
-  FOR K:=0 TO 255 DO
-    BEGIN
-      EQTB[3983+K].HH.RH := 12;
-      EQTB[5007+K].HH.RH := K+0;
-      EQTB[4751+K].HH.RH := 1000;
-    END;
-  EQTB[3996].HH.RH := 5;
-  EQTB[4015].HH.RH := 10;
-  EQTB[4075].HH.RH := 0;
-  EQTB[4020].HH.RH := 14;
-  EQTB[4110].HH.RH := 15;
-  EQTB[3983].HH.RH := 9;
-  FOR K:=48 TO 57 DO
-    EQTB[5007+K].HH.RH := K+28672;
-  FOR K:=65 TO 90 DO
-    BEGIN
-      EQTB[3983+K].HH.RH := 11;
-      EQTB[3983+K+32].HH.RH := 11;
-      EQTB[5007+K].HH.RH := K+28928;
-      EQTB[5007+K+32].HH.RH := K+28960;
-      EQTB[4239+K].HH.RH := K+32;
-      EQTB[4239+K+32].HH.RH := K+32;
-      EQTB[4495+K].HH.RH := K;
-      EQTB[4495+K+32].HH.RH := K;
-      EQTB[4751+K].HH.RH := 999;
-    END;
-{:232}{240:}
-  FOR K:=5263 TO 5573 DO
-    EQTB[K].INT := 0;
-  EQTB[5280].INT := 1000;
-  EQTB[5264].INT := 10000;
-  EQTB[5304].INT := 1;
-  EQTB[5303].INT := 25;
-  EQTB[5308].INT := 92;
-  EQTB[5311].INT := 13;
-  FOR K:=0 TO 255 DO
-    EQTB[5574+K].INT := -1;
-  EQTB[5620].INT := 0;
-{:240}{250:}
-  FOR K:=5830 TO 6106 DO
-    EQTB[K].INT := 0;
-{:250}{258:}
-  HASHUSED := 2614;
-  CSCOUNT := 0;
-  EQTB[2623].HH.B0 := 116;
-  HASH[2623].RH := 502;{:258}{552:}
-  FONTPTR := 0;
-  FMEMPTR := 7;
-  FONTNAME[0] := 801;
-  FONTAREA[0] := 338;
-  HYPHENCHAR[0] := 45;
-  SKEWCHAR[0] := -1;
-  BCHARLABEL[0] := 0;
-  FONTBCHAR[0] := 256;
-  FONTFALSEBCH[0] := 256;
-  FONTBC[0] := 1;
-  FONTEC[0] := 0;
-  FONTSIZE[0] := 0;
-  FONTDSIZE[0] := 0;
-  CHARBASE[0] := 0;
-  WIDTHBASE[0] := 0;
-  HEIGHTBASE[0] := 0;
-  DEPTHBASE[0] := 0;
-  ITALICBASE[0] := 0;
-  LIGKERNBASE[0] := 0;
-  KERNBASE[0] := 0;
-  EXTENBASE[0] := 0;
-  FONTGLUE[0] := 0;
-  FONTPARAMS[0] := 7;
-  PARAMBASE[0] := -1;
-  FOR K:=0 TO 6 DO
-    FONTINFO[K].INT := 0;
-{:552}{946:}
-  FOR K:=-TRIEOPSIZE TO TRIEOPSIZE DO
-    TRIEOPHASH[K] := 0;
-  FOR K:=0 TO 255 DO
-    TRIEUSED[K] := 0;
-  TRIEOPPTR := 0;
-{:946}{951:}
-  TRIENOTREADY := TRUE;
-  TRIEL[0] := 0;
-  TRIEC[0] := 0;
-  TRIEPTR := 0;
-{:951}{1216:}
-  HASH[2614].RH := 1190;{:1216}{1301:}
-  FORMATIDENT := 1257;
-{:1301}{1369:}
-  HASH[2622].RH := 1296;
-  EQTB[2622].HH.B1 := 1;
-  EQTB[2622].HH.B0 := 113;
-  EQTB[2622].HH.RH := 0;{:1369}{$ENDIF}{:8}
-END;
+end;
 
 {57:}
 PROCEDURE PRINTLN;
@@ -1591,21 +1421,9 @@ BEGIN
       ELSE PRINTCHAR(55+DIG[K]);
     END;
 END;
+{:64}
 
-PROCEDURE alt_PRINTTHEDIGS(K:EIGHTBITS);
-var ch: byte;
-BEGIN
-  WHILE K>0 DO
-    BEGIN
-      K := K-1;
-      ch := DIG[K];
-      IF ch>=10 THEN ch := ch + 7;
-      PRINTCHAR(ch+48);
-    END;
-END;
-
-
-{:64}{65:}
+{65:}
 PROCEDURE PRINTINT(N:Int32);
 
 VAR K: 0..23;
@@ -2051,12 +1869,39 @@ END;
 {:31}
 
 {37:}
-procedure init_terminal;
+procedure InitTerminal;
 var
   s: string;
   p, i: integer;
   len, j: sizeint;
 begin
+
+  job_name := '';
+  NAMEINPROGRE := FALSE;
+  LOGOPENED := FALSE;
+  output_file_name := '';
+
+  INPUTPTR := 0;
+  MAXINSTACK := 0;
+  INOPEN := 0;
+  OPENPARENS := 0;
+  MAXBUFSTACK := 0;
+  PARAMPTR := 0;
+  MAXPARAMSTAC := 0;
+
+  for FIRST := 1 to BUFSIZE do BUFFER[FIRST] := 0;
+  FIRST := 1;
+
+  SCANNERSTATU := 0;
+  WARNINGINDEX := 0;
+  CURINPUT.STATEFIELD := 33;
+  CURINPUT.STARTFIELD := 1;
+  CURINPUT.INDEXFIELD := 0;
+  LINE := 0;
+  CURINPUT.NAMEFIELD := 0;
+  FORCEEOF := FALSE;
+  ALIGNSTATE := 1000000;
+
   if paramcount <> 0 then begin
     i := FIRST;
     for p := 1 to paramcount do begin
@@ -2159,1095 +2004,6 @@ BEGIN
   END;
   STREQBUF := TRUE;
 END;{:45}
-
-{47:}
-{$IFDEF INITEX}
-procedure AddString(PoolIndex: STRNUMBER; Content: shortstring);
-var
-  i: int32;
-begin
-  for i := 1 to length(Content) do begin
-    STRPOOL[POOLPTR+i-1] := ord(Content[i]);
-  end;
-  STRSTART[PoolIndex] := POOLPTR;
-  POOLPTR := POOLPTR + length(Content);
-end;
-
-procedure GetStringsStarted;
-const
-  Hex: array [0..15] of char = '0123456789abcdef';
-var
-  i: int32;
-  s: string[7];
-begin
-  POOLPTR := 0;
-
-  s := '^^A';
-  for i := 0 to 31 do begin
-    s[3] := chr(i+64);
-    SetString(i, s);
-  end;
-  for i := 32 to 126 do begin
-    SetString(i, chr(i));
-  end;
-  SetString(127, '^^?');
-  s := '^^00';
-  for i := 128 to 255 do begin
-    s[3] := Hex[i shr 4];
-    s[4] := Hex[i and 15];
-    SetString(i, s);
-  end;
-
-  SetString(256, 'buffer size');
-  SetString(257, 'pool size');
-  SetString(258, 'number of strings');
-  SetString(259, '???');
-  SetString(260, 'm2d5c2l5x2v5i');
-  SetString(261, 'End of file on the terminal!');
-  SetString(262, '! ');
-  SetString(263, '(That makes 100 errors; please try again.)');
-  SetString(264, '? ');
-  SetString(265, 'You want to edit file ');
-  SetString(266, ' at line ');
-  SetString(267, 'Type <return> to proceed, S to scroll future error messages,');
-  SetString(268, 'R to run without stopping, Q to run quietly,');
-  SetString(269, 'I to insert something, ');
-  SetString(270, 'E to edit your file,');
-  SetString(271, '1 or ... or 9 to ignore the next 1 to 9 tokens of input,');
-  SetString(272, 'H for help, X to quit.');
-  SetString(273, 'OK, entering ');
-  SetString(274, 'batchmode');
-  SetString(275, 'nonstopmode');
-  SetString(276, 'scrollmode');
-  SetString(277, '...');
-  SetString(278, 'insert>');
-  SetString(279, 'I have just deleted some text, as you asked.');
-  SetString(280, 'You can now delete more, or insert, or whatever.');
-  SetString(281, 'Sorry, I don''t know how to help in this situation.');
-  SetString(282, 'Maybe you should try asking a human?');
-  SetString(283, 'Sorry, I already gave what help I could...');
-  SetString(284, 'An error might have occurred before I noticed any problems.');
-  SetString(285, '``If all else fails, read the instructions.''''');
-  SetString(286, ' (');
-  SetString(287, 'Emergency stop');
-  SetString(288, 'TeX capacity exceeded, sorry [');
-  SetString(289, 'If you really absolutely need more capacity,');
-  SetString(290, 'you can ask a wizard to enlarge me.');
-  SetString(291, 'This can''t happen (');
-  SetString(292, 'I''m broken. Please show this to someone who can fix can fix');
-  SetString(293, 'I can''t go on meeting you like this');
-  SetString(294, 'One of your faux pas seems to have wounded me deeply...');
-  SetString(295, 'in fact, I''m barely conscious. Please fix it and try again.');
-  SetString(296, 'Interruption');
-  SetString(297, 'You rang?');
-  SetString(298, 'Try to insert an instruction for me (e.g., `I\showlists''),');
-  SetString(299, 'unless you just want to quit by typing `X''.');
-  SetString(300, 'main memory size');
-  SetString(301, 'AVAIL list clobbered at ');
-  SetString(302, 'Double-AVAIL list clobbered at ');
-  SetString(303, 'Doubly free location at ');
-  SetString(304, 'Bad flag at ');
-  SetString(305, 'New busy locs:');
-  SetString(306, 'LINK(');
-  SetString(307, 'INFO(');
-  SetString(308, '[]');
-  SetString(309, 'CLOBBERED.');
-  SetString(310, 'foul');
-  SetString(311, 'fil');
-  SetString(312, ' plus ');
-  SetString(313, ' minus ');
-  SetString(314, ' []');
-  SetString(315, 'Bad link, display aborted.');
-  SetString(316, 'etc.');
-  SetString(317, 'Unknown node type!');
-  SetString(318, 'unset');
-  SetString(319, 'box(');
-  SetString(320, ')x');
-  SetString(321, ', shifted ');
-  SetString(322, ' columns)');
-  SetString(323, ', stretch ');
-  SetString(324, ', shrink ');
-  SetString(325, ', glue set ');
-  SetString(326, '- ');
-  SetString(327, '?.?');
-  SetString(328, '< -');
-  SetString(329, 'rule(');
-  SetString(330, 'insert');
-  SetString(331, ', natural size ');
-  SetString(332, '; split(');
-  SetString(333, '); float cost ');
-  SetString(334, 'glue');
-  SetString(335, 'nonscript');
-  SetString(336, 'mskip');
-  SetString(337, 'mu');
-  SetString(338, '');
-  SetString(339, 'leaders ');
-  SetString(340, 'kern');
-  SetString(341, ' (for accent)');
-  SetString(342, 'mkern');
-  SetString(343, 'math');
-  SetString(344, 'on');
-  SetString(345, 'off');
-  SetString(346, ', surrounded ');
-  SetString(347, ' (ligature ');
-  SetString(348, 'penalty ');
-  SetString(349, 'discretionary');
-  SetString(350, ' replacing ');
-  SetString(351, 'mark');
-  SetString(352, 'vadjust');
-  SetString(353, 'flushing');
-  SetString(354, 'copying');
-  SetString(355, 'vertical');
-  SetString(356, 'horizontal');
-  SetString(357, 'display math');
-  SetString(358, 'no');
-  SetString(359, 'internal vertical');
-  SetString(360, 'restricted horizontal');
-  SetString(361, ' mode');
-  SetString(362, 'semantic nest size');
-  SetString(363, '### ');
-  SetString(364, ' entered at line ');
-  SetString(365, ' (language');
-  SetString(366, ':hyphenmin');
-  SetString(367, ' (\output routine)');
-  SetString(368, '### recent contributions:');
-  SetString(369, 'prevdepth ');
-  SetString(370, 'ignored');
-  SetString(371, ', prevgraf ');
-  SetString(372, ' line');
-  SetString(373, 'spacefactor ');
-  SetString(374, ', current language ');
-  SetString(375, 'this will begin denominator of:');
-  SetString(376, 'lineskip');
-  SetString(377, 'baselineskip');
-  SetString(378, 'parskip');
-  SetString(379, 'abovedisplayskip');
-  SetString(380, 'belowdisplayskip');
-  SetString(381, 'abovedisplayshortskip');
-  SetString(382, 'belowdisplayshortskip');
-  SetString(383, 'leftskip');
-  SetString(384, 'rightskip');
-  SetString(385, 'topskip');
-  SetString(386, 'splittopskip');
-  SetString(387, 'tabskip');
-  SetString(388, 'spaceskip');
-  SetString(389, 'xspaceskip');
-  SetString(390, 'parfillskip');
-  SetString(391, 'thinmuskip');
-  SetString(392, 'medmuskip');
-  SetString(393, 'thickmuskip');
-  SetString(394, '[unknown glue parameter!]');
-  SetString(395, 'skip');
-  SetString(396, 'muskip');
-  SetString(397, 'pt');
-  SetString(398, 'output');
-  SetString(399, 'everypar');
-  SetString(400, 'everymath');
-  SetString(401, 'everydisplay');
-  SetString(402, 'everyhbox');
-  SetString(403, 'everyvbox');
-  SetString(404, 'everyjob');
-  SetString(405, 'everycr');
-  SetString(406, 'errhelp');
-  SetString(407, 'toks');
-  SetString(408, 'parshape');
-  SetString(409, 'box');
-  SetString(410, 'void');
-  SetString(411, 'current font');
-  SetString(412, 'textfont');
-  SetString(413, 'scriptfont');
-  SetString(414, 'scriptscriptfont');
-  SetString(415, 'catcode');
-  SetString(416, 'lccode');
-  SetString(417, 'uccode');
-  SetString(418, 'sfcode');
-  SetString(419, 'mathcode');
-  SetString(420, 'pretolerance');
-  SetString(421, 'tolerance');
-  SetString(422, 'linepenalty');
-  SetString(423, 'hyphenpenalty');
-  SetString(424, 'exhyphenpenalty');
-  SetString(425, 'clubpenalty');
-  SetString(426, 'widowpenalty');
-  SetString(427, 'displaywidowpenalty');
-  SetString(428, 'brokenpenalty');
-  SetString(429, 'binoppenalty');
-  SetString(430, 'relpenalty');
-  SetString(431, 'predisplaypenalty');
-  SetString(432, 'postdisplaypenalty');
-  SetString(433, 'interlinepenalty');
-  SetString(434, 'doublehyphendemerits');
-  SetString(435, 'finalhyphendemerits');
-  SetString(436, 'adjdemerits');
-  SetString(437, 'mag');
-  SetString(438, 'delimiterfactor');
-  SetString(439, 'looseness');
-  SetString(440, 'time');
-  SetString(441, 'day');
-  SetString(442, 'month');
-  SetString(443, 'year');
-  SetString(444, 'showboxbreadth');
-  SetString(445, 'showboxdepth');
-  SetString(446, 'hbadness');
-  SetString(447, 'vbadness');
-  SetString(448, 'pausing');
-  SetString(449, 'tracingonline');
-  SetString(450, 'tracingmacros');
-  SetString(451, 'tracingstats');
-  SetString(452, 'tracingparagraphs');
-  SetString(453, 'tracingpages');
-  SetString(454, 'tracingoutput');
-  SetString(455, 'tracinglostchars');
-  SetString(456, 'tracingcommands');
-  SetString(457, 'tracingrestores');
-  SetString(458, 'uchyph');
-  SetString(459, 'outputpenalty');
-  SetString(460, 'maxdeadcycles');
-  SetString(461, 'hangafter');
-  SetString(462, 'floatingpenalty');
-  SetString(463, 'globaldefs');
-  SetString(464, 'fam');
-  SetString(465, 'escapechar');
-  SetString(466, 'defaulthyphenchar');
-  SetString(467, 'defaultskewchar');
-  SetString(468, 'endlinechar');
-  SetString(469, 'newlinechar');
-  SetString(470, 'language');
-  SetString(471, 'lefthyphenmin');
-  SetString(472, 'righthyphenmin');
-  SetString(473, 'holdinginserts');
-  SetString(474, 'errorcontextlines');
-  SetString(475, '[unknown integer parameter!]');
-  SetString(476, 'count');
-  SetString(477, 'delcode');
-  SetString(478, 'parindent');
-  SetString(479, 'mathsurround');
-  SetString(480, 'lineskiplimit');
-  SetString(481, 'hsize');
-  SetString(482, 'vsize');
-  SetString(483, 'maxdepth');
-  SetString(484, 'splitmaxdepth');
-  SetString(485, 'boxmaxdepth');
-  SetString(486, 'hfuzz');
-  SetString(487, 'vfuzz');
-  SetString(488, 'delimitershortfall');
-  SetString(489, 'nulldelimiterspace');
-  SetString(490, 'scriptspace');
-  SetString(491, 'predisplaysize');
-  SetString(492, 'displaywidth');
-  SetString(493, 'displayindent');
-  SetString(494, 'overfullrule');
-  SetString(495, 'hangindent');
-  SetString(496, 'hoffset');
-  SetString(497, 'voffset');
-  SetString(498, 'emergencystretch');
-  SetString(499, '[unknown dimen parameter!]');
-  SetString(500, 'dimen');
-  SetString(501, 'EQUIV(');
-  SetString(502, 'notexpanded:');
-  SetString(503, 'hash size');
-  SetString(504, 'csname');
-  SetString(505, 'endcsname');
-  SetString(506, 'IMPOSSIBLE.');
-  SetString(507, 'NONEXISTENT.');
-  SetString(508, 'accent');
-  SetString(509, 'advance');
-  SetString(510, 'afterassignment');
-  SetString(511, 'aftergroup');
-  SetString(512, 'begingroup');
-  SetString(513, 'char');
-  SetString(514, 'delimiter');
-  SetString(515, 'divide');
-  SetString(516, 'endgroup');
-  SetString(517, 'expandafter');
-  SetString(518, 'font');
-  SetString(519, 'fontdimen');
-  SetString(520, 'halign');
-  SetString(521, 'hrule');
-  SetString(522, 'ignorespaces');
-  SetString(523, 'mathaccent');
-  SetString(524, 'mathchar');
-  SetString(525, 'mathchoice');
-  SetString(526, 'multiply');
-  SetString(527, 'noalign');
-  SetString(528, 'noboundary');
-  SetString(529, 'noexpand');
-  SetString(530, 'omit');
-  SetString(531, 'penalty');
-  SetString(532, 'prevgraf');
-  SetString(533, 'radical');
-  SetString(534, 'read');
-  SetString(535, 'relax');
-  SetString(536, 'setbox');
-  SetString(537, 'the');
-  SetString(538, 'valign');
-  SetString(539, 'vcenter');
-  SetString(540, 'vrule');
-  SetString(541, 'save size');
-  SetString(542, 'grouping levels');
-  SetString(543, 'curlevel');
-  SetString(544, 'retaining');
-  SetString(545, 'restoring');
-  SetString(546, 'SAVE(');
-  SetString(547, 'Incompatible magnification (');
-  SetString(548, ');');
-  SetString(549, ' the previous value will be retained');
-  SetString(550, 'I can handle only one magnification ratio per job. So I''ve');
-  SetString(551, 'reverted to the magnification you used earlier on this run.');
-  SetString(552, 'Illegal magnification has been changed to 1000');
-  SetString(553, 'The magnification ratio must be between 1 and 32768.');
-  SetString(554, 'ETC.');
-  SetString(555, 'BAD.');
-  SetString(556, '->');
-  SetString(557, 'begin-group character ');
-  SetString(558, 'end-group character ');
-  SetString(559, 'math shift character ');
-  SetString(560, 'macro parameter character ');
-  SetString(561, 'superscript character ');
-  SetString(562, 'subscript character ');
-  SetString(563, 'end of alignment template');
-  SetString(564, 'blank space ');
-  SetString(565, 'the letter ');
-  SetString(566, 'the character ');
-  SetString(567, '[unknown command code!]');
-  SetString(568, ': ');
-  SetString(569, 'Runaway ');
-  SetString(570, 'definition');
-  SetString(571, 'argument');
-  SetString(572, 'preamble');
-  SetString(573, 'text');
-  SetString(574, '<*>');
-  SetString(575, '<insert> ');
-  SetString(576, '<read ');
-  SetString(577, 'l.');
-  SetString(578, '<argument> ');
-  SetString(579, '<template> ');
-  SetString(580, '<recently read> ');
-  SetString(581, '<to be read again> ');
-  SetString(582, '<inserted text> ');
-  SetString(583, '<output> ');
-  SetString(584, '<everypar> ');
-  SetString(585, '<everymath> ');
-  SetString(586, '<everydisplay> ');
-  SetString(587, '<everyhbox> ');
-  SetString(588, '<everyvbox> ');
-  SetString(589, '<everyjob> ');
-  SetString(590, '<everycr> ');
-  SetString(591, '<mark> ');
-  SetString(592, '<write> ');
-  SetString(593, 'input stack size');
-  SetString(594, 'write');
-  SetString(595, '(interwoven alignment preambles are not allowed)');
-  SetString(596, 'text input levels');
-  SetString(597, 'par');
-  SetString(598, 'Incomplete ');
-  SetString(599, '; all text was ignored after line ');
-  SetString(600, 'A forbidden control sequence occurred in skipped text.');
-  SetString(601, 'This kind of error happens when you say `\if...'' and forget');
-  SetString(602, 'the matching `\fi''. I''ve inserted a `\fi''; this might work.');
-  SetString(603, 'The file ended while I was skipping conditional text.');
-  SetString(604, 'File ended');
-  SetString(605, 'Forbidden control sequence found');
-  SetString(606, ' while scanning ');
-  SetString(607, ' of ');
-  SetString(608, 'I suspect you have forgotten a `}'', causing me');
-  SetString(609, 'to read past where you wanted me to stop.');
-  SetString(610, 'I''ll try to recover; but if the error is serious,');
-  SetString(611, 'you''d better type `E'' or `X'' now and fix your file.');
-  SetString(612, 'use');
-  SetString(613, 'Text line contains an invalid character');
-  SetString(614, 'A funny symbol that I can''t read has just been input.');
-  SetString(615, 'Continue, and I''ll forget that it ever happened.');
-  SetString(616, '(Please type a command or say `\end'')');
-  SetString(617, '*** (job aborted, no legal \end found)');
-  SetString(618, '=>');
-  SetString(619, 'Undefined control sequence');
-  SetString(620, 'The control sequence at the end of the top line');
-  SetString(621, 'of your error message was never \def''ed. If you have');
-  SetString(622, 'misspelled it (e.g., `\hobx''), type `I'' and the correct');
-  SetString(623, 'spelling (e.g., `I\hbox''). Otherwise just continue,');
-  SetString(624, 'and I''ll forget about whatever was undefined.');
-  SetString(625, 'Missing ');
-  SetString(626, ' inserted');
-  SetString(627, 'The control sequence marked <to be read again> should');
-  SetString(628, 'not appear between \csname and \endcsname.');
-  SetString(629, 'input');
-  SetString(630, 'endinput');
-  SetString(631, 'topmark');
-  SetString(632, 'firstmark');
-  SetString(633, 'botmark');
-  SetString(634, 'splitfirstmark');
-  SetString(635, 'splitbotmark');
-  SetString(636, 'parameter stack size');
-  SetString(637, 'Argument of ');
-  SetString(638, ' has an extra }');
-  SetString(639, 'I''ve run across a `}'' that doesn''t seem to match anything.');
-  SetString(640, 'For example, `\def\a#1{...}'' and `\a}'' would produce');
-  SetString(641, 'this error. If you simply proceed now, the `\par'' that');
-  SetString(642, 'I''ve just inserted will cause me to report a runaway');
-  SetString(643, 'argument that might be the root of the problem. But if');
-  SetString(644, 'your `}'' was spurious, just type `2'' and it will go away.');
-  SetString(645, 'Paragraph ended before ');
-  SetString(646, ' was complete');
-  SetString(647, 'I suspect you''ve forgotten a `}'', causing me to apply this');
-  SetString(648, 'control sequence to too much text. How can we recover?');
-  SetString(649, 'My plan is to forget the whole thing and hope for the best.');
-  SetString(650, 'Use of ');
-  SetString(651, ' doesn''t match its definition');
-  SetString(652, 'If you say, e.g., `\def\a1{...}'', then you must always');
-  SetString(653, 'put `1'' after `\a'', since control sequence names are');
-  SetString(654, 'made up of letters only. The macro here has not been');
-  SetString(655, 'followed by the required stuff, so I''m ignoring it.');
-  SetString(656, '<-');
-  SetString(657, 'Missing { inserted');
-  SetString(658, 'A left brace was mandatory here, so I''ve put one in.');
-  SetString(659, 'You might want to delete and/or insert some corrections');
-  SetString(660, 'so that I will find a matching right brace soon.');
-  SetString(661, '(If you''re confused by all this, try typing `I}'' now.)');
-  SetString(662, 'Incompatible glue units');
-  SetString(663, 'I''m going to assume that 1mu=1pt when they''re mixed.');
-  SetString(664, 'Missing number, treated as zero');
-  SetString(665, 'A number should have been here; I inserted `0''.');
-  SetString(666, '(If you can''t figure out why I needed to see a number,');
-  SetString(667, 'look up `weird error'' in the index to The TeXbook.)');
-  SetString(668, 'spacefactor');
-  SetString(669, 'prevdepth');
-  SetString(670, 'deadcycles');
-  SetString(671, 'insertpenalties');
-  SetString(672, 'wd');
-  SetString(673, 'ht');
-  SetString(674, 'dp');
-  SetString(675, 'lastpenalty');
-  SetString(676, 'lastkern');
-  SetString(677, 'lastskip');
-  SetString(678, 'inputlineno');
-  SetString(679, 'badness');
-  SetString(680, 'Improper ');
-  SetString(681, 'You can refer to \spacefactor only in horizontal mode;');
-  SetString(682, 'you can refer to \prevdepth only in vertical mode; and');
-  SetString(683, 'neither of these is meaningful inside \write. So');
-  SetString(684, 'I''m forgetting what you said and using zero instead.');
-  SetString(685, 'You can''t use `');
-  SetString(686, ''' after ');
-  SetString(687, 'Bad register code');
-  SetString(688, 'A register number must be between 0 and 255.');
-  SetString(689, 'I changed this one to zero.');
-  SetString(690, 'Bad character code');
-  SetString(691, 'A character number must be between 0 and 255.');
-  SetString(692, 'Bad number');
-  SetString(693, 'Since I expected to read a number between 0 and 15,');
-  SetString(694, 'Bad mathchar');
-  SetString(695, 'A mathchar number must be between 0 and 32767.');
-  SetString(696, 'Bad delimiter code');
-  SetString(697, 'A numeric delimiter code must be between 0 and 2^{27}-1.');
-  SetString(698, 'Improper alphabetic constant');
-  SetString(699, 'A one-character control sequence belongs after a ` mark.');
-  SetString(700, 'So I''m essentially inserting \0 here.');
-  SetString(701, 'Number too big');
-  SetString(702, 'I can only go up to 2147483647=''17777777777="7FFFFFFF,');
-  SetString(703, 'so I''m using that number instead of yours.');
-  SetString(704, 'true');
-  SetString(705, 'Illegal unit of measure (');
-  SetString(706, 'replaced by filll)');
-  SetString(707, 'I dddon''t go any higher than filll.');
-  SetString(708, 'em');
-  SetString(709, 'ex');
-  SetString(710, 'mu inserted)');
-  SetString(711, 'The unit of measurement in math glue must be mu.');
-  SetString(712, 'To recover gracefully from this error, it''s best to');
-  SetString(713, 'delete the erroneous units; e.g., type `2'' to delete');
-  SetString(714, 'two letters. (See Chapter 27 of The TeXbook.)');
-  SetString(715, 'in');
-  SetString(716, 'pc');
-  SetString(717, 'cm');
-  SetString(718, 'mm');
-  SetString(719, 'bp');
-  SetString(720, 'dd');
-  SetString(721, 'cc');
-  SetString(722, 'sp');
-  SetString(723, 'pt inserted)');
-  SetString(724, 'Dimensions can be in units of em, ex, in, pt, pc,');
-  SetString(725, 'cm, mm, dd, cc, bp, or sp; but yours is a new one!');
-  SetString(726, 'I''ll assume that you meant to say pt, for printer''s points.');
-  SetString(727, 'Dimension too large');
-  SetString(728, 'I can''t work with sizes bigger than about 19 feet.');
-  SetString(729, 'Continue and I''ll use the largest value I can.');
-  SetString(730, 'plus');
-  SetString(731, 'minus');
-  SetString(732, 'width');
-  SetString(733, 'height');
-  SetString(734, 'depth');
-  SetString(735, 'number');
-  SetString(736, 'romannumeral');
-  SetString(737, 'string');
-  SetString(738, 'meaning');
-  SetString(739, 'fontname');
-  SetString(740, 'jobname');
-  SetString(741, ' at ');
-  SetString(742, 'Where was the left brace? You said something like `\def\a}'',');
-  SetString(743, 'which I''m going to interpret as `\def\a{}''.');
-  SetString(744, 'You already have nine parameters');
-  SetString(745, 'I''m going to ignore the # sign you just used,');
-  SetString(746, 'as well as the token that followed it.');
-  SetString(747, 'Parameters must be numbered consecutively');
-  SetString(748, 'I''ve inserted the digit you should have used after the #.');
-  SetString(749, 'Type `1'' to delete what you did use.');
-  SetString(750, 'Illegal parameter number in definition of ');
-  SetString(751, 'You meant to type ## instead of #, right?');
-  SetString(752, 'Or maybe a } was forgotten somewhere earlier, and things');
-  SetString(753, 'are all screwed up? I''m going to assume that you meant ##.');
-  SetString(754, '*** (cannot \read from terminal in nonstop modes)');
-  SetString(755, 'File ended within ');
-  SetString(756, 'This \read has unbalanced braces.');
-  SetString(757, 'if');
-  SetString(758, 'ifcat');
-  SetString(759, 'ifnum');
-  SetString(760, 'ifdim');
-  SetString(761, 'ifodd');
-  SetString(762, 'ifvmode');
-  SetString(763, 'ifhmode');
-  SetString(764, 'ifmmode');
-  SetString(765, 'ifinner');
-  SetString(766, 'ifvoid');
-  SetString(767, 'ifhbox');
-  SetString(768, 'ifvbox');
-  SetString(769, 'ifx');
-  SetString(770, 'ifeof');
-  SetString(771, 'iftrue');
-  SetString(772, 'iffalse');
-  SetString(773, 'ifcase');
-  SetString(774, 'fi');
-  SetString(775, 'or');
-  SetString(776, 'else');
-  SetString(777, 'Extra ');
-  SetString(778, 'I''m ignoring this; it doesn''t match any \if.');
-  SetString(779, '{true}');
-  SetString(780, '{false}');
-  SetString(781, 'Missing = inserted for ');
-  SetString(782, 'I was expecting to see `<'', `='', or `>''. Didn''t.');
-  SetString(783, '{case ');
-  SetString(784, 'TeXinputs//');
-  SetString(785, 'TeXfonts//');
-  SetString(786, '.fmt');
-  SetString(787, 'input file name');
-  SetString(788, 'I can''t find file `');
-  SetString(789, 'I can''t write on file `');
-  SetString(790, '''.');
-  SetString(791, '.tex');
-  SetString(792, 'Please type another ');
-  SetString(793, '*** (job aborted, file error in nonstop mode)');
-  SetString(794, '.dvi');
-  SetString(795, 'file name for output');
-  SetString(796, 'texput');
-  SetString(797, '.log');
-  SetString(798, '**');
-  SetString(799, 'transcript file name');
-  SetString(800, '  ');
-  SetString(801, 'nullfont');
-  SetString(802, 'Font ');
-  SetString(803, ' scaled ');
-  SetString(804, ' not loadable: Bad metric (TFM) file');
-  SetString(805, ' not loadable: Metric (TFM) file not found');
-  SetString(806, 'I wasn''t able to read the size data for this font,');
-  SetString(807, 'so I will ignore the font specification.');
-  SetString(808, '[Wizards can fix TFM files using TFtoPL/PLtoTF.]');
-  SetString(809, 'You might try inserting a different font spec;');
-  SetString(810, 'e.g., type `I\font<same font id>=<substitute font name>''.');
-  SetString(811, '.tfm');
-  SetString(812, ' not loaded: Not enough room left');
-  SetString(813, 'I''m afraid I won''t be able to make use of this font,');
-  SetString(814, 'because my memory for character-size data is too small.');
-  SetString(815, 'If you''re really stuck, ask a wizard to enlarge me.');
-  SetString(816, 'Or maybe try `I\font<same font id>=<name of loaded font>''.');
-  SetString(817, 'Missing font identifier');
-  SetString(818, 'I was looking for a control sequence whose');
-  SetString(819, 'current meaning has been defined by \font.');
-  SetString(820, ' has only ');
-  SetString(821, ' fontdimen parameters');
-  SetString(822, 'To increase the number of font parameters, you must');
-  SetString(823, 'use \fontdimen immediately after the \font is loaded.');
-  SetString(824, 'font memory');
-  SetString(825, 'Missing character: There is no ');
-  SetString(826, ' in font ');
-  SetString(827, ' TeX output ');
-  SetString(828, 'vlistout');
-  SetString(829, 'Completed box being shipped out');
-  SetString(830, 'Memory usage before: ');
-  SetString(831, ' after: ');
-  SetString(832, '; still untouched: ');
-  SetString(833, 'Huge page cannot be shipped out');
-  SetString(834, 'The page just created is more than 18 feet tall or');
-  SetString(835, 'more than 18 feet wide, so I suspect something went wrong.');
-  SetString(836, 'The following box has been deleted:');
-  SetString(837, 'No pages of output.');
-  SetString(838, 'Output written on ');
-  SetString(839, ' page');
-  SetString(840, ', ');
-  SetString(841, ' bytes).');
-  SetString(842, 'to');
-  SetString(843, 'spread');
-  SetString(844, 'Underfull');
-  SetString(845, 'Loose');
-  SetString(846, ' \hbox (badness ');
-  SetString(847, ') has occurred while \output is active');
-  SetString(848, ') in paragraph at lines ');
-  SetString(849, ') in alignment at lines ');
-  SetString(850, '--');
-  SetString(851, ') detected at line ');
-  SetString(852, 'Overfull \hbox (');
-  SetString(853, 'pt too wide');
-  SetString(854, 'Tight \hbox (badness ');
-  SetString(855, 'vpack');
-  SetString(856, ' \vbox (badness ');
-  SetString(857, 'Overfull \vbox (');
-  SetString(858, 'pt too high');
-  SetString(859, 'Tight \vbox (badness ');
-  SetString(860, '{}');
-  SetString(861, 'displaystyle');
-  SetString(862, 'textstyle');
-  SetString(863, 'scriptstyle');
-  SetString(864, 'scriptscriptstyle');
-  SetString(865, 'Unknown style!');
-  SetString(866, 'mathord');
-  SetString(867, 'mathop');
-  SetString(868, 'mathbin');
-  SetString(869, 'mathrel');
-  SetString(870, 'mathopen');
-  SetString(871, 'mathclose');
-  SetString(872, 'mathpunct');
-  SetString(873, 'mathinner');
-  SetString(874, 'overline');
-  SetString(875, 'underline');
-  SetString(876, 'left');
-  SetString(877, 'right');
-  SetString(878, 'limits');
-  SetString(879, 'nolimits');
-  SetString(880, 'fraction, thickness ');
-  SetString(881, '= default');
-  SetString(882, ', left-delimiter ');
-  SetString(883, ', right-delimiter ');
-  SetString(884, ' is undefined (character ');
-  SetString(885, 'Somewhere in the math formula just ended, you used the');
-  SetString(886, 'stated character from an undefined font family. For example,');
-  SetString(887, 'plain TeX doesn''t allow \it or \sl in subscripts. Proceed,');
-  SetString(888, 'and I''ll try to forget that I needed that character.');
-  SetString(889, 'mlist1');
-  SetString(890, 'mlist2');
-  SetString(891, 'mlist3');
-  SetString(892, '0234000122*4000133**3**344*0400400*000000234000111*1111112341011');
-  SetString(893, 'mlist4');
-  SetString(894, ' inside $$''s');
-  SetString(895, 'Displays can use special alignments (like \eqalignno)');
-  SetString(896, 'only if nothing but the alignment itself is between $$''s.');
-  SetString(897, 'So I''ve deleted the formulas that preceded this alignment.');
-  SetString(898, 'span');
-  SetString(899, 'cr');
-  SetString(900, 'crcr');
-  SetString(901, 'endtemplate');
-  SetString(902, 'alignment tab character ');
-  SetString(903, 'Missing # inserted in alignment preamble');
-  SetString(904, 'There should be exactly one # between &''s, when an');
-  SetString(905, '\halign or \valign is being set up. In this case you had');
-  SetString(906, 'none, so I''ve put one in; maybe that will work.');
-  SetString(907, 'Only one # is allowed per tab');
-  SetString(908, 'more than one, so I''m ignoring all but the first.');
-  SetString(909, 'endv');
-  SetString(910, 'Extra alignment tab has been changed to ');
-  SetString(911, 'You have given more \span or & marks than there were');
-  SetString(912, 'in the preamble to the \halign or \valign now in progress.');
-  SetString(913, 'So I''ll assume that you meant to type \cr instead.');
-  SetString(914, '256 spans');
-  SetString(915, 'align1');
-  SetString(916, 'align0');
-  SetString(917, 'Infinite glue shrinkage found in a paragraph');
-  SetString(918, 'The paragraph just ended includes some glue that has');
-  SetString(919, 'infinite shrinkability, e.g., `\hskip 0pt minus 1fil''.');
-  SetString(920, 'Such glue doesn''t belong there---it allows a paragraph');
-  SetString(921, 'of any length to fit on one line. But it''s safe to proceed,');
-  SetString(922, 'since the offensive shrinkability has been made finite.');
-  SetString(923, 'disc1');
-  SetString(924, 'disc2');
-  SetString(925, '@@');
-  SetString(926, ': line ');
-  SetString(927, ' t=');
-  SetString(928, ' -> @@');
-  SetString(929, ' via @@');
-  SetString(930, ' b=');
-  SetString(931, ' p=');
-  SetString(932, ' d=');
-  SetString(933, '@firstpass');
-  SetString(934, '@secondpass');
-  SetString(935, '@emergencypass');
-  SetString(936, 'paragraph');
-  SetString(937, 'disc3');
-  SetString(938, 'disc4');
-  SetString(939, 'line breaking');
-  SetString(940, 'HYPH(');
-  SetString(941, 'hyphenation');
-  SetString(942, ' will be flushed');
-  SetString(943, 'Hyphenation exceptions must contain only letters');
-  SetString(944, 'and hyphens. But continue; I''ll forgive and forget.');
-  SetString(945, 'Not a letter');
-  SetString(946, 'Letters in \hyphenation words must have \lccode>0.');
-  SetString(947, 'Proceed; I''ll ignore the character I just read.');
-  SetString(948, 'exception dictionary');
-  SetString(949, 'pattern memory ops');
-  SetString(950, 'pattern memory ops per language');
-  SetString(951, 'pattern memory');
-  SetString(952, 'Too late for ');
-  SetString(953, 'patterns');
-  SetString(954, 'All patterns must be given before typesetting begins.');
-  SetString(955, 'Bad ');
-  SetString(956, '(See Appendix H.)');
-  SetString(957, 'Nonletter');
-  SetString(958, 'Duplicate pattern');
-  SetString(959, 'pruning');
-  SetString(960, 'vertbreak');
-  SetString(961, 'Infinite glue shrinkage found in box being split');
-  SetString(962, 'The box you are \vsplitting contains some infinitely');
-  SetString(963, 'shrinkable glue, e.g., `\vss'' or `\vskip 0pt minus 1fil''.');
-  SetString(964, 'Such glue doesn''t belong there; but you can safely proceed,');
-  SetString(965, 'vsplit');
-  SetString(966, ' needs a ');
-  SetString(967, 'vbox');
-  SetString(968, 'The box you are trying to split is an \hbox.');
-  SetString(969, 'I can''t split such a box, so I''ll leave it alone.');
-  SetString(970, 'pagegoal');
-  SetString(971, 'pagetotal');
-  SetString(972, 'pagestretch');
-  SetString(973, 'pagefilstretch');
-  SetString(974, 'pagefillstretch');
-  SetString(975, 'pagefilllstretch');
-  SetString(976, 'pageshrink');
-  SetString(977, 'pagedepth');
-  SetString(978, 'fill');
-  SetString(979, 'filll');
-  SetString(980, '### current page:');
-  SetString(981, ' (held over for next output)');
-  SetString(982, 'total height ');
-  SetString(983, ' goal height ');
-  SetString(984, ' adds ');
-  SetString(985, ', #');
-  SetString(986, ' might split');
-  SetString(987, '%% goal height=');
-  SetString(988, ', max depth=');
-  SetString(989, 'Insertions can only be added to a vbox');
-  SetString(990, 'Tut tut: You''re trying to \insert into a');
-  SetString(991, '\box register that now contains an \hbox.');
-  SetString(992, 'Proceed, and I''ll discard its present contents.');
-  SetString(993, 'page');
-  SetString(994, 'Infinite glue shrinkage found on current page');
-  SetString(995, 'The page about to be output contains some infinitely');
-  SetString(996, ' g=');
-  SetString(997, ' c=');
-  SetString(998, 'Infinite glue shrinkage inserted from ');
-  SetString(999, 'The correction glue for page breaking with insertions');
-  SetString(1000, 'must have finite shrinkability. But you may proceed,');
-  SetString(1001, '% split');
-  SetString(1002, ' to ');
-  SetString(1003, '255 is not void');
-  SetString(1004, 'You shouldn''t use \box255 except in \output routines.');
-  SetString(1005, 'Output loop---');
-  SetString(1006, ' consecutive dead cycles');
-  SetString(1007, 'I''ve concluded that your \output is awry; it never does a');
-  SetString(1008, '\shipout, so I''m shipping \box255 out myself. Next time');
-  SetString(1009, 'increase \maxdeadcycles if you want me to be more patient!');
-  SetString(1010, 'Unbalanced output routine');
-  SetString(1011, 'Your sneaky output routine has problematic {''s and/or }''s.');
-  SetString(1012, 'I can''t handle that very well; good luck.');
-  SetString(1013, 'Output routine didn''t use all of ');
-  SetString(1014, 'Your \output commands should empty \box255,');
-  SetString(1015, 'e.g., by saying `\shipout\box255''.');
-  SetString(1016, 'Proceed; I''ll discard its present contents.');
-  SetString(1017, 'Missing $ inserted');
-  SetString(1018, 'I''ve inserted a begin-math/end-math symbol since I think');
-  SetString(1019, 'you left one out. Proceed, with fingers crossed.');
-  SetString(1020, ''' in ');
-  SetString(1021, 'Sorry, but I''m not programmed to handle this case;');
-  SetString(1022, 'I''ll just pretend that you didn''t ask for it.');
-  SetString(1023, 'If you''re in the wrong mode, you might be able to');
-  SetString(1024, 'return to the right one by typing `I}'' or `I$'' or `I\par''.');
-  SetString(1025, 'end');
-  SetString(1026, 'dump');
-  SetString(1027, 'hskip');
-  SetString(1028, 'hfil');
-  SetString(1029, 'hfill');
-  SetString(1030, 'hss');
-  SetString(1031, 'hfilneg');
-  SetString(1032, 'vskip');
-  SetString(1033, 'vfil');
-  SetString(1034, 'vfill');
-  SetString(1035, 'vss');
-  SetString(1036, 'vfilneg');
-  SetString(1037, 'I''ve inserted something that you may have forgotten.');
-  SetString(1038, '(See the <inserted text> above.)');
-  SetString(1039, 'With luck, this will get me unwedged. But if you');
-  SetString(1040, 'really didn''t forget anything, try typing `2'' now; then');
-  SetString(1041, 'my insertion and my current dilemma will both disappear.');
-  SetString(1042, 'right.');
-  SetString(1043, 'Things are pretty mixed up, but I think the worst is over.');
-  SetString(1044, 'Too many }''s');
-  SetString(1045, 'You''ve closed more groups than you opened.');
-  SetString(1046, 'Such booboos are generally harmless, so keep going.');
-  SetString(1047, 'rightbrace');
-  SetString(1048, 'Extra }, or forgotten ');
-  SetString(1049, 'I''ve deleted a group-closing symbol because it seems to be');
-  SetString(1050, 'spurious, as in `$x}$''. But perhaps the } is legitimate and');
-  SetString(1051, 'you forgot something else, as in `\hbox{$x}''. In such cases');
-  SetString(1052, 'the way to recover is to insert both the forgotten and the');
-  SetString(1053, 'deleted material, e.g., by typing `I$}''.');
-  SetString(1054, 'moveleft');
-  SetString(1055, 'moveright');
-  SetString(1056, 'raise');
-  SetString(1057, 'lower');
-  SetString(1058, 'copy');
-  SetString(1059, 'lastbox');
-  SetString(1060, 'vtop');
-  SetString(1061, 'hbox');
-  SetString(1062, 'shipout');
-  SetString(1063, 'leaders');
-  SetString(1064, 'cleaders');
-  SetString(1065, 'xleaders');
-  SetString(1066, 'Leaders not followed by proper glue');
-  SetString(1067, 'You should say `\leaders <box or rule><hskip or vskip>''.');
-  SetString(1068, 'I found the <box or rule>, but there''s no suitable');
-  SetString(1069, '<hskip or vskip>, so I''m ignoring these leaders.');
-  SetString(1070, 'Sorry; this \lastbox will be void.');
-  SetString(1071, 'Sorry...I usually can''t take things from the current page.');
-  SetString(1072, 'This \lastbox will therefore be void.');
-  SetString(1073, 'Missing `to'' inserted');
-  SetString(1074, 'I''m working on `\vsplit<box number> to <dimen>'';');
-  SetString(1075, 'will look for the <dimen> next.');
-  SetString(1076, 'A <box> was supposed to be here');
-  SetString(1077, 'I was expecting to see \hbox or \vbox or \copy or \box or');
-  SetString(1078, 'something like that. So you might find something missing in');
-  SetString(1079, 'your output. But keep trying; you can fix this later.');
-  SetString(1080, 'indent');
-  SetString(1081, 'noindent');
-  SetString(1082, ''' here except with leaders');
-  SetString(1083, 'To put a horizontal rule in an hbox or an alignment,');
-  SetString(1084, 'you should use \leaders or \hrulefill (see The TeXbook).');
-  SetString(1085, 'You can''t ');
-  SetString(1086, 'I''m changing to \insert0; box 255 is special.');
-  SetString(1087, 'Try `I\vskip-\lastskip'' instead.');
-  SetString(1088, 'Try `I\kern-\lastkern'' instead.');
-  SetString(1089, 'Perhaps you can make the output routine do it.');
-  SetString(1090, 'unpenalty');
-  SetString(1091, 'unkern');
-  SetString(1092, 'unskip');
-  SetString(1093, 'unhbox');
-  SetString(1094, 'unhcopy');
-  SetString(1095, 'unvbox');
-  SetString(1096, 'unvcopy');
-  SetString(1097, 'Incompatible list can''t be unboxed');
-  SetString(1098, 'Sorry, Pandora. (You sneaky devil.)');
-  SetString(1099, 'I refuse to unbox an \hbox in vertical mode or vice versa.');
-  SetString(1100, 'And I can''t open any boxes in math mode.');
-  SetString(1101, 'Illegal math ');
-  SetString(1102, 'Sorry: The third part of a discretionary break must be');
-  SetString(1103, 'empty, in math formulas. I had to delete your third part.');
-  SetString(1104, 'Discretionary list is too long');
-  SetString(1105, 'Wow---I never thought anybody would tweak me here.');
-  SetString(1106, 'You can''t seriously need such a huge discretionary list?');
-  SetString(1107, 'Improper discretionary list');
-  SetString(1108, 'Discretionary lists must contain only boxes and kerns.');
-  SetString(1109, 'The following discretionary sublist has been deleted:');
-  SetString(1110, 'Missing } inserted');
-  SetString(1111, 'I''ve put in what seems to be necessary to fix');
-  SetString(1112, 'the current column of the current alignment.');
-  SetString(1113, 'Try to go on, since this might almost work.');
-  SetString(1114, 'Misplaced ');
-  SetString(1115, 'I can''t figure out why you would want to use a tab mark');
-  SetString(1116, 'here. If you just want an ampersand, the remedy is');
-  SetString(1117, 'simple: Just type `I\&'' now. But if some right brace');
-  SetString(1118, 'up above has ended a previous alignment prematurely,');
-  SetString(1119, 'you''re probably due for more error messages, and you');
-  SetString(1120, 'might try typing `S'' now just to see what is salvageable.');
-  SetString(1121, 'or \cr or \span just now. If something like a right brace');
-  SetString(1122, 'I expect to see \noalign only after the \cr of');
-  SetString(1123, 'an alignment. Proceed, and I''ll ignore this case.');
-  SetString(1124, 'I expect to see \omit only after tab marks or the \cr of');
-  SetString(1125, 'I''m guessing that you meant to end an alignment here.');
-  SetString(1126, 'I''m ignoring this, since I wasn''t doing a \csname.');
-  SetString(1127, 'eqno');
-  SetString(1128, 'leqno');
-  SetString(1129, 'displaylimits');
-  SetString(1130, 'Limit controls must follow a math operator');
-  SetString(1131, 'I''m ignoring this misplaced \limits or \nolimits command.');
-  SetString(1132, 'Missing delimiter (. inserted)');
-  SetString(1133, 'I was expecting to see something like `('' or `\{'' or');
-  SetString(1134, '`\}'' here. If you typed, e.g., `{'' instead of `\{'', you');
-  SetString(1135, 'should probably delete the `{'' by typing `1'' now, so that');
-  SetString(1136, 'braces don''t get unbalanced. Otherwise just proceed.');
-  SetString(1137, 'Acceptable delimiters are characters whose \delcode is');
-  SetString(1138, 'nonnegative, or you can use `\delimiter <delimiter code>''.');
-  SetString(1139, 'Please use ');
-  SetString(1140, ' for accents in math mode');
-  SetString(1141, 'I''m changing \accent to \mathaccent here; wish me luck.');
-  SetString(1142, '(Accents are not the same in formulas as they are in text.)');
-  SetString(1143, 'Double superscript');
-  SetString(1144, 'I treat `x^1^2'' essentially like `x^1{}^2''.');
-  SetString(1145, 'Double subscript');
-  SetString(1146, 'I treat `x_1_2'' essentially like `x_1{}_2''.');
-  SetString(1147, 'above');
-  SetString(1148, 'over');
-  SetString(1149, 'atop');
-  SetString(1150, 'abovewithdelims');
-  SetString(1151, 'overwithdelims');
-  SetString(1152, 'atopwithdelims');
-  SetString(1153, 'Ambiguous; you need another { and }');
-  SetString(1154, 'I''m ignoring this fraction specification, since I don''t');
-  SetString(1155, 'know whether a construction like `x \over y \over z''');
-  SetString(1156, 'means `{x \over y} \over z'' or `x \over {y \over z}''.');
-  SetString(1157, 'I''m ignoring a \right that had no matching \left.');
-  SetString(1158, 'Math formula deleted: Insufficient symbol fonts');
-  SetString(1159, 'Sorry, but I can''t typeset math unless \textfont 2');
-  SetString(1160, 'and \scriptfont 2 and \scriptscriptfont 2 have all');
-  SetString(1161, 'the \fontdimen values needed in math symbol fonts.');
-  SetString(1162, 'Math formula deleted: Insufficient extension fonts');
-  SetString(1163, 'Sorry, but I can''t typeset math unless \textfont 3');
-  SetString(1164, 'and \scriptfont 3 and \scriptscriptfont 3 have all');
-  SetString(1165, 'the \fontdimen values needed in math extension fonts.');
-  SetString(1166, 'Display math should end with $$');
-  SetString(1167, 'The `$'' that I just saw supposedly matches a previous `$$''.');
-  SetString(1168, 'So I shall assume that you typed `$$'' both times.');
-  SetString(1169, 'display');
-  SetString(1170, 'Missing $$ inserted');
-  SetString(1171, 'long');
-  SetString(1172, 'outer');
-  SetString(1173, 'global');
-  SetString(1174, 'def');
-  SetString(1175, 'gdef');
-  SetString(1176, 'edef');
-  SetString(1177, 'xdef');
-  SetString(1178, 'prefix');
-  SetString(1179, 'You can''t use a prefix with `');
-  SetString(1180, 'I''ll pretend you didn''t say \long or \outer or \global.');
-  SetString(1181, ''' or `');
-  SetString(1182, ''' with `');
-  SetString(1183, 'I''ll pretend you didn''t say \long or \outer here.');
-  SetString(1184, 'Missing control sequence inserted');
-  SetString(1185, 'Please don''t say `\def cs{...}'', say `\def\cs{...}''.');
-  SetString(1186, 'I''ve inserted an inaccessible control sequence so that your');
-  SetString(1187, 'definition will be completed without mixing me up too badly.');
-  SetString(1188, 'You can recover graciously from this error, if you''re');
-  SetString(1189, 'careful; see exercise 27.2 in The TeXbook.');
-  SetString(1190, 'inaccessible');
-  SetString(1191, 'let');
-  SetString(1192, 'futurelet');
-  SetString(1193, 'chardef');
-  SetString(1194, 'mathchardef');
-  SetString(1195, 'countdef');
-  SetString(1196, 'dimendef');
-  SetString(1197, 'skipdef');
-  SetString(1198, 'muskipdef');
-  SetString(1199, 'toksdef');
-  SetString(1200, 'You should have said `\read<number> to \cs''.');
-  SetString(1201, 'I''m going to look for the \cs now.');
-  SetString(1202, 'Invalid code (');
-  SetString(1203, '), should be in the range 0..');
-  SetString(1204, '), should be at most ');
-  SetString(1205, 'I''m going to use 0 instead of that illegal code value.');
-  SetString(1206, 'by');
-  SetString(1207, 'Arithmetic overflow');
-  SetString(1208, 'I can''t carry out that multiplication or division,');
-  SetString(1209, 'since the result is out of range.');
-  SetString(1210, 'I''m forgetting what you said and not changing anything.');
-  SetString(1211, 'Sorry, \setbox is not allowed after \halign in a display,');
-  SetString(1212, 'or between \accent and an accented character.');
-  SetString(1213, 'Bad space factor');
-  SetString(1214, 'I allow only values in the range 1..32767 here.');
-  SetString(1215, 'I allow only nonnegative values here.');
-  SetString(1216, 'Patterns can be loaded only by INITEX');
-  SetString(1217, 'hyphenchar');
-  SetString(1218, 'skewchar');
-  SetString(1219, 'FONT');
-  SetString(1220, 'at');
-  SetString(1221, 'scaled');
-  SetString(1222, 'Improper `at'' size (');
-  SetString(1223, 'pt), replaced by 10pt');
-  SetString(1224, 'I can only handle fonts at positive sizes that are');
-  SetString(1225, 'less than 2048pt, so I''ve changed what you said to 10pt.');
-  SetString(1226, 'select font ');
-  SetString(1227, 'errorstopmode');
-  SetString(1228, 'openin');
-  SetString(1229, 'closein');
-  SetString(1230, 'message');
-  SetString(1231, 'errmessage');
-  SetString(1232, '(That was another \errmessage.)');
-  SetString(1233, 'This error message was generated by an \errmessage');
-  SetString(1234, 'command, so I can''t give any explicit help.');
-  SetString(1235, 'Pretend that you''re Hercule Poirot: Examine all clues,');
-  SetString(1236, 'and deduce the truth by order and method.');
-  SetString(1237, 'lowercase');
-  SetString(1238, 'uppercase');
-  SetString(1239, 'show');
-  SetString(1240, 'showbox');
-  SetString(1241, 'showthe');
-  SetString(1242, 'showlists');
-  SetString(1243, 'This isn''t an error message; I''m just \showing something.');
-  SetString(1244, 'Type `I\show...'' to show more (e.g., \show\cs,');
-  SetString(1245, '\showthe\count10, \showbox255, \showlists).');
-  SetString(1246, 'And type `I\tracingonline=1\show...'' to show boxes and');
-  SetString(1247, 'lists on your terminal as well as in the transcript file.');
-  SetString(1248, '> ');
-  SetString(1249, 'undefined');
-  SetString(1250, 'macro');
-  SetString(1251, 'long macro');
-  SetString(1252, 'outer macro');
-  SetString(1253, 'outer endtemplate');
-  SetString(1254, '> \box');
-  SetString(1255, 'OK');
-  SetString(1256, ' (see the transcript file)');
-  SetString(1257, ' (INITEX)');
-  SetString(1258, 'You can''t dump inside a group');
-  SetString(1259, '`{...\dump}'' is a no-no.');
-  SetString(1260, ' strings of total length ');
-  SetString(1261, ' memory locations dumped; current usage is ');
-  SetString(1262, ' multiletter control sequences');
-  SetString(1263, ' words of font info for ');
-  SetString(1264, ' preloaded font');
-  SetString(1265, '\font');
-  SetString(1266, ' hyphenation exception');
-  SetString(1267, 'Hyphenation trie of length ');
-  SetString(1268, ' has ');
-  SetString(1269, ' op');
-  SetString(1270, ' out of ');
-  SetString(1271, ' for language ');
-  SetString(1272, ' (preloaded format=');
-  SetString(1273, 'format file name');
-  SetString(1274, 'Beginning to dump on file ');
-  SetString(1275, 'Transcript written on ');
-  SetString(1276, ' )');
-  SetString(1277, 'end occurred ');
-  SetString(1278, 'inside a group at level ');
-  SetString(1279, 'when ');
-  SetString(1280, ' on line ');
-  SetString(1281, ' was incomplete)');
-  SetString(1282, '(see the transcript file for additional information)');
-  SetString(1283, '(\dump is performed only by INITEX)');
-  SetString(1284, 'debug # (-1 to exit):');
-  SetString(1285, 'openout');
-  SetString(1286, 'closeout');
-  SetString(1287, 'special');
-  SetString(1288, 'immediate');
-  SetString(1289, 'setlanguage');
-  SetString(1290, '[unknown extension!]');
-  SetString(1291, 'ext1');
-  SetString(1292, ' (hyphenmin ');
-  SetString(1293, 'whatsit?');
-  SetString(1294, 'ext2');
-  SetString(1295, 'ext3');
-  SetString(1296, 'endwrite');
-  SetString(1297, 'Unbalanced write command');
-  SetString(1298, 'On this page there''s a \write with fewer real {''s than }''s.');
-  SetString(1299, 'ext4');
-  SetString(1300, 'output file name');
-  STRPTR := 1301;
-  STRSTART[STRPTR] := POOLPTR;
-end;
-{$ENDIF}
-{:47}
 
 {66:}
 PROCEDURE PRINTTWO(N:Int32);
@@ -3786,44 +2542,10 @@ BEGIN
   MEM[Q+1].HH.RH := P;{$IFDEF STATS}
   VARUSED := VARUSED-S;{$ENDIF}
 END;
-{:130}{131:}{$IFDEF INITEX}
-PROCEDURE SORTAVAIL;
+{:130}
 
-VAR P,Q,R: HALFWORD;
-  OLDROVER: HALFWORD;
-BEGIN
-  P := GETNODE(1073741824);
-  P := MEM[ROVER+1].HH.RH;
-  MEM[ROVER+1].HH.RH := 65535;
-  OLDROVER := ROVER;
-  WHILE P<>OLDROVER DO{132:}
-    IF P<ROVER THEN
-      BEGIN
-        Q := P;
-        P := MEM[Q+1].HH.RH;
-        MEM[Q+1].HH.RH := ROVER;
-        ROVER := Q;
-      END
-    ELSE
-      BEGIN
-        Q := ROVER;
-        WHILE MEM[Q+1].HH.RH<P DO
-          Q := MEM[Q+1].HH.RH;
-        R := MEM[P+1].HH.RH;
-        MEM[P+1].HH.RH := MEM[Q+1].HH.RH;
-        MEM[Q+1].HH.RH := P;
-        P := R;
-      END{:132};
-  P := ROVER;
-  WHILE MEM[P+1].HH.RH<>65535 DO
-    BEGIN
-      MEM[MEM[P+1].HH.RH+1].HH.LH := P;
-      P := MEM[P+1].HH.RH;
-    END;
-  MEM[P+1].HH.RH := ROVER;
-  MEM[ROVER+1].HH.LH := P;
-END;
-{$ENDIF}{:131}{136:}
+
+{136:}
 FUNCTION NEWNULLBOX: HALFWORD;
 
 VAR P: HALFWORD;
@@ -4098,8 +2820,7 @@ BEGIN
     BEGIN
       IF MEM[Q].HH.RH=P THEN
         BEGIN
-          PRINTNL(
-                  306);
+          print_nl_str('LINK(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
@@ -4115,8 +2836,7 @@ BEGIN
     BEGIN
       IF EQTB[Q].HH.RH=P THEN
         BEGIN
-          PRINTNL(
-                  501);
+          print_nl_str('EQUIV(');
           PRINTINT(Q);
           PRINTCHAR(41);
         END;
@@ -5607,8 +4327,7 @@ BEGIN
         END;
     51:
         IF CHRCODE=1 THEN print_esc_str('limits')
-        ELSE
-          IF CHRCODE=2 THEN print_esc_str('nolimits')
+        ELSE IF CHRCODE=2 THEN print_esc_str('nolimits')
         ELSE print_esc_str('displaylimits');{:1157}{1170:}
     53: PRINTSTYLE(CHRCODE);
 {:1170}{1179:}
@@ -5628,16 +4347,12 @@ BEGIN
 {:1189}{1209:}
     93:
         IF CHRCODE=1 THEN print_esc_str('long')
-        ELSE
-          IF CHRCODE=2 THEN
-            print_esc_str('outer')
+        ELSE IF CHRCODE=2 THEN print_esc_str('outer')
         ELSE print_esc_str('global');
     97:
         IF CHRCODE=0 THEN print_esc_str('def')
-        ELSE
-          IF CHRCODE=1 THEN print_esc_str('gdef')
-        ELSE
-          IF CHRCODE=2 THEN print_esc_str('edef')
+        ELSE IF CHRCODE=1 THEN print_esc_str('gdef')
+        ELSE IF CHRCODE=2 THEN print_esc_str('edef')
         ELSE print_esc_str('xdef');
 {:1209}{1220:}
     94:
@@ -5667,18 +4382,11 @@ BEGIN
 {:1223}{1231:}
     85:
         IF CHRCODE=3983 THEN print_esc_str('catcode')
-        ELSE
-          IF CHRCODE=5007
-            THEN print_esc_str('mathcode')
-        ELSE
-          IF CHRCODE=4239 THEN print_esc_str('lccode')
-        ELSE
-          IF CHRCODE
-             =4495 THEN print_esc_str('uccode')
-        ELSE
-          IF CHRCODE=4751 THEN print_esc_str('sfcode')
-        ELSE
-          print_esc_str('delcode');
+        ELSE IF CHRCODE=5007 THEN print_esc_str('mathcode')
+        ELSE IF CHRCODE=4239 THEN print_esc_str('lccode')
+        ELSE IF CHRCODE=4495 THEN print_esc_str('uccode')
+        ELSE IF CHRCODE=4751 THEN print_esc_str('sfcode')
+        ELSE print_esc_str('delcode');
     86: PRINTSIZE(CHRCODE-3935);
 {:1231}{1251:}
     99:
@@ -5988,32 +4696,10 @@ BEGIN{261:}
       P := HASH[P].LH;
     END;
   40: IDLOOKUP := P;
-END;{:259}{264:}{$IFDEF INITEX}
-PROCEDURE PRIMITIVE(S:STRNUMBER;C:QUARTERWORD;O:HALFWORD);
+END;
+{:259}
 
-VAR K: POOLPOINTER;
-  J: SMALLNUMBER;
-  L: SMALLNUMBER;
-BEGIN
-  IF S<256 THEN CURVAL := S+257
-  ELSE
-    BEGIN
-      K := STRSTART[S];
-      L := STRSTART[S+1]-K;
-      FOR J:=0 TO L-1 DO
-        BUFFER[J] := STRPOOL[K+J];
-      CURVAL := IDLOOKUP(0,L);
-      BEGIN
-        STRPTR := STRPTR-1;
-        POOLPTR := STRSTART[STRPTR];
-      END;
-      HASH[CURVAL].RH := S;
-    END;
-  EQTB[CURVAL].HH.B1 := 1;
-  EQTB[CURVAL].HH.B0 := C;
-  EQTB[CURVAL].HH.RH := O;
-END;{$ENDIF}
-{:264}{274:}
+{274:}
 PROCEDURE NEWSAVELEVEL(C:GROUPCODE);
 BEGIN
   IF SAVEPTR>MAXSAVESTACK THEN
@@ -6277,7 +4963,7 @@ END;{:296}{299:}
 PROCEDURE SHOWCURCMDCH;
 BEGIN
   BEGINDIAGNOS;
-  PRINTNL(123);
+  print_nl_str('{');
   IF CURLIST.MODEFIELD<>SHOWNMODE THEN
     BEGIN
       PRINTMODE(CURLIST.MODEFIELD);
@@ -6327,8 +5013,7 @@ BEGIN
                   IF CURINPUT.NAMEFIELD<=17 THEN
                     IF (CURINPUT.NAMEFIELD=0)THEN
                       IF BASEPTR=0 THEN print_nl_str('<*>')
-                  ELSE PRINTNL(
-                               575)
+                  ELSE print_nl_str('<insert> ')
                   ELSE
                     BEGIN
                       print_nl_str('<read ');
@@ -6387,7 +5072,7 @@ BEGIN
                     13: print_nl_str('<everycr> ');
                     14: print_nl_str('<mark> ');
                     15: print_nl_str('<write> ');
-                    ELSE PRINTNL(63)
+                    ELSE print_nl_str('?')
                   END{:314};
 {319:}
                   BEGIN
@@ -7159,8 +5844,7 @@ BEGIN
         IF (MEM[R].HH.LH>3583)OR(MEM[R].HH.LH<3328)THEN S := 0
         ELSE
           BEGIN
-            MATCHCHR 
-            := MEM[R].HH.LH-3328;
+            MATCHCHR := MEM[R].HH.LH-3328;
             S := MEM[R].HH.RH;
             R := S;
             P := 29997;
@@ -13902,7 +12586,7 @@ BEGIN{831:}
                   END;
                 PRINTEDNODE := CURP;
               END{:857};
-            PRINTNL(64);
+            print_nl_str('@');
             IF CURP=0 THEN print_esc_str('par')
             ELSE
               IF MEM[CURP].HH.B0<>10 THEN
@@ -14730,7 +13414,11 @@ BEGIN{923:}
   FLUSHLIST(INITLIST){:903};
   10:
 END;
-{:895}{942:}{$IFDEF INITEX}{944:}
+{:895}
+
+{942:}
+{$IFDEF INITEX}
+{944:}
 FUNCTION NEWTRIEOP(D,N:SMALLNUMBER;
                    V:QUARTERWORD): QUARTERWORD;
 
@@ -15133,7 +13821,11 @@ BEGIN{952:}{945:}
   TRIE[0].B1 := 63;{:958};
   TRIENOTREADY := FALSE;
 END;
-{:966}{$ENDIF}{:942}
+{:966}
+{$ENDIF}
+{:942}
+
+
 PROCEDURE LINEBREAK(FINALWIDOWPE:Int32);
 
 LABEL 30,31,32,33,34,35,22;
@@ -16575,8 +15267,7 @@ BEGIN
         IF EQTB[5296].INT>0 THEN{1006:}
           BEGIN
             BEGINDIAGNOS;
-            PRINTNL(37);
-            print_str(' t=');
+            print_nl_str('% t=');
             PRINTTOTALS;
             print_str(' g=');
             PRINTSCALED(PAGESOFAR[0]);
@@ -20236,369 +18927,6 @@ BEGIN
 END;
 {:1293}
 
-{1302:}
-{$IFDEF INITEX}
-
-procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
-begin
-  Buf[Ofs] := Val;
-  Buf[Ofs+1] := Val shr 8;
-  Buf[Ofs+2] := Val shr 16;
-  Buf[Ofs+3] := Val shr 24;
-end;
-
-function BlockWriteSuccess(var f: file; var Buf; Len: UInt32) : boolean;
-begin
-  {$I-}
-  blockwrite(f, Buf, Len);
-  BlockWriteSuccess :=  IOResult = 0;
-  {$I+}
-end;
-
-PROCEDURE StoreFormatFile;
-LABEL 41,42,31,32;
-VAR J,K,L: Int32;
-  P,Q: HALFWORD;
-  X: Int32;
-  W: FOURQUARTERS;
-  mw: MEMORYWORD;
-
-  f: byte_file;
-  Buf: array[0..91] of byte;
-  FileName: string;
-  s: string;
-  LocalFormatIdent: STRNUMBER;
-BEGIN
-  {1304:}
-  IF SAVEPTR<>0 THEN
-    BEGIN
-      BEGIN
-        IF INTERACTION=3 THEN;
-        print_nl_str('! ');
-        print_str('You can''t dump inside a group');
-      END;
-      BEGIN
-        HELPPTR := 1;
-        help_line[0] := '`{...\dump}'' is a no-no.';
-      END;
-      BEGIN
-        IF INTERACTION=3 THEN INTERACTION := 2;
-        IF LOGOPENED THEN ERROR;
-        {$IFDEF DEBUGGING}
-        IF INTERACTION>0 THEN DEBUGHELP;
-        {$ENDIF}
-        HISTORY := 3;
-        close_files_and_terminate;
-      END;
-    END;
-  {:1304}
-
-  {1328:}
-  IF INTERACTION=0 THEN SELECTOR := 18
-                   ELSE SELECTOR := 19;
-
-  s := ' (preloaded format=' 
-    + job_name + ' '
-    + IntToStr(EQTB[int_base+year_code].INT) + '.'
-    + IntToStr(EQTB[int_base+month_code].INT) + '.'
-    + IntToStr(EQTB[int_base+day_code].INT) + chr(41);
-  LocalFormatIdent := AddString(s); 
-    {not necessary to set FORMATIDENT, because we are at the end of the program}
-
-  FileName := job_name + '.fmt';
-  while not b_open_out(f, FileName) do begin
-    prompt_file_name(FileName, 'format file name', '.fmt');
-  end;
-  print_nl_str('Beginning to dump on file ');
-  print_str(FileName);
-  print_nl_str('');
-  slow_print_str(s);
-  {:1328}
-
-  {1307: @<Dump constants for consistency check@>}
-  SetUInt32LE(Buf, 0, 69577846);
-  SetUInt32LE(Buf, 4, mem_bot);
-  SetUInt32LE(Buf, 8, mem_top);
-  SetUInt32LE(Buf, 12, eqtb_size);
-  SetUInt32LE(Buf, 16, hash_prime);
-  SetUInt32LE(Buf, 20, hyph_size);
-  {:1307}
-
-  {1309: @<Dump the string pool@>}
-  SetUInt32LE(Buf, 24, POOLPTR);
-  SetUInt32LE(Buf, 28, STRPTR);
-  blockwrite(f, Buf, 32);
-
-  {FIXME: pack in 16 bit and use one blockwrite}
-  for K := 0 to STRPTR do begin
-    SetUInt32LE(Buf, 0, STRSTART[K]);
-    blockwrite(f, Buf, 4);
-  end;
-
-  blockwrite(f, STRPOOL, POOLPTR and not 3);
-  {Special treatment of last word. FIXME}
-  if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
-
-  PRINTLN;
-  PRINTINT(STRPTR);
-  print_str(' strings of total length '); {" strings of total length "}
-  PRINTINT(POOLPTR);
-  {:1309}
-
-  {1311: @<Dump the dynamic memory@>}
-
-  SORTAVAIL;
-  VARUSED := 0;
-  SetUInt32LE(Buf, 0, LOMEMMAX);
-  SetUInt32LE(Buf, 4, ROVER);
-  blockwrite(f, Buf, 8);
-  P := 0;
-  Q := ROVER;
-  X := 0;
-  REPEAT
-    blockwrite(f, MEM[P], (Q-P+2)*4);
-    X := X+Q+2-P;
-    VARUSED := VARUSED+Q-P;
-    P := Q+MEM[Q].HH.LH;
-    Q := MEM[Q+1].HH.RH;
-  UNTIL Q=ROVER;
-  VARUSED := VARUSED+LOMEMMAX-P;
-  DYNUSED := MEMEND+1-HIMEMMIN;
-  blockwrite(f, MEM[P], (LOMEMMAX-P+1)*4);
-  X := X+LOMEMMAX+1-P;
-
-  SetUInt32LE(Buf, 0, HIMEMMIN);
-  SetUInt32LE(Buf, 4, AVAIL);
-  blockwrite(f, Buf, 8);
-  blockwrite(f, MEM[HIMEMMIN], (MEMEND-HIMEMMIN+1)*4);
-  X := X+MEMEND+1-HIMEMMIN;
-  P := AVAIL;
-  WHILE P<>0 DO BEGIN
-      DYNUSED := DYNUSED-1;
-      P := MEM[P].HH.RH;
-  END;
-
-  SetUInt32LE(Buf, 0, VARUSED);
-  SetUInt32LE(Buf, 4, DYNUSED);
-  blockwrite(f, Buf, 8);
-  PRINTLN;
-  PRINTINT(X);
-  print_str(' memory locations dumped; current usage is ');
-  PRINTINT(VARUSED);
-  PRINTCHAR(38);
-  PRINTINT(DYNUSED);
-  {:1311}
-
-  {1313: @<Dump the table of equivalents@>}
-  {1315: @<Dump regions 1 to 4 of |eqtb|@>}
-  K := active_base;
-  REPEAT
-    J := K;
-    WHILE J<int_base-1 DO
-      BEGIN
-        IF (EQTB[J].HH.RH=EQTB[J+1].HH.RH)AND(EQTB[J].HH.B0
-           =EQTB[J+1].HH.B0)AND(EQTB[J].HH.B1=EQTB[J+1].HH.B1)THEN GOTO 41;
-        J := J+1;
-      END;
-    L := int_base;
-    GOTO 31;
-41:
-    J := J+1;
-    L := J;
-    WHILE J<int_base-1 DO
-      BEGIN
-        IF (EQTB[J].HH.RH<>EQTB[J+1].HH.RH)OR(EQTB[J].HH.B0
-           <>EQTB[J+1].HH.B0)OR(EQTB[J].HH.B1<>EQTB[J+1].HH.B1)THEN GOTO 31;
-        J := J+1;
-      END;
-31:
-    SetUInt32LE(Buf, 0, L-K);
-    blockwrite(f, Buf, 4);
-    blockwrite(f, EQTB[K], (L-K)*4);
-    K := J+1;
-    SetUInt32LE(Buf, 0, K-L);
-    blockwrite(f, Buf, 4);
-  UNTIL K=int_base;
-  {:1315}
-
-  {1316: @<Dump regions 5 and 6 of |eqtb|@>}
-  REPEAT
-    J := K;
-    WHILE J<eqtb_size DO
-      BEGIN
-        IF EQTB[J].INT=EQTB[J+1].INT THEN GOTO 42;
-        J := J+1;
-      END;
-    L := eqtb_size+1;
-    GOTO 32;
-42:
-    J := J+1;
-    L := J;
-    WHILE J<eqtb_size DO
-      BEGIN
-        IF EQTB[J].INT<>EQTB[J+1].INT THEN GOTO 32;
-        J := J+1;
-      END;
-32:
-    SetUInt32LE(Buf, 0, L-K);
-    blockwrite(f, Buf, 4);
-    blockwrite(f, EQTB[K], (L-K)*4);
-    K := J+1;
-    SetUInt32LE(Buf, 0, K-L);
-    blockwrite(f, Buf, 4);
-  UNTIL K>eqtb_size;
-  {:1316}
-
-  SetUInt32LE(Buf, 0, PARLOC);
-  SetUInt32LE(Buf, 4, WRITELOC);
-
-  {1318: @<Dump the hash table@>}
-  SetUInt32LE(Buf, 8, HASHUSED);
-  blockwrite(f, Buf, 12);
-  CSCOUNT := frozen_control_sequence-1-HASHUSED;
-  FOR P:=hash_base TO HASHUSED DO BEGIN
-    IF HASH[P].RH<>0 THEN BEGIN
-      SetUInt32LE(Buf, 0, P);
-      mw.HH := HASH[P];
-      SetUInt32LE(Buf, 4, mw.INT);
-      blockwrite(f, Buf, 8);
-      CSCOUNT := CSCOUNT+1;
-    END;
-  END;
-  FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
-    mw.HH := HASH[P];
-    SetUInt32LE(Buf, 0, mw.INT);
-    blockwrite(f, Buf, 4);
-  END;
-  SetUInt32LE(Buf, 0, CSCOUNT);
-  PRINTLN;
-  PRINTINT(CSCOUNT);
-  print_str(' multiletter control sequences');
-  {:1318}
-  {:1313}
-
-  {1320:}
-  SetUInt32LE(Buf, 4, FMEMPTR);
-  blockwrite(f, Buf, 8);
-  blockwrite(f, FONTINFO, FMEMPTR*4);
-  SetUInt32LE(Buf, 0, FONTPTR);
-  blockwrite(f, Buf, 4);
-  FOR K:=0 TO FONTPTR DO BEGIN
-    {1322:}
-    mw.QQQQ := FONTCHECK[K];
-    SetUInt32LE(Buf, 0, mw.INT);
-    SetUInt32LE(Buf, 4, FONTSIZE[K]);
-    SetUInt32LE(Buf, 8, FONTDSIZE[K]);
-    SetUInt32LE(Buf, 12, FONTPARAMS[K]);
-    SetUInt32LE(Buf, 16, HYPHENCHAR[K]);
-    SetUInt32LE(Buf, 20, SKEWCHAR[K]);
-    SetUInt32LE(Buf, 24, FONTNAME[K]);
-    SetUInt32LE(Buf, 28, FONTAREA[K]);
-    SetUInt32LE(Buf, 32, FONTBC[K]);
-    SetUInt32LE(Buf, 36, FONTEC[K]);
-    SetUInt32LE(Buf, 40, CHARBASE[K]);
-    SetUInt32LE(Buf, 44, WIDTHBASE[K]);
-    SetUInt32LE(Buf, 48, HEIGHTBASE[K]);
-    SetUInt32LE(Buf, 52, DEPTHBASE[K]);
-    SetUInt32LE(Buf, 56, ITALICBASE[K]);
-    SetUInt32LE(Buf, 60, LIGKERNBASE[K]);
-    SetUInt32LE(Buf, 64, KERNBASE[K]);
-    SetUInt32LE(Buf, 68, EXTENBASE[K]);
-    SetUInt32LE(Buf, 72, PARAMBASE[K]);
-    SetUInt32LE(Buf, 76, FONTGLUE[K]);
-    SetUInt32LE(Buf, 80, BCHARLABEL[K]);
-    SetUInt32LE(Buf, 84, FONTBCHAR[K]);
-    SetUInt32LE(Buf, 88, FONTFALSEBCH[K]);
-    blockwrite(f, Buf, 92);
-    print_nl_str('\font');
-    PRINTESC(HASH[2624+K].RH);
-    PRINTCHAR(61);
-    PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
-    IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
-      print_str(' at ');
-      PRINTSCALED(FONTSIZE[K]);
-      print_str('pt');
-    END;
-    {:1322}
-  END;
-  PRINTLN;
-  PRINTINT(FMEMPTR-7);
-  print_str(' words of font info for ');
-  PRINTINT(FONTPTR-0);
-  print_str(' preloaded font');
-  IF FONTPTR<>1 THEN PRINTCHAR(115);
-  {:1320}
-
-  {1324: @<Dump the hyphenation tables@>}
-
-  SetUInt32LE(Buf, 0, HYPHCOUNT);
-  blockwrite(f, Buf, 4);
-  FOR K:=0 TO hyph_size DO BEGIN
-    {possible BUG: why not HYPHCOUNT and no check for 0}
-    IF HYPHWORD[K]<>0 THEN BEGIN
-      SetUInt32LE(Buf, 0, K);
-      SetUInt32LE(Buf, 4, HYPHWORD[K]);
-      SetUInt32LE(Buf, 8, HYPHLIST[K]);
-      blockwrite(f, Buf, 12);
-    END;
-  END;
-  PRINTLN;
-  PRINTINT(HYPHCOUNT);
-  print_str(' hyphenation exception');
-  IF HYPHCOUNT<>1 THEN PRINTCHAR(115);
-  IF TRIENOTREADY THEN INITTRIE;
-
-  SetUInt32LE(Buf, 0, TRIEMAX);
-  blockwrite(f, Buf, 4);
-  FOR K:=0 TO TRIEMAX DO BEGIN
-    mw.HH := TRIE[K];
-    SetUInt32LE(Buf, 0, mw.INT);
-    blockwrite(f, Buf, 4);
-  END;
-  SetUInt32LE(Buf, 0, TRIEOPPTR);
-  blockwrite(f, Buf, 4);
-  FOR K:=1 TO TRIEOPPTR DO BEGIN
-    SetUInt32LE(Buf, 0, HYFDISTANCE[K]);
-    SetUInt32LE(Buf, 4, HYFNUM[K]);
-    SetUInt32LE(Buf, 8, HYFNEXT[K]);
-    blockwrite(f, Buf, 12);
-  END;
-
-  print_nl_str('Hyphenation trie of length ');
-  PRINTINT(TRIEMAX);
-  print_str(' has ');
-  PRINTINT(TRIEOPPTR);
-  print_str(' op');
-  IF TRIEOPPTR<>1 THEN PRINTCHAR(115);
-  print_str(' out of ');
-  PRINTINT(TRIEOPSIZE);
-  FOR K:=255 DOWNTO 0 DO BEGIN
-    IF TRIEUSED[K]>0 THEN BEGIN
-      print_nl_str('  ');
-      PRINTINT(TRIEUSED[K]);
-      print_str(' for language ');
-      PRINTINT(K);
-      SetUInt32LE(Buf, 0, K);
-      SetUInt32LE(Buf, 4, TRIEUSED[K]);
-      blockwrite(f, Buf, 8);
-    END;
-  END;
-  {:1324}
-
-  {1326:}
-  SetUInt32LE(Buf, 0, INTERACTION);
-  SetUInt32LE(Buf, 4, LocalFormatIdent);
-  SetUInt32LE(Buf, 8, 69069);
-  blockwrite(f, Buf, 12);
-  EQTB[5294].INT := 0;
-  {:1326}
-
-  close(f)
-END;
-
-
-{$ENDIF}
-{:1302}
 
 {1348:}
 {1349:}
@@ -21919,223 +20247,1697 @@ begin
 end;
 
 
-{1330:}
-{1333:}
-PROCEDURE close_files_and_terminate;
-VAR K: Int32;
-BEGIN{1378:}
-  FOR K:=0 TO 15 DO
-    IF WRITEOPEN[K]THEN close(WRITEFILE[K])
-{:1378};
-  EQTB[5312].INT := -1;{$IFDEF STATS}
-  IF EQTB[5294].INT>0 THEN{1334:}
-    IF LOGOPENED THEN
-      BEGIN
-        WRITELN(LOGFILE,
-                ' ');
-        WRITELN(LOGFILE,'Here is how much of TeX''s memory',' you used:');
-        WRITE(LOGFILE,' ',STRPTR-INITSTRPTR:1,' string');
-        IF STRPTR<>INITSTRPTR+1 THEN WRITE(LOGFILE,'s');
-        WRITELN(LOGFILE,' out of ',MAXSTRINGS-INITSTRPTR:1);
-        WRITELN(LOGFILE,' ',POOLPTR-INITPOOLPTR:1,' string characters out of ',
-                POOLSIZE-INITPOOLPTR:1);
-        WRITELN(LOGFILE,' ',LOMEMMAX-MEMMIN+MEMEND-HIMEMMIN+2:1,
-                ' words of memory out of ',MEMEND+1-MEMMIN:1);
-        WRITELN(LOGFILE,' ',CSCOUNT:1,' multiletter control sequences out of ',
-                2100:1);
-        WRITE(LOGFILE,' ',FMEMPTR:1,' words of font info for ',FONTPTR-0:1,
-              ' font');
-        IF FONTPTR<>1 THEN WRITE(LOGFILE,'s');
-        WRITELN(LOGFILE,', out of ',FONTMEMSIZE:1,' for ',FONTMAX-0:1);
-        WRITE(LOGFILE,' ',HYPHCOUNT:1,' hyphenation exception');
-        IF HYPHCOUNT<>1 THEN WRITE(LOGFILE,'s');
-        WRITELN(LOGFILE,' out of ',307:1);
-        WRITELN(LOGFILE,' ',MAXINSTACK:1,'i,',MAXNESTSTACK:1,'n,',MAXPARAMSTAC:1
-                ,'p,',MAXBUFSTACK+1:1,'b,',MAXSAVESTACK+6:1,'s stack positions out of ',
-                STACKSIZE:1,'i,',NESTSIZE:1,'n,',PARAMSIZE:1,'p,',BUFSIZE:1,'b,',
-                SAVESIZE:1,'s');
-      END{:1334};{$ENDIF};
-{642:}
-  WHILE CURS>-1 DO
-    BEGIN
-      IF CURS>0 THEN
-        BEGIN
-          DVIBUF[DVIPTR] := 142;
-          DVIPTR := DVIPTR+1;
-          IF DVIPTR=DVILIMIT THEN DVISWAP;
-        END
-      ELSE
-        BEGIN
-          BEGIN
-            DVIBUF[DVIPTR] := 140;
-            DVIPTR := DVIPTR+1;
-            IF DVIPTR=DVILIMIT THEN DVISWAP;
-          END;
-          TOTALPAGES := TOTALPAGES+1;
-        END;
-      CURS := CURS-1;
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  Exclusively for INITEX
+  ---------------------------------------------------------------------- }
+
+{$IFDEF INITEX}
+
+{131:}
+PROCEDURE SORTAVAIL;
+VAR
+  P,Q,R: HALFWORD;
+  OLDROVER: HALFWORD;
+BEGIN
+  P := GETNODE(1073741824);
+  P := MEM[ROVER+1].HH.RH;
+  MEM[ROVER+1].HH.RH := 65535;
+  OLDROVER := ROVER;
+  WHILE P<>OLDROVER DO BEGIN
+    {132:}
+    IF P<ROVER THEN BEGIN
+      Q := P;
+      P := MEM[Q+1].HH.RH;
+      MEM[Q+1].HH.RH := ROVER;
+      ROVER := Q;
+    END ELSE BEGIN
+      Q := ROVER;
+      WHILE MEM[Q+1].HH.RH<P DO
+        Q := MEM[Q+1].HH.RH;
+      R := MEM[P+1].HH.RH;
+      MEM[P+1].HH.RH := MEM[Q+1].HH.RH;
+      MEM[Q+1].HH.RH := P;
+      P := R;
     END;
-  IF TOTALPAGES=0 THEN print_nl_str('No pages of output.')
+    {:132}
+  END;
+  P := ROVER;
+  WHILE MEM[P+1].HH.RH<>65535 DO BEGIN
+    MEM[MEM[P+1].HH.RH+1].HH.LH := P;
+    P := MEM[P+1].HH.RH;
+  END;
+  MEM[P+1].HH.RH := ROVER;
+  MEM[ROVER+1].HH.LH := P;
+END;
+{:131}
+
+
+
+{1302:}
+procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
+begin
+  Buf[Ofs] := Val;
+  Buf[Ofs+1] := Val shr 8;
+  Buf[Ofs+2] := Val shr 16;
+  Buf[Ofs+3] := Val shr 24;
+end;
+
+function BlockWriteSuccess(var f: file; var Buf; Len: UInt32) : boolean;
+begin
+  {$I-}
+  blockwrite(f, Buf, Len);
+  BlockWriteSuccess :=  IOResult = 0;
+  {$I+}
+end;
+
+PROCEDURE StoreFormatFile;
+LABEL 41,42,31,32;
+VAR J,K,L: Int32;
+  P,Q: HALFWORD;
+  X: Int32;
+  W: FOURQUARTERS;
+  mw: MEMORYWORD;
+
+  f: byte_file;
+  Buf: array[0..91] of byte;
+  FileName: string;
+  s: string;
+  LocalFormatIdent: STRNUMBER;
+BEGIN
+  {1304:}
+  IF SAVEPTR<>0 THEN
+    BEGIN
+      BEGIN
+        IF INTERACTION=3 THEN;
+        print_nl_str('! ');
+        print_str('You can''t dump inside a group');
+      END;
+      BEGIN
+        HELPPTR := 1;
+        help_line[0] := '`{...\dump}'' is a no-no.';
+      END;
+      BEGIN
+        IF INTERACTION=3 THEN INTERACTION := 2;
+        IF LOGOPENED THEN ERROR;
+        {$IFDEF DEBUGGING}
+        IF INTERACTION>0 THEN DEBUGHELP;
+        {$ENDIF}
+        HISTORY := 3;
+        close_files_and_terminate;
+      END;
+    END;
+  {:1304}
+
+  {1328:}
+  IF INTERACTION=0 THEN SELECTOR := 18
+                   ELSE SELECTOR := 19;
+
+  s := ' (preloaded format=' 
+    + job_name + ' '
+    + IntToStr(EQTB[int_base+year_code].INT) + '.'
+    + IntToStr(EQTB[int_base+month_code].INT) + '.'
+    + IntToStr(EQTB[int_base+day_code].INT) + chr(41);
+  LocalFormatIdent := AddString(s); 
+    {not necessary to set FORMATIDENT, because we are at the end of the program}
+
+  FileName := job_name + '.fmt';
+  while not b_open_out(f, FileName) do begin
+    prompt_file_name(FileName, 'format file name', '.fmt');
+  end;
+  print_nl_str('Beginning to dump on file ');
+  print_str(FileName);
+  print_nl_str('');
+  slow_print_str(s);
+  {:1328}
+
+  {1307: @<Dump constants for consistency check@>}
+  SetUInt32LE(Buf, 0, 69577846);
+  SetUInt32LE(Buf, 4, mem_bot);
+  SetUInt32LE(Buf, 8, mem_top);
+  SetUInt32LE(Buf, 12, eqtb_size);
+  SetUInt32LE(Buf, 16, hash_prime);
+  SetUInt32LE(Buf, 20, hyph_size);
+  {:1307}
+
+  {1309: @<Dump the string pool@>}
+  SetUInt32LE(Buf, 24, POOLPTR);
+  SetUInt32LE(Buf, 28, STRPTR);
+  blockwrite(f, Buf, 32);
+
+  {FIXME: pack in 16 bit and use one blockwrite}
+  for K := 0 to STRPTR do begin
+    SetUInt32LE(Buf, 0, STRSTART[K]);
+    blockwrite(f, Buf, 4);
+  end;
+
+  blockwrite(f, STRPOOL, POOLPTR and not 3);
+  {Special treatment of last word. FIXME}
+  if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
+
+  PRINTLN;
+  PRINTINT(STRPTR);
+  print_str(' strings of total length '); {" strings of total length "}
+  PRINTINT(POOLPTR);
+  {:1309}
+
+  {1311: @<Dump the dynamic memory@>}
+
+  SORTAVAIL;
+  VARUSED := 0;
+  SetUInt32LE(Buf, 0, LOMEMMAX);
+  SetUInt32LE(Buf, 4, ROVER);
+  blockwrite(f, Buf, 8);
+  P := 0;
+  Q := ROVER;
+  X := 0;
+  REPEAT
+    blockwrite(f, MEM[P], (Q-P+2)*4);
+    X := X+Q+2-P;
+    VARUSED := VARUSED+Q-P;
+    P := Q+MEM[Q].HH.LH;
+    Q := MEM[Q+1].HH.RH;
+  UNTIL Q=ROVER;
+  VARUSED := VARUSED+LOMEMMAX-P;
+  DYNUSED := MEMEND+1-HIMEMMIN;
+  blockwrite(f, MEM[P], (LOMEMMAX-P+1)*4);
+  X := X+LOMEMMAX+1-P;
+
+  SetUInt32LE(Buf, 0, HIMEMMIN);
+  SetUInt32LE(Buf, 4, AVAIL);
+  blockwrite(f, Buf, 8);
+  blockwrite(f, MEM[HIMEMMIN], (MEMEND-HIMEMMIN+1)*4);
+  X := X+MEMEND+1-HIMEMMIN;
+  P := AVAIL;
+  WHILE P<>0 DO BEGIN
+      DYNUSED := DYNUSED-1;
+      P := MEM[P].HH.RH;
+  END;
+
+  SetUInt32LE(Buf, 0, VARUSED);
+  SetUInt32LE(Buf, 4, DYNUSED);
+  blockwrite(f, Buf, 8);
+  PRINTLN;
+  PRINTINT(X);
+  print_str(' memory locations dumped; current usage is ');
+  PRINTINT(VARUSED);
+  PRINTCHAR(38);
+  PRINTINT(DYNUSED);
+  {:1311}
+
+  {1313: @<Dump the table of equivalents@>}
+  {1315: @<Dump regions 1 to 4 of |eqtb|@>}
+  K := active_base;
+  REPEAT
+    J := K;
+    WHILE J<int_base-1 DO
+      BEGIN
+        IF (EQTB[J].HH.RH=EQTB[J+1].HH.RH)AND(EQTB[J].HH.B0
+           =EQTB[J+1].HH.B0)AND(EQTB[J].HH.B1=EQTB[J+1].HH.B1)THEN GOTO 41;
+        J := J+1;
+      END;
+    L := int_base;
+    GOTO 31;
+41:
+    J := J+1;
+    L := J;
+    WHILE J<int_base-1 DO
+      BEGIN
+        IF (EQTB[J].HH.RH<>EQTB[J+1].HH.RH)OR(EQTB[J].HH.B0
+           <>EQTB[J+1].HH.B0)OR(EQTB[J].HH.B1<>EQTB[J+1].HH.B1)THEN GOTO 31;
+        J := J+1;
+      END;
+31:
+    SetUInt32LE(Buf, 0, L-K);
+    blockwrite(f, Buf, 4);
+    blockwrite(f, EQTB[K], (L-K)*4);
+    K := J+1;
+    SetUInt32LE(Buf, 0, K-L);
+    blockwrite(f, Buf, 4);
+  UNTIL K=int_base;
+  {:1315}
+
+  {1316: @<Dump regions 5 and 6 of |eqtb|@>}
+  REPEAT
+    J := K;
+    WHILE J<eqtb_size DO
+      BEGIN
+        IF EQTB[J].INT=EQTB[J+1].INT THEN GOTO 42;
+        J := J+1;
+      END;
+    L := eqtb_size+1;
+    GOTO 32;
+42:
+    J := J+1;
+    L := J;
+    WHILE J<eqtb_size DO
+      BEGIN
+        IF EQTB[J].INT<>EQTB[J+1].INT THEN GOTO 32;
+        J := J+1;
+      END;
+32:
+    SetUInt32LE(Buf, 0, L-K);
+    blockwrite(f, Buf, 4);
+    blockwrite(f, EQTB[K], (L-K)*4);
+    K := J+1;
+    SetUInt32LE(Buf, 0, K-L);
+    blockwrite(f, Buf, 4);
+  UNTIL K>eqtb_size;
+  {:1316}
+
+  SetUInt32LE(Buf, 0, PARLOC);
+  SetUInt32LE(Buf, 4, WRITELOC);
+
+  {1318: @<Dump the hash table@>}
+  SetUInt32LE(Buf, 8, HASHUSED);
+  blockwrite(f, Buf, 12);
+  CSCOUNT := frozen_control_sequence-1-HASHUSED;
+  FOR P:=hash_base TO HASHUSED DO BEGIN
+    IF HASH[P].RH<>0 THEN BEGIN
+      SetUInt32LE(Buf, 0, P);
+      mw.HH := HASH[P];
+      SetUInt32LE(Buf, 4, mw.INT);
+      blockwrite(f, Buf, 8);
+      CSCOUNT := CSCOUNT+1;
+    END;
+  END;
+  FOR P:=HASHUSED+1 TO undefined_control_sequence-1 DO BEGIN
+    mw.HH := HASH[P];
+    SetUInt32LE(Buf, 0, mw.INT);
+    blockwrite(f, Buf, 4);
+  END;
+  SetUInt32LE(Buf, 0, CSCOUNT);
+  PRINTLN;
+  PRINTINT(CSCOUNT);
+  print_str(' multiletter control sequences');
+  {:1318}
+  {:1313}
+
+  {1320:}
+  SetUInt32LE(Buf, 4, FMEMPTR);
+  blockwrite(f, Buf, 8);
+  blockwrite(f, FONTINFO, FMEMPTR*4);
+  SetUInt32LE(Buf, 0, FONTPTR);
+  blockwrite(f, Buf, 4);
+  FOR K:=0 TO FONTPTR DO BEGIN
+    {1322:}
+    mw.QQQQ := FONTCHECK[K];
+    SetUInt32LE(Buf, 0, mw.INT);
+    SetUInt32LE(Buf, 4, FONTSIZE[K]);
+    SetUInt32LE(Buf, 8, FONTDSIZE[K]);
+    SetUInt32LE(Buf, 12, FONTPARAMS[K]);
+    SetUInt32LE(Buf, 16, HYPHENCHAR[K]);
+    SetUInt32LE(Buf, 20, SKEWCHAR[K]);
+    SetUInt32LE(Buf, 24, FONTNAME[K]);
+    SetUInt32LE(Buf, 28, FONTAREA[K]);
+    SetUInt32LE(Buf, 32, FONTBC[K]);
+    SetUInt32LE(Buf, 36, FONTEC[K]);
+    SetUInt32LE(Buf, 40, CHARBASE[K]);
+    SetUInt32LE(Buf, 44, WIDTHBASE[K]);
+    SetUInt32LE(Buf, 48, HEIGHTBASE[K]);
+    SetUInt32LE(Buf, 52, DEPTHBASE[K]);
+    SetUInt32LE(Buf, 56, ITALICBASE[K]);
+    SetUInt32LE(Buf, 60, LIGKERNBASE[K]);
+    SetUInt32LE(Buf, 64, KERNBASE[K]);
+    SetUInt32LE(Buf, 68, EXTENBASE[K]);
+    SetUInt32LE(Buf, 72, PARAMBASE[K]);
+    SetUInt32LE(Buf, 76, FONTGLUE[K]);
+    SetUInt32LE(Buf, 80, BCHARLABEL[K]);
+    SetUInt32LE(Buf, 84, FONTBCHAR[K]);
+    SetUInt32LE(Buf, 88, FONTFALSEBCH[K]);
+    blockwrite(f, Buf, 92);
+    print_nl_str('\font');
+    PRINTESC(HASH[2624+K].RH);
+    PRINTCHAR(61);
+    PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
+    IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
+      print_str(' at ');
+      PRINTSCALED(FONTSIZE[K]);
+      print_str('pt');
+    END;
+    {:1322}
+  END;
+  PRINTLN;
+  PRINTINT(FMEMPTR-7);
+  print_str(' words of font info for ');
+  PRINTINT(FONTPTR-0);
+  print_str(' preloaded font');
+  IF FONTPTR<>1 THEN PRINTCHAR(115);
+  {:1320}
+
+  {1324: @<Dump the hyphenation tables@>}
+
+  SetUInt32LE(Buf, 0, HYPHCOUNT);
+  blockwrite(f, Buf, 4);
+  FOR K:=0 TO hyph_size DO BEGIN
+    {possible BUG: why not HYPHCOUNT and no check for 0}
+    IF HYPHWORD[K]<>0 THEN BEGIN
+      SetUInt32LE(Buf, 0, K);
+      SetUInt32LE(Buf, 4, HYPHWORD[K]);
+      SetUInt32LE(Buf, 8, HYPHLIST[K]);
+      blockwrite(f, Buf, 12);
+    END;
+  END;
+  PRINTLN;
+  PRINTINT(HYPHCOUNT);
+  print_str(' hyphenation exception');
+  IF HYPHCOUNT<>1 THEN PRINTCHAR(115);
+  IF TRIENOTREADY THEN INITTRIE;
+
+  SetUInt32LE(Buf, 0, TRIEMAX);
+  blockwrite(f, Buf, 4);
+  FOR K:=0 TO TRIEMAX DO BEGIN
+    mw.HH := TRIE[K];
+    SetUInt32LE(Buf, 0, mw.INT);
+    blockwrite(f, Buf, 4);
+  END;
+  SetUInt32LE(Buf, 0, TRIEOPPTR);
+  blockwrite(f, Buf, 4);
+  FOR K:=1 TO TRIEOPPTR DO BEGIN
+    SetUInt32LE(Buf, 0, HYFDISTANCE[K]);
+    SetUInt32LE(Buf, 4, HYFNUM[K]);
+    SetUInt32LE(Buf, 8, HYFNEXT[K]);
+    blockwrite(f, Buf, 12);
+  END;
+
+  print_nl_str('Hyphenation trie of length ');
+  PRINTINT(TRIEMAX);
+  print_str(' has ');
+  PRINTINT(TRIEOPPTR);
+  print_str(' op');
+  IF TRIEOPPTR<>1 THEN PRINTCHAR(115);
+  print_str(' out of ');
+  PRINTINT(TRIEOPSIZE);
+  FOR K:=255 DOWNTO 0 DO BEGIN
+    IF TRIEUSED[K]>0 THEN BEGIN
+      print_nl_str('  ');
+      PRINTINT(TRIEUSED[K]);
+      print_str(' for language ');
+      PRINTINT(K);
+      SetUInt32LE(Buf, 0, K);
+      SetUInt32LE(Buf, 4, TRIEUSED[K]);
+      blockwrite(f, Buf, 8);
+    END;
+  END;
+  {:1324}
+
+  {1326:}
+  SetUInt32LE(Buf, 0, INTERACTION);
+  SetUInt32LE(Buf, 4, LocalFormatIdent);
+  SetUInt32LE(Buf, 8, 69069);
+  blockwrite(f, Buf, 12);
+  EQTB[5294].INT := 0;
+  {:1326}
+
+  close(f)
+END;
+{:1302}
+
+procedure InitInitex;
+VAR
+  K: Int32;
+begin
+{164:}
+  FOR K:=1 TO 19 DO
+    MEM[K].INT := 0;
+  K := 0;
+  WHILE K<=19 DO
+    BEGIN
+      MEM[K].HH.RH := 1;
+      MEM[K].HH.B0 := 0;
+      MEM[K].HH.B1 := 0;
+      K := K+4;
+    END;
+  MEM[6].INT := 65536;
+  MEM[4].HH.B0 := 1;
+  MEM[10].INT := 65536;
+  MEM[8].HH.B0 := 2;
+  MEM[14].INT := 65536;
+  MEM[12].HH.B0 := 1;
+  MEM[15].INT := 65536;
+  MEM[12].HH.B1 := 1;
+  MEM[18].INT := -65536;
+  MEM[16].HH.B0 := 1;
+  ROVER := 20;
+  MEM[ROVER].HH.RH := 65535;
+  MEM[ROVER].HH.LH := 1000;
+  MEM[ROVER+1].HH.LH := ROVER;
+  MEM[ROVER+1].HH.RH := ROVER;
+  LOMEMMAX := ROVER+1000;
+  MEM[LOMEMMAX].HH.RH := 0;
+  MEM[LOMEMMAX].HH.LH := 0;
+  FOR K:=29987 TO 30000 DO
+    MEM[K] := MEM[LOMEMMAX];
+{790:}
+  MEM[29990].HH.LH := 6714;{:790}{797:}
+  MEM[29991].HH.RH := 256;
+  MEM[29991].HH.LH := 0;{:797}{820:}
+  MEM[29993].HH.B0 := 1;
+  MEM[29994].HH.LH := 65535;
+  MEM[29993].HH.B1 := 0;
+{:820}{981:}
+  MEM[30000].HH.B1 := 255;
+  MEM[30000].HH.B0 := 1;
+  MEM[30000].HH.RH := 30000;{:981}{988:}
+  MEM[29998].HH.B0 := 10;
+  MEM[29998].HH.B1 := 0;{:988};
+  AVAIL := 0;
+  MEMEND := 30000;
+  HIMEMMIN := 29987;
+  VARUSED := 20;
+  DYNUSED := 14;{:164}{222:}
+  EQTB[2881].HH.B0 := 101;
+  EQTB[2881].HH.RH := 0;
+  EQTB[2881].HH.B1 := 0;
+  FOR K:=1 TO 2880 DO
+    EQTB[K] := EQTB[2881];{:222}{228:}
+  EQTB[2882].HH.RH := 0;
+  EQTB[2882].HH.B1 := 1;
+  EQTB[2882].HH.B0 := 117;
+  FOR K:=2883 TO 3411 DO
+    EQTB[K] := EQTB[2882];
+  MEM[0].HH.RH := MEM[0].HH.RH+530;{:228}{232:}
+  EQTB[3412].HH.RH := 0;
+  EQTB[3412].HH.B0 := 118;
+  EQTB[3412].HH.B1 := 1;
+  FOR K:=3413 TO 3677 DO
+    EQTB[K] := EQTB[2881];
+  EQTB[3678].HH.RH := 0;
+  EQTB[3678].HH.B0 := 119;
+  EQTB[3678].HH.B1 := 1;
+  FOR K:=3679 TO 3933 DO
+    EQTB[K] := EQTB[3678];
+  EQTB[3934].HH.RH := 0;
+  EQTB[3934].HH.B0 := 120;
+  EQTB[3934].HH.B1 := 1;
+  FOR K:=3935 TO 3982 DO
+    EQTB[K] := EQTB[3934];
+  EQTB[3983].HH.RH := 0;
+  EQTB[3983].HH.B0 := 120;
+  EQTB[3983].HH.B1 := 1;
+  FOR K:=3984 TO 5262 DO
+    EQTB[K] := EQTB[3983];
+  FOR K:=0 TO 255 DO
+    BEGIN
+      EQTB[3983+K].HH.RH := 12;
+      EQTB[5007+K].HH.RH := K+0;
+      EQTB[4751+K].HH.RH := 1000;
+    END;
+  EQTB[3996].HH.RH := 5;
+  EQTB[4015].HH.RH := 10;
+  EQTB[4075].HH.RH := 0;
+  EQTB[4020].HH.RH := 14;
+  EQTB[4110].HH.RH := 15;
+  EQTB[3983].HH.RH := 9;
+  FOR K:=48 TO 57 DO
+    EQTB[5007+K].HH.RH := K+28672;
+  FOR K:=65 TO 90 DO
+    BEGIN
+      EQTB[3983+K].HH.RH := 11;
+      EQTB[3983+K+32].HH.RH := 11;
+      EQTB[5007+K].HH.RH := K+28928;
+      EQTB[5007+K+32].HH.RH := K+28960;
+      EQTB[4239+K].HH.RH := K+32;
+      EQTB[4239+K+32].HH.RH := K+32;
+      EQTB[4495+K].HH.RH := K;
+      EQTB[4495+K+32].HH.RH := K;
+      EQTB[4751+K].HH.RH := 999;
+    END;
+{:232}{240:}
+  FOR K:=5263 TO 5573 DO
+    EQTB[K].INT := 0;
+  EQTB[5280].INT := 1000;
+  EQTB[5264].INT := 10000;
+  EQTB[5304].INT := 1;
+  EQTB[5303].INT := 25;
+  EQTB[5308].INT := 92;
+  EQTB[5311].INT := 13;
+  FOR K:=0 TO 255 DO
+    EQTB[5574+K].INT := -1;
+  EQTB[5620].INT := 0;
+{:240}{250:}
+  FOR K:=5830 TO 6106 DO
+    EQTB[K].INT := 0;
+{:250}{258:}
+  HASHUSED := 2614;
+  CSCOUNT := 0;
+  EQTB[2623].HH.B0 := 116;
+  HASH[2623].RH := 502;{:258}{552:}
+  FONTPTR := 0;
+  FMEMPTR := 7;
+  FONTNAME[0] := 801;
+  FONTAREA[0] := 338;
+  HYPHENCHAR[0] := 45;
+  SKEWCHAR[0] := -1;
+  BCHARLABEL[0] := 0;
+  FONTBCHAR[0] := 256;
+  FONTFALSEBCH[0] := 256;
+  FONTBC[0] := 1;
+  FONTEC[0] := 0;
+  FONTSIZE[0] := 0;
+  FONTDSIZE[0] := 0;
+  CHARBASE[0] := 0;
+  WIDTHBASE[0] := 0;
+  HEIGHTBASE[0] := 0;
+  DEPTHBASE[0] := 0;
+  ITALICBASE[0] := 0;
+  LIGKERNBASE[0] := 0;
+  KERNBASE[0] := 0;
+  EXTENBASE[0] := 0;
+  FONTGLUE[0] := 0;
+  FONTPARAMS[0] := 7;
+  PARAMBASE[0] := -1;
+  FOR K:=0 TO 6 DO
+    FONTINFO[K].INT := 0;
+{:552}{946:}
+  FOR K:=-TRIEOPSIZE TO TRIEOPSIZE DO
+    TRIEOPHASH[K] := 0;
+  FOR K:=0 TO 255 DO
+    TRIEUSED[K] := 0;
+  TRIEOPPTR := 0;
+{:946}{951:}
+  TRIENOTREADY := TRUE;
+  TRIEL[0] := 0;
+  TRIEC[0] := 0;
+  TRIEPTR := 0;
+{:951}{1216:}
+  HASH[2614].RH := 1190;{:1216}{1301:}
+  FORMATIDENT := 1257;
+{:1301}{1369:}
+  HASH[2622].RH := 1296;
+  EQTB[2622].HH.B1 := 1;
+  EQTB[2622].HH.B0 := 113;
+  EQTB[2622].HH.RH := 0;{:1369}
+END;
+
+{47:}
+procedure GetStringsStarted;
+const
+  Hex: array [0..15] of char = '0123456789abcdef';
+var
+  i: int32;
+  s: string[7];
+begin
+  POOLPTR := 0;
+
+  s := '^^A';
+  for i := 0 to 31 do begin
+    s[3] := chr(i+64);
+    SetString(i, s);
+  end;
+  for i := 32 to 126 do begin
+    SetString(i, chr(i));
+  end;
+  SetString(127, '^^?');
+  s := '^^00';
+  for i := 128 to 255 do begin
+    s[3] := Hex[i shr 4];
+    s[4] := Hex[i and 15];
+    SetString(i, s);
+  end;
+
+  SetString(256, 'buffer size');
+  SetString(257, 'pool size');
+  SetString(258, 'number of strings');
+  SetString(259, '???');
+  SetString(260, 'm2d5c2l5x2v5i');
+  SetString(261, 'End of file on the terminal!');
+  SetString(262, '! ');
+  SetString(263, '(That makes 100 errors; please try again.)');
+  SetString(264, '? ');
+  SetString(265, 'You want to edit file ');
+  SetString(266, ' at line ');
+  SetString(267, 'Type <return> to proceed, S to scroll future error messages,');
+  SetString(268, 'R to run without stopping, Q to run quietly,');
+  SetString(269, 'I to insert something, ');
+  SetString(270, 'E to edit your file,');
+  SetString(271, '1 or ... or 9 to ignore the next 1 to 9 tokens of input,');
+  SetString(272, 'H for help, X to quit.');
+  SetString(273, 'OK, entering ');
+  SetString(274, 'batchmode');
+  SetString(275, 'nonstopmode');
+  SetString(276, 'scrollmode');
+  SetString(277, '...');
+  SetString(278, 'insert>');
+  SetString(279, 'I have just deleted some text, as you asked.');
+  SetString(280, 'You can now delete more, or insert, or whatever.');
+  SetString(281, 'Sorry, I don''t know how to help in this situation.');
+  SetString(282, 'Maybe you should try asking a human?');
+  SetString(283, 'Sorry, I already gave what help I could...');
+  SetString(284, 'An error might have occurred before I noticed any problems.');
+  SetString(285, '``If all else fails, read the instructions.''''');
+  SetString(286, ' (');
+  SetString(287, 'Emergency stop');
+  SetString(288, 'TeX capacity exceeded, sorry [');
+  SetString(289, 'If you really absolutely need more capacity,');
+  SetString(290, 'you can ask a wizard to enlarge me.');
+  SetString(291, 'This can''t happen (');
+  SetString(292, 'I''m broken. Please show this to someone who can fix can fix');
+  SetString(293, 'I can''t go on meeting you like this');
+  SetString(294, 'One of your faux pas seems to have wounded me deeply...');
+  SetString(295, 'in fact, I''m barely conscious. Please fix it and try again.');
+  SetString(296, 'Interruption');
+  SetString(297, 'You rang?');
+  SetString(298, 'Try to insert an instruction for me (e.g., `I\showlists''),');
+  SetString(299, 'unless you just want to quit by typing `X''.');
+  SetString(300, 'main memory size');
+  SetString(301, 'AVAIL list clobbered at ');
+  SetString(302, 'Double-AVAIL list clobbered at ');
+  SetString(303, 'Doubly free location at ');
+  SetString(304, 'Bad flag at ');
+  SetString(305, 'New busy locs:');
+  SetString(306, 'LINK(');
+  SetString(307, 'INFO(');
+  SetString(308, '[]');
+  SetString(309, 'CLOBBERED.');
+  SetString(310, 'foul');
+  SetString(311, 'fil');
+  SetString(312, ' plus ');
+  SetString(313, ' minus ');
+  SetString(314, ' []');
+  SetString(315, 'Bad link, display aborted.');
+  SetString(316, 'etc.');
+  SetString(317, 'Unknown node type!');
+  SetString(318, 'unset');
+  SetString(319, 'box(');
+  SetString(320, ')x');
+  SetString(321, ', shifted ');
+  SetString(322, ' columns)');
+  SetString(323, ', stretch ');
+  SetString(324, ', shrink ');
+  SetString(325, ', glue set ');
+  SetString(326, '- ');
+  SetString(327, '?.?');
+  SetString(328, '< -');
+  SetString(329, 'rule(');
+  SetString(330, 'insert');
+  SetString(331, ', natural size ');
+  SetString(332, '; split(');
+  SetString(333, '); float cost ');
+  SetString(334, 'glue');
+  SetString(335, 'nonscript');
+  SetString(336, 'mskip');
+  SetString(337, 'mu');
+  SetString(338, '');
+  SetString(339, 'leaders ');
+  SetString(340, 'kern');
+  SetString(341, ' (for accent)');
+  SetString(342, 'mkern');
+  SetString(343, 'math');
+  SetString(344, 'on');
+  SetString(345, 'off');
+  SetString(346, ', surrounded ');
+  SetString(347, ' (ligature ');
+  SetString(348, 'penalty ');
+  SetString(349, 'discretionary');
+  SetString(350, ' replacing ');
+  SetString(351, 'mark');
+  SetString(352, 'vadjust');
+  SetString(353, 'flushing');
+  SetString(354, 'copying');
+  SetString(355, 'vertical');
+  SetString(356, 'horizontal');
+  SetString(357, 'display math');
+  SetString(358, 'no');
+  SetString(359, 'internal vertical');
+  SetString(360, 'restricted horizontal');
+  SetString(361, ' mode');
+  SetString(362, 'semantic nest size');
+  SetString(363, '### ');
+  SetString(364, ' entered at line ');
+  SetString(365, ' (language');
+  SetString(366, ':hyphenmin');
+  SetString(367, ' (\output routine)');
+  SetString(368, '### recent contributions:');
+  SetString(369, 'prevdepth ');
+  SetString(370, 'ignored');
+  SetString(371, ', prevgraf ');
+  SetString(372, ' line');
+  SetString(373, 'spacefactor ');
+  SetString(374, ', current language ');
+  SetString(375, 'this will begin denominator of:');
+  SetString(376, 'lineskip');
+  SetString(377, 'baselineskip');
+  SetString(378, 'parskip');
+  SetString(379, 'abovedisplayskip');
+  SetString(380, 'belowdisplayskip');
+  SetString(381, 'abovedisplayshortskip');
+  SetString(382, 'belowdisplayshortskip');
+  SetString(383, 'leftskip');
+  SetString(384, 'rightskip');
+  SetString(385, 'topskip');
+  SetString(386, 'splittopskip');
+  SetString(387, 'tabskip');
+  SetString(388, 'spaceskip');
+  SetString(389, 'xspaceskip');
+  SetString(390, 'parfillskip');
+  SetString(391, 'thinmuskip');
+  SetString(392, 'medmuskip');
+  SetString(393, 'thickmuskip');
+  SetString(394, '[unknown glue parameter!]');
+  SetString(395, 'skip');
+  SetString(396, 'muskip');
+  SetString(397, 'pt');
+  SetString(398, 'output');
+  SetString(399, 'everypar');
+  SetString(400, 'everymath');
+  SetString(401, 'everydisplay');
+  SetString(402, 'everyhbox');
+  SetString(403, 'everyvbox');
+  SetString(404, 'everyjob');
+  SetString(405, 'everycr');
+  SetString(406, 'errhelp');
+  SetString(407, 'toks');
+  SetString(408, 'parshape');
+  SetString(409, 'box');
+  SetString(410, 'void');
+  SetString(411, 'current font');
+  SetString(412, 'textfont');
+  SetString(413, 'scriptfont');
+  SetString(414, 'scriptscriptfont');
+  SetString(415, 'catcode');
+  SetString(416, 'lccode');
+  SetString(417, 'uccode');
+  SetString(418, 'sfcode');
+  SetString(419, 'mathcode');
+  SetString(420, 'pretolerance');
+  SetString(421, 'tolerance');
+  SetString(422, 'linepenalty');
+  SetString(423, 'hyphenpenalty');
+  SetString(424, 'exhyphenpenalty');
+  SetString(425, 'clubpenalty');
+  SetString(426, 'widowpenalty');
+  SetString(427, 'displaywidowpenalty');
+  SetString(428, 'brokenpenalty');
+  SetString(429, 'binoppenalty');
+  SetString(430, 'relpenalty');
+  SetString(431, 'predisplaypenalty');
+  SetString(432, 'postdisplaypenalty');
+  SetString(433, 'interlinepenalty');
+  SetString(434, 'doublehyphendemerits');
+  SetString(435, 'finalhyphendemerits');
+  SetString(436, 'adjdemerits');
+  SetString(437, 'mag');
+  SetString(438, 'delimiterfactor');
+  SetString(439, 'looseness');
+  SetString(440, 'time');
+  SetString(441, 'day');
+  SetString(442, 'month');
+  SetString(443, 'year');
+  SetString(444, 'showboxbreadth');
+  SetString(445, 'showboxdepth');
+  SetString(446, 'hbadness');
+  SetString(447, 'vbadness');
+  SetString(448, 'pausing');
+  SetString(449, 'tracingonline');
+  SetString(450, 'tracingmacros');
+  SetString(451, 'tracingstats');
+  SetString(452, 'tracingparagraphs');
+  SetString(453, 'tracingpages');
+  SetString(454, 'tracingoutput');
+  SetString(455, 'tracinglostchars');
+  SetString(456, 'tracingcommands');
+  SetString(457, 'tracingrestores');
+  SetString(458, 'uchyph');
+  SetString(459, 'outputpenalty');
+  SetString(460, 'maxdeadcycles');
+  SetString(461, 'hangafter');
+  SetString(462, 'floatingpenalty');
+  SetString(463, 'globaldefs');
+  SetString(464, 'fam');
+  SetString(465, 'escapechar');
+  SetString(466, 'defaulthyphenchar');
+  SetString(467, 'defaultskewchar');
+  SetString(468, 'endlinechar');
+  SetString(469, 'newlinechar');
+  SetString(470, 'language');
+  SetString(471, 'lefthyphenmin');
+  SetString(472, 'righthyphenmin');
+  SetString(473, 'holdinginserts');
+  SetString(474, 'errorcontextlines');
+  SetString(475, '[unknown integer parameter!]');
+  SetString(476, 'count');
+  SetString(477, 'delcode');
+  SetString(478, 'parindent');
+  SetString(479, 'mathsurround');
+  SetString(480, 'lineskiplimit');
+  SetString(481, 'hsize');
+  SetString(482, 'vsize');
+  SetString(483, 'maxdepth');
+  SetString(484, 'splitmaxdepth');
+  SetString(485, 'boxmaxdepth');
+  SetString(486, 'hfuzz');
+  SetString(487, 'vfuzz');
+  SetString(488, 'delimitershortfall');
+  SetString(489, 'nulldelimiterspace');
+  SetString(490, 'scriptspace');
+  SetString(491, 'predisplaysize');
+  SetString(492, 'displaywidth');
+  SetString(493, 'displayindent');
+  SetString(494, 'overfullrule');
+  SetString(495, 'hangindent');
+  SetString(496, 'hoffset');
+  SetString(497, 'voffset');
+  SetString(498, 'emergencystretch');
+  SetString(499, '[unknown dimen parameter!]');
+  SetString(500, 'dimen');
+  SetString(501, 'EQUIV(');
+  SetString(502, 'notexpanded:');
+  SetString(503, 'hash size');
+  SetString(504, 'csname');
+  SetString(505, 'endcsname');
+  SetString(506, 'IMPOSSIBLE.');
+  SetString(507, 'NONEXISTENT.');
+  SetString(508, 'accent');
+  SetString(509, 'advance');
+  SetString(510, 'afterassignment');
+  SetString(511, 'aftergroup');
+  SetString(512, 'begingroup');
+  SetString(513, 'char');
+  SetString(514, 'delimiter');
+  SetString(515, 'divide');
+  SetString(516, 'endgroup');
+  SetString(517, 'expandafter');
+  SetString(518, 'font');
+  SetString(519, 'fontdimen');
+  SetString(520, 'halign');
+  SetString(521, 'hrule');
+  SetString(522, 'ignorespaces');
+  SetString(523, 'mathaccent');
+  SetString(524, 'mathchar');
+  SetString(525, 'mathchoice');
+  SetString(526, 'multiply');
+  SetString(527, 'noalign');
+  SetString(528, 'noboundary');
+  SetString(529, 'noexpand');
+  SetString(530, 'omit');
+  SetString(531, 'penalty');
+  SetString(532, 'prevgraf');
+  SetString(533, 'radical');
+  SetString(534, 'read');
+  SetString(535, 'relax');
+  SetString(536, 'setbox');
+  SetString(537, 'the');
+  SetString(538, 'valign');
+  SetString(539, 'vcenter');
+  SetString(540, 'vrule');
+  SetString(541, 'save size');
+  SetString(542, 'grouping levels');
+  SetString(543, 'curlevel');
+  SetString(544, 'retaining');
+  SetString(545, 'restoring');
+  SetString(546, 'SAVE(');
+  SetString(547, 'Incompatible magnification (');
+  SetString(548, ');');
+  SetString(549, ' the previous value will be retained');
+  SetString(550, 'I can handle only one magnification ratio per job. So I''ve');
+  SetString(551, 'reverted to the magnification you used earlier on this run.');
+  SetString(552, 'Illegal magnification has been changed to 1000');
+  SetString(553, 'The magnification ratio must be between 1 and 32768.');
+  SetString(554, 'ETC.');
+  SetString(555, 'BAD.');
+  SetString(556, '->');
+  SetString(557, 'begin-group character ');
+  SetString(558, 'end-group character ');
+  SetString(559, 'math shift character ');
+  SetString(560, 'macro parameter character ');
+  SetString(561, 'superscript character ');
+  SetString(562, 'subscript character ');
+  SetString(563, 'end of alignment template');
+  SetString(564, 'blank space ');
+  SetString(565, 'the letter ');
+  SetString(566, 'the character ');
+  SetString(567, '[unknown command code!]');
+  SetString(568, ': ');
+  SetString(569, 'Runaway ');
+  SetString(570, 'definition');
+  SetString(571, 'argument');
+  SetString(572, 'preamble');
+  SetString(573, 'text');
+  SetString(574, '<*>');
+  SetString(575, '<insert> ');
+  SetString(576, '<read ');
+  SetString(577, 'l.');
+  SetString(578, '<argument> ');
+  SetString(579, '<template> ');
+  SetString(580, '<recently read> ');
+  SetString(581, '<to be read again> ');
+  SetString(582, '<inserted text> ');
+  SetString(583, '<output> ');
+  SetString(584, '<everypar> ');
+  SetString(585, '<everymath> ');
+  SetString(586, '<everydisplay> ');
+  SetString(587, '<everyhbox> ');
+  SetString(588, '<everyvbox> ');
+  SetString(589, '<everyjob> ');
+  SetString(590, '<everycr> ');
+  SetString(591, '<mark> ');
+  SetString(592, '<write> ');
+  SetString(593, 'input stack size');
+  SetString(594, 'write');
+  SetString(595, '(interwoven alignment preambles are not allowed)');
+  SetString(596, 'text input levels');
+  SetString(597, 'par');
+  SetString(598, 'Incomplete ');
+  SetString(599, '; all text was ignored after line ');
+  SetString(600, 'A forbidden control sequence occurred in skipped text.');
+  SetString(601, 'This kind of error happens when you say `\if...'' and forget');
+  SetString(602, 'the matching `\fi''. I''ve inserted a `\fi''; this might work.');
+  SetString(603, 'The file ended while I was skipping conditional text.');
+  SetString(604, 'File ended');
+  SetString(605, 'Forbidden control sequence found');
+  SetString(606, ' while scanning ');
+  SetString(607, ' of ');
+  SetString(608, 'I suspect you have forgotten a `}'', causing me');
+  SetString(609, 'to read past where you wanted me to stop.');
+  SetString(610, 'I''ll try to recover; but if the error is serious,');
+  SetString(611, 'you''d better type `E'' or `X'' now and fix your file.');
+  SetString(612, 'use');
+  SetString(613, 'Text line contains an invalid character');
+  SetString(614, 'A funny symbol that I can''t read has just been input.');
+  SetString(615, 'Continue, and I''ll forget that it ever happened.');
+  SetString(616, '(Please type a command or say `\end'')');
+  SetString(617, '*** (job aborted, no legal \end found)');
+  SetString(618, '=>');
+  SetString(619, 'Undefined control sequence');
+  SetString(620, 'The control sequence at the end of the top line');
+  SetString(621, 'of your error message was never \def''ed. If you have');
+  SetString(622, 'misspelled it (e.g., `\hobx''), type `I'' and the correct');
+  SetString(623, 'spelling (e.g., `I\hbox''). Otherwise just continue,');
+  SetString(624, 'and I''ll forget about whatever was undefined.');
+  SetString(625, 'Missing ');
+  SetString(626, ' inserted');
+  SetString(627, 'The control sequence marked <to be read again> should');
+  SetString(628, 'not appear between \csname and \endcsname.');
+  SetString(629, 'input');
+  SetString(630, 'endinput');
+  SetString(631, 'topmark');
+  SetString(632, 'firstmark');
+  SetString(633, 'botmark');
+  SetString(634, 'splitfirstmark');
+  SetString(635, 'splitbotmark');
+  SetString(636, 'parameter stack size');
+  SetString(637, 'Argument of ');
+  SetString(638, ' has an extra }');
+  SetString(639, 'I''ve run across a `}'' that doesn''t seem to match anything.');
+  SetString(640, 'For example, `\def\a#1{...}'' and `\a}'' would produce');
+  SetString(641, 'this error. If you simply proceed now, the `\par'' that');
+  SetString(642, 'I''ve just inserted will cause me to report a runaway');
+  SetString(643, 'argument that might be the root of the problem. But if');
+  SetString(644, 'your `}'' was spurious, just type `2'' and it will go away.');
+  SetString(645, 'Paragraph ended before ');
+  SetString(646, ' was complete');
+  SetString(647, 'I suspect you''ve forgotten a `}'', causing me to apply this');
+  SetString(648, 'control sequence to too much text. How can we recover?');
+  SetString(649, 'My plan is to forget the whole thing and hope for the best.');
+  SetString(650, 'Use of ');
+  SetString(651, ' doesn''t match its definition');
+  SetString(652, 'If you say, e.g., `\def\a1{...}'', then you must always');
+  SetString(653, 'put `1'' after `\a'', since control sequence names are');
+  SetString(654, 'made up of letters only. The macro here has not been');
+  SetString(655, 'followed by the required stuff, so I''m ignoring it.');
+  SetString(656, '<-');
+  SetString(657, 'Missing { inserted');
+  SetString(658, 'A left brace was mandatory here, so I''ve put one in.');
+  SetString(659, 'You might want to delete and/or insert some corrections');
+  SetString(660, 'so that I will find a matching right brace soon.');
+  SetString(661, '(If you''re confused by all this, try typing `I}'' now.)');
+  SetString(662, 'Incompatible glue units');
+  SetString(663, 'I''m going to assume that 1mu=1pt when they''re mixed.');
+  SetString(664, 'Missing number, treated as zero');
+  SetString(665, 'A number should have been here; I inserted `0''.');
+  SetString(666, '(If you can''t figure out why I needed to see a number,');
+  SetString(667, 'look up `weird error'' in the index to The TeXbook.)');
+  SetString(668, 'spacefactor');
+  SetString(669, 'prevdepth');
+  SetString(670, 'deadcycles');
+  SetString(671, 'insertpenalties');
+  SetString(672, 'wd');
+  SetString(673, 'ht');
+  SetString(674, 'dp');
+  SetString(675, 'lastpenalty');
+  SetString(676, 'lastkern');
+  SetString(677, 'lastskip');
+  SetString(678, 'inputlineno');
+  SetString(679, 'badness');
+  SetString(680, 'Improper ');
+  SetString(681, 'You can refer to \spacefactor only in horizontal mode;');
+  SetString(682, 'you can refer to \prevdepth only in vertical mode; and');
+  SetString(683, 'neither of these is meaningful inside \write. So');
+  SetString(684, 'I''m forgetting what you said and using zero instead.');
+  SetString(685, 'You can''t use `');
+  SetString(686, ''' after ');
+  SetString(687, 'Bad register code');
+  SetString(688, 'A register number must be between 0 and 255.');
+  SetString(689, 'I changed this one to zero.');
+  SetString(690, 'Bad character code');
+  SetString(691, 'A character number must be between 0 and 255.');
+  SetString(692, 'Bad number');
+  SetString(693, 'Since I expected to read a number between 0 and 15,');
+  SetString(694, 'Bad mathchar');
+  SetString(695, 'A mathchar number must be between 0 and 32767.');
+  SetString(696, 'Bad delimiter code');
+  SetString(697, 'A numeric delimiter code must be between 0 and 2^{27}-1.');
+  SetString(698, 'Improper alphabetic constant');
+  SetString(699, 'A one-character control sequence belongs after a ` mark.');
+  SetString(700, 'So I''m essentially inserting \0 here.');
+  SetString(701, 'Number too big');
+  SetString(702, 'I can only go up to 2147483647=''17777777777="7FFFFFFF,');
+  SetString(703, 'so I''m using that number instead of yours.');
+  SetString(704, 'true');
+  SetString(705, 'Illegal unit of measure (');
+  SetString(706, 'replaced by filll)');
+  SetString(707, 'I dddon''t go any higher than filll.');
+  SetString(708, 'em');
+  SetString(709, 'ex');
+  SetString(710, 'mu inserted)');
+  SetString(711, 'The unit of measurement in math glue must be mu.');
+  SetString(712, 'To recover gracefully from this error, it''s best to');
+  SetString(713, 'delete the erroneous units; e.g., type `2'' to delete');
+  SetString(714, 'two letters. (See Chapter 27 of The TeXbook.)');
+  SetString(715, 'in');
+  SetString(716, 'pc');
+  SetString(717, 'cm');
+  SetString(718, 'mm');
+  SetString(719, 'bp');
+  SetString(720, 'dd');
+  SetString(721, 'cc');
+  SetString(722, 'sp');
+  SetString(723, 'pt inserted)');
+  SetString(724, 'Dimensions can be in units of em, ex, in, pt, pc,');
+  SetString(725, 'cm, mm, dd, cc, bp, or sp; but yours is a new one!');
+  SetString(726, 'I''ll assume that you meant to say pt, for printer''s points.');
+  SetString(727, 'Dimension too large');
+  SetString(728, 'I can''t work with sizes bigger than about 19 feet.');
+  SetString(729, 'Continue and I''ll use the largest value I can.');
+  SetString(730, 'plus');
+  SetString(731, 'minus');
+  SetString(732, 'width');
+  SetString(733, 'height');
+  SetString(734, 'depth');
+  SetString(735, 'number');
+  SetString(736, 'romannumeral');
+  SetString(737, 'string');
+  SetString(738, 'meaning');
+  SetString(739, 'fontname');
+  SetString(740, 'jobname');
+  SetString(741, ' at ');
+  SetString(742, 'Where was the left brace? You said something like `\def\a}'',');
+  SetString(743, 'which I''m going to interpret as `\def\a{}''.');
+  SetString(744, 'You already have nine parameters');
+  SetString(745, 'I''m going to ignore the # sign you just used,');
+  SetString(746, 'as well as the token that followed it.');
+  SetString(747, 'Parameters must be numbered consecutively');
+  SetString(748, 'I''ve inserted the digit you should have used after the #.');
+  SetString(749, 'Type `1'' to delete what you did use.');
+  SetString(750, 'Illegal parameter number in definition of ');
+  SetString(751, 'You meant to type ## instead of #, right?');
+  SetString(752, 'Or maybe a } was forgotten somewhere earlier, and things');
+  SetString(753, 'are all screwed up? I''m going to assume that you meant ##.');
+  SetString(754, '*** (cannot \read from terminal in nonstop modes)');
+  SetString(755, 'File ended within ');
+  SetString(756, 'This \read has unbalanced braces.');
+  SetString(757, 'if');
+  SetString(758, 'ifcat');
+  SetString(759, 'ifnum');
+  SetString(760, 'ifdim');
+  SetString(761, 'ifodd');
+  SetString(762, 'ifvmode');
+  SetString(763, 'ifhmode');
+  SetString(764, 'ifmmode');
+  SetString(765, 'ifinner');
+  SetString(766, 'ifvoid');
+  SetString(767, 'ifhbox');
+  SetString(768, 'ifvbox');
+  SetString(769, 'ifx');
+  SetString(770, 'ifeof');
+  SetString(771, 'iftrue');
+  SetString(772, 'iffalse');
+  SetString(773, 'ifcase');
+  SetString(774, 'fi');
+  SetString(775, 'or');
+  SetString(776, 'else');
+  SetString(777, 'Extra ');
+  SetString(778, 'I''m ignoring this; it doesn''t match any \if.');
+  SetString(779, '{true}');
+  SetString(780, '{false}');
+  SetString(781, 'Missing = inserted for ');
+  SetString(782, 'I was expecting to see `<'', `='', or `>''. Didn''t.');
+  SetString(783, '{case ');
+  SetString(784, 'TeXinputs//');
+  SetString(785, 'TeXfonts//');
+  SetString(786, '.fmt');
+  SetString(787, 'input file name');
+  SetString(788, 'I can''t find file `');
+  SetString(789, 'I can''t write on file `');
+  SetString(790, '''.');
+  SetString(791, '.tex');
+  SetString(792, 'Please type another ');
+  SetString(793, '*** (job aborted, file error in nonstop mode)');
+  SetString(794, '.dvi');
+  SetString(795, 'file name for output');
+  SetString(796, 'texput');
+  SetString(797, '.log');
+  SetString(798, '**');
+  SetString(799, 'transcript file name');
+  SetString(800, '  ');
+  SetString(801, 'nullfont');
+  SetString(802, 'Font ');
+  SetString(803, ' scaled ');
+  SetString(804, ' not loadable: Bad metric (TFM) file');
+  SetString(805, ' not loadable: Metric (TFM) file not found');
+  SetString(806, 'I wasn''t able to read the size data for this font,');
+  SetString(807, 'so I will ignore the font specification.');
+  SetString(808, '[Wizards can fix TFM files using TFtoPL/PLtoTF.]');
+  SetString(809, 'You might try inserting a different font spec;');
+  SetString(810, 'e.g., type `I\font<same font id>=<substitute font name>''.');
+  SetString(811, '.tfm');
+  SetString(812, ' not loaded: Not enough room left');
+  SetString(813, 'I''m afraid I won''t be able to make use of this font,');
+  SetString(814, 'because my memory for character-size data is too small.');
+  SetString(815, 'If you''re really stuck, ask a wizard to enlarge me.');
+  SetString(816, 'Or maybe try `I\font<same font id>=<name of loaded font>''.');
+  SetString(817, 'Missing font identifier');
+  SetString(818, 'I was looking for a control sequence whose');
+  SetString(819, 'current meaning has been defined by \font.');
+  SetString(820, ' has only ');
+  SetString(821, ' fontdimen parameters');
+  SetString(822, 'To increase the number of font parameters, you must');
+  SetString(823, 'use \fontdimen immediately after the \font is loaded.');
+  SetString(824, 'font memory');
+  SetString(825, 'Missing character: There is no ');
+  SetString(826, ' in font ');
+  SetString(827, ' TeX output ');
+  SetString(828, 'vlistout');
+  SetString(829, 'Completed box being shipped out');
+  SetString(830, 'Memory usage before: ');
+  SetString(831, ' after: ');
+  SetString(832, '; still untouched: ');
+  SetString(833, 'Huge page cannot be shipped out');
+  SetString(834, 'The page just created is more than 18 feet tall or');
+  SetString(835, 'more than 18 feet wide, so I suspect something went wrong.');
+  SetString(836, 'The following box has been deleted:');
+  SetString(837, 'No pages of output.');
+  SetString(838, 'Output written on ');
+  SetString(839, ' page');
+  SetString(840, ', ');
+  SetString(841, ' bytes).');
+  SetString(842, 'to');
+  SetString(843, 'spread');
+  SetString(844, 'Underfull');
+  SetString(845, 'Loose');
+  SetString(846, ' \hbox (badness ');
+  SetString(847, ') has occurred while \output is active');
+  SetString(848, ') in paragraph at lines ');
+  SetString(849, ') in alignment at lines ');
+  SetString(850, '--');
+  SetString(851, ') detected at line ');
+  SetString(852, 'Overfull \hbox (');
+  SetString(853, 'pt too wide');
+  SetString(854, 'Tight \hbox (badness ');
+  SetString(855, 'vpack');
+  SetString(856, ' \vbox (badness ');
+  SetString(857, 'Overfull \vbox (');
+  SetString(858, 'pt too high');
+  SetString(859, 'Tight \vbox (badness ');
+  SetString(860, '{}');
+  SetString(861, 'displaystyle');
+  SetString(862, 'textstyle');
+  SetString(863, 'scriptstyle');
+  SetString(864, 'scriptscriptstyle');
+  SetString(865, 'Unknown style!');
+  SetString(866, 'mathord');
+  SetString(867, 'mathop');
+  SetString(868, 'mathbin');
+  SetString(869, 'mathrel');
+  SetString(870, 'mathopen');
+  SetString(871, 'mathclose');
+  SetString(872, 'mathpunct');
+  SetString(873, 'mathinner');
+  SetString(874, 'overline');
+  SetString(875, 'underline');
+  SetString(876, 'left');
+  SetString(877, 'right');
+  SetString(878, 'limits');
+  SetString(879, 'nolimits');
+  SetString(880, 'fraction, thickness ');
+  SetString(881, '= default');
+  SetString(882, ', left-delimiter ');
+  SetString(883, ', right-delimiter ');
+  SetString(884, ' is undefined (character ');
+  SetString(885, 'Somewhere in the math formula just ended, you used the');
+  SetString(886, 'stated character from an undefined font family. For example,');
+  SetString(887, 'plain TeX doesn''t allow \it or \sl in subscripts. Proceed,');
+  SetString(888, 'and I''ll try to forget that I needed that character.');
+  SetString(889, 'mlist1');
+  SetString(890, 'mlist2');
+  SetString(891, 'mlist3');
+  SetString(892, '0234000122*4000133**3**344*0400400*000000234000111*1111112341011');
+  SetString(893, 'mlist4');
+  SetString(894, ' inside $$''s');
+  SetString(895, 'Displays can use special alignments (like \eqalignno)');
+  SetString(896, 'only if nothing but the alignment itself is between $$''s.');
+  SetString(897, 'So I''ve deleted the formulas that preceded this alignment.');
+  SetString(898, 'span');
+  SetString(899, 'cr');
+  SetString(900, 'crcr');
+  SetString(901, 'endtemplate');
+  SetString(902, 'alignment tab character ');
+  SetString(903, 'Missing # inserted in alignment preamble');
+  SetString(904, 'There should be exactly one # between &''s, when an');
+  SetString(905, '\halign or \valign is being set up. In this case you had');
+  SetString(906, 'none, so I''ve put one in; maybe that will work.');
+  SetString(907, 'Only one # is allowed per tab');
+  SetString(908, 'more than one, so I''m ignoring all but the first.');
+  SetString(909, 'endv');
+  SetString(910, 'Extra alignment tab has been changed to ');
+  SetString(911, 'You have given more \span or & marks than there were');
+  SetString(912, 'in the preamble to the \halign or \valign now in progress.');
+  SetString(913, 'So I''ll assume that you meant to type \cr instead.');
+  SetString(914, '256 spans');
+  SetString(915, 'align1');
+  SetString(916, 'align0');
+  SetString(917, 'Infinite glue shrinkage found in a paragraph');
+  SetString(918, 'The paragraph just ended includes some glue that has');
+  SetString(919, 'infinite shrinkability, e.g., `\hskip 0pt minus 1fil''.');
+  SetString(920, 'Such glue doesn''t belong there---it allows a paragraph');
+  SetString(921, 'of any length to fit on one line. But it''s safe to proceed,');
+  SetString(922, 'since the offensive shrinkability has been made finite.');
+  SetString(923, 'disc1');
+  SetString(924, 'disc2');
+  SetString(925, '@@');
+  SetString(926, ': line ');
+  SetString(927, ' t=');
+  SetString(928, ' -> @@');
+  SetString(929, ' via @@');
+  SetString(930, ' b=');
+  SetString(931, ' p=');
+  SetString(932, ' d=');
+  SetString(933, '@firstpass');
+  SetString(934, '@secondpass');
+  SetString(935, '@emergencypass');
+  SetString(936, 'paragraph');
+  SetString(937, 'disc3');
+  SetString(938, 'disc4');
+  SetString(939, 'line breaking');
+  SetString(940, 'HYPH(');
+  SetString(941, 'hyphenation');
+  SetString(942, ' will be flushed');
+  SetString(943, 'Hyphenation exceptions must contain only letters');
+  SetString(944, 'and hyphens. But continue; I''ll forgive and forget.');
+  SetString(945, 'Not a letter');
+  SetString(946, 'Letters in \hyphenation words must have \lccode>0.');
+  SetString(947, 'Proceed; I''ll ignore the character I just read.');
+  SetString(948, 'exception dictionary');
+  SetString(949, 'pattern memory ops');
+  SetString(950, 'pattern memory ops per language');
+  SetString(951, 'pattern memory');
+  SetString(952, 'Too late for ');
+  SetString(953, 'patterns');
+  SetString(954, 'All patterns must be given before typesetting begins.');
+  SetString(955, 'Bad ');
+  SetString(956, '(See Appendix H.)');
+  SetString(957, 'Nonletter');
+  SetString(958, 'Duplicate pattern');
+  SetString(959, 'pruning');
+  SetString(960, 'vertbreak');
+  SetString(961, 'Infinite glue shrinkage found in box being split');
+  SetString(962, 'The box you are \vsplitting contains some infinitely');
+  SetString(963, 'shrinkable glue, e.g., `\vss'' or `\vskip 0pt minus 1fil''.');
+  SetString(964, 'Such glue doesn''t belong there; but you can safely proceed,');
+  SetString(965, 'vsplit');
+  SetString(966, ' needs a ');
+  SetString(967, 'vbox');
+  SetString(968, 'The box you are trying to split is an \hbox.');
+  SetString(969, 'I can''t split such a box, so I''ll leave it alone.');
+  SetString(970, 'pagegoal');
+  SetString(971, 'pagetotal');
+  SetString(972, 'pagestretch');
+  SetString(973, 'pagefilstretch');
+  SetString(974, 'pagefillstretch');
+  SetString(975, 'pagefilllstretch');
+  SetString(976, 'pageshrink');
+  SetString(977, 'pagedepth');
+  SetString(978, 'fill');
+  SetString(979, 'filll');
+  SetString(980, '### current page:');
+  SetString(981, ' (held over for next output)');
+  SetString(982, 'total height ');
+  SetString(983, ' goal height ');
+  SetString(984, ' adds ');
+  SetString(985, ', #');
+  SetString(986, ' might split');
+  SetString(987, '%% goal height=');
+  SetString(988, ', max depth=');
+  SetString(989, 'Insertions can only be added to a vbox');
+  SetString(990, 'Tut tut: You''re trying to \insert into a');
+  SetString(991, '\box register that now contains an \hbox.');
+  SetString(992, 'Proceed, and I''ll discard its present contents.');
+  SetString(993, 'page');
+  SetString(994, 'Infinite glue shrinkage found on current page');
+  SetString(995, 'The page about to be output contains some infinitely');
+  SetString(996, ' g=');
+  SetString(997, ' c=');
+  SetString(998, 'Infinite glue shrinkage inserted from ');
+  SetString(999, 'The correction glue for page breaking with insertions');
+  SetString(1000, 'must have finite shrinkability. But you may proceed,');
+  SetString(1001, '% split');
+  SetString(1002, ' to ');
+  SetString(1003, '255 is not void');
+  SetString(1004, 'You shouldn''t use \box255 except in \output routines.');
+  SetString(1005, 'Output loop---');
+  SetString(1006, ' consecutive dead cycles');
+  SetString(1007, 'I''ve concluded that your \output is awry; it never does a');
+  SetString(1008, '\shipout, so I''m shipping \box255 out myself. Next time');
+  SetString(1009, 'increase \maxdeadcycles if you want me to be more patient!');
+  SetString(1010, 'Unbalanced output routine');
+  SetString(1011, 'Your sneaky output routine has problematic {''s and/or }''s.');
+  SetString(1012, 'I can''t handle that very well; good luck.');
+  SetString(1013, 'Output routine didn''t use all of ');
+  SetString(1014, 'Your \output commands should empty \box255,');
+  SetString(1015, 'e.g., by saying `\shipout\box255''.');
+  SetString(1016, 'Proceed; I''ll discard its present contents.');
+  SetString(1017, 'Missing $ inserted');
+  SetString(1018, 'I''ve inserted a begin-math/end-math symbol since I think');
+  SetString(1019, 'you left one out. Proceed, with fingers crossed.');
+  SetString(1020, ''' in ');
+  SetString(1021, 'Sorry, but I''m not programmed to handle this case;');
+  SetString(1022, 'I''ll just pretend that you didn''t ask for it.');
+  SetString(1023, 'If you''re in the wrong mode, you might be able to');
+  SetString(1024, 'return to the right one by typing `I}'' or `I$'' or `I\par''.');
+  SetString(1025, 'end');
+  SetString(1026, 'dump');
+  SetString(1027, 'hskip');
+  SetString(1028, 'hfil');
+  SetString(1029, 'hfill');
+  SetString(1030, 'hss');
+  SetString(1031, 'hfilneg');
+  SetString(1032, 'vskip');
+  SetString(1033, 'vfil');
+  SetString(1034, 'vfill');
+  SetString(1035, 'vss');
+  SetString(1036, 'vfilneg');
+  SetString(1037, 'I''ve inserted something that you may have forgotten.');
+  SetString(1038, '(See the <inserted text> above.)');
+  SetString(1039, 'With luck, this will get me unwedged. But if you');
+  SetString(1040, 'really didn''t forget anything, try typing `2'' now; then');
+  SetString(1041, 'my insertion and my current dilemma will both disappear.');
+  SetString(1042, 'right.');
+  SetString(1043, 'Things are pretty mixed up, but I think the worst is over.');
+  SetString(1044, 'Too many }''s');
+  SetString(1045, 'You''ve closed more groups than you opened.');
+  SetString(1046, 'Such booboos are generally harmless, so keep going.');
+  SetString(1047, 'rightbrace');
+  SetString(1048, 'Extra }, or forgotten ');
+  SetString(1049, 'I''ve deleted a group-closing symbol because it seems to be');
+  SetString(1050, 'spurious, as in `$x}$''. But perhaps the } is legitimate and');
+  SetString(1051, 'you forgot something else, as in `\hbox{$x}''. In such cases');
+  SetString(1052, 'the way to recover is to insert both the forgotten and the');
+  SetString(1053, 'deleted material, e.g., by typing `I$}''.');
+  SetString(1054, 'moveleft');
+  SetString(1055, 'moveright');
+  SetString(1056, 'raise');
+  SetString(1057, 'lower');
+  SetString(1058, 'copy');
+  SetString(1059, 'lastbox');
+  SetString(1060, 'vtop');
+  SetString(1061, 'hbox');
+  SetString(1062, 'shipout');
+  SetString(1063, 'leaders');
+  SetString(1064, 'cleaders');
+  SetString(1065, 'xleaders');
+  SetString(1066, 'Leaders not followed by proper glue');
+  SetString(1067, 'You should say `\leaders <box or rule><hskip or vskip>''.');
+  SetString(1068, 'I found the <box or rule>, but there''s no suitable');
+  SetString(1069, '<hskip or vskip>, so I''m ignoring these leaders.');
+  SetString(1070, 'Sorry; this \lastbox will be void.');
+  SetString(1071, 'Sorry...I usually can''t take things from the current page.');
+  SetString(1072, 'This \lastbox will therefore be void.');
+  SetString(1073, 'Missing `to'' inserted');
+  SetString(1074, 'I''m working on `\vsplit<box number> to <dimen>'';');
+  SetString(1075, 'will look for the <dimen> next.');
+  SetString(1076, 'A <box> was supposed to be here');
+  SetString(1077, 'I was expecting to see \hbox or \vbox or \copy or \box or');
+  SetString(1078, 'something like that. So you might find something missing in');
+  SetString(1079, 'your output. But keep trying; you can fix this later.');
+  SetString(1080, 'indent');
+  SetString(1081, 'noindent');
+  SetString(1082, ''' here except with leaders');
+  SetString(1083, 'To put a horizontal rule in an hbox or an alignment,');
+  SetString(1084, 'you should use \leaders or \hrulefill (see The TeXbook).');
+  SetString(1085, 'You can''t ');
+  SetString(1086, 'I''m changing to \insert0; box 255 is special.');
+  SetString(1087, 'Try `I\vskip-\lastskip'' instead.');
+  SetString(1088, 'Try `I\kern-\lastkern'' instead.');
+  SetString(1089, 'Perhaps you can make the output routine do it.');
+  SetString(1090, 'unpenalty');
+  SetString(1091, 'unkern');
+  SetString(1092, 'unskip');
+  SetString(1093, 'unhbox');
+  SetString(1094, 'unhcopy');
+  SetString(1095, 'unvbox');
+  SetString(1096, 'unvcopy');
+  SetString(1097, 'Incompatible list can''t be unboxed');
+  SetString(1098, 'Sorry, Pandora. (You sneaky devil.)');
+  SetString(1099, 'I refuse to unbox an \hbox in vertical mode or vice versa.');
+  SetString(1100, 'And I can''t open any boxes in math mode.');
+  SetString(1101, 'Illegal math ');
+  SetString(1102, 'Sorry: The third part of a discretionary break must be');
+  SetString(1103, 'empty, in math formulas. I had to delete your third part.');
+  SetString(1104, 'Discretionary list is too long');
+  SetString(1105, 'Wow---I never thought anybody would tweak me here.');
+  SetString(1106, 'You can''t seriously need such a huge discretionary list?');
+  SetString(1107, 'Improper discretionary list');
+  SetString(1108, 'Discretionary lists must contain only boxes and kerns.');
+  SetString(1109, 'The following discretionary sublist has been deleted:');
+  SetString(1110, 'Missing } inserted');
+  SetString(1111, 'I''ve put in what seems to be necessary to fix');
+  SetString(1112, 'the current column of the current alignment.');
+  SetString(1113, 'Try to go on, since this might almost work.');
+  SetString(1114, 'Misplaced ');
+  SetString(1115, 'I can''t figure out why you would want to use a tab mark');
+  SetString(1116, 'here. If you just want an ampersand, the remedy is');
+  SetString(1117, 'simple: Just type `I\&'' now. But if some right brace');
+  SetString(1118, 'up above has ended a previous alignment prematurely,');
+  SetString(1119, 'you''re probably due for more error messages, and you');
+  SetString(1120, 'might try typing `S'' now just to see what is salvageable.');
+  SetString(1121, 'or \cr or \span just now. If something like a right brace');
+  SetString(1122, 'I expect to see \noalign only after the \cr of');
+  SetString(1123, 'an alignment. Proceed, and I''ll ignore this case.');
+  SetString(1124, 'I expect to see \omit only after tab marks or the \cr of');
+  SetString(1125, 'I''m guessing that you meant to end an alignment here.');
+  SetString(1126, 'I''m ignoring this, since I wasn''t doing a \csname.');
+  SetString(1127, 'eqno');
+  SetString(1128, 'leqno');
+  SetString(1129, 'displaylimits');
+  SetString(1130, 'Limit controls must follow a math operator');
+  SetString(1131, 'I''m ignoring this misplaced \limits or \nolimits command.');
+  SetString(1132, 'Missing delimiter (. inserted)');
+  SetString(1133, 'I was expecting to see something like `('' or `\{'' or');
+  SetString(1134, '`\}'' here. If you typed, e.g., `{'' instead of `\{'', you');
+  SetString(1135, 'should probably delete the `{'' by typing `1'' now, so that');
+  SetString(1136, 'braces don''t get unbalanced. Otherwise just proceed.');
+  SetString(1137, 'Acceptable delimiters are characters whose \delcode is');
+  SetString(1138, 'nonnegative, or you can use `\delimiter <delimiter code>''.');
+  SetString(1139, 'Please use ');
+  SetString(1140, ' for accents in math mode');
+  SetString(1141, 'I''m changing \accent to \mathaccent here; wish me luck.');
+  SetString(1142, '(Accents are not the same in formulas as they are in text.)');
+  SetString(1143, 'Double superscript');
+  SetString(1144, 'I treat `x^1^2'' essentially like `x^1{}^2''.');
+  SetString(1145, 'Double subscript');
+  SetString(1146, 'I treat `x_1_2'' essentially like `x_1{}_2''.');
+  SetString(1147, 'above');
+  SetString(1148, 'over');
+  SetString(1149, 'atop');
+  SetString(1150, 'abovewithdelims');
+  SetString(1151, 'overwithdelims');
+  SetString(1152, 'atopwithdelims');
+  SetString(1153, 'Ambiguous; you need another { and }');
+  SetString(1154, 'I''m ignoring this fraction specification, since I don''t');
+  SetString(1155, 'know whether a construction like `x \over y \over z''');
+  SetString(1156, 'means `{x \over y} \over z'' or `x \over {y \over z}''.');
+  SetString(1157, 'I''m ignoring a \right that had no matching \left.');
+  SetString(1158, 'Math formula deleted: Insufficient symbol fonts');
+  SetString(1159, 'Sorry, but I can''t typeset math unless \textfont 2');
+  SetString(1160, 'and \scriptfont 2 and \scriptscriptfont 2 have all');
+  SetString(1161, 'the \fontdimen values needed in math symbol fonts.');
+  SetString(1162, 'Math formula deleted: Insufficient extension fonts');
+  SetString(1163, 'Sorry, but I can''t typeset math unless \textfont 3');
+  SetString(1164, 'and \scriptfont 3 and \scriptscriptfont 3 have all');
+  SetString(1165, 'the \fontdimen values needed in math extension fonts.');
+  SetString(1166, 'Display math should end with $$');
+  SetString(1167, 'The `$'' that I just saw supposedly matches a previous `$$''.');
+  SetString(1168, 'So I shall assume that you typed `$$'' both times.');
+  SetString(1169, 'display');
+  SetString(1170, 'Missing $$ inserted');
+  SetString(1171, 'long');
+  SetString(1172, 'outer');
+  SetString(1173, 'global');
+  SetString(1174, 'def');
+  SetString(1175, 'gdef');
+  SetString(1176, 'edef');
+  SetString(1177, 'xdef');
+  SetString(1178, 'prefix');
+  SetString(1179, 'You can''t use a prefix with `');
+  SetString(1180, 'I''ll pretend you didn''t say \long or \outer or \global.');
+  SetString(1181, ''' or `');
+  SetString(1182, ''' with `');
+  SetString(1183, 'I''ll pretend you didn''t say \long or \outer here.');
+  SetString(1184, 'Missing control sequence inserted');
+  SetString(1185, 'Please don''t say `\def cs{...}'', say `\def\cs{...}''.');
+  SetString(1186, 'I''ve inserted an inaccessible control sequence so that your');
+  SetString(1187, 'definition will be completed without mixing me up too badly.');
+  SetString(1188, 'You can recover graciously from this error, if you''re');
+  SetString(1189, 'careful; see exercise 27.2 in The TeXbook.');
+  SetString(1190, 'inaccessible');
+  SetString(1191, 'let');
+  SetString(1192, 'futurelet');
+  SetString(1193, 'chardef');
+  SetString(1194, 'mathchardef');
+  SetString(1195, 'countdef');
+  SetString(1196, 'dimendef');
+  SetString(1197, 'skipdef');
+  SetString(1198, 'muskipdef');
+  SetString(1199, 'toksdef');
+  SetString(1200, 'You should have said `\read<number> to \cs''.');
+  SetString(1201, 'I''m going to look for the \cs now.');
+  SetString(1202, 'Invalid code (');
+  SetString(1203, '), should be in the range 0..');
+  SetString(1204, '), should be at most ');
+  SetString(1205, 'I''m going to use 0 instead of that illegal code value.');
+  SetString(1206, 'by');
+  SetString(1207, 'Arithmetic overflow');
+  SetString(1208, 'I can''t carry out that multiplication or division,');
+  SetString(1209, 'since the result is out of range.');
+  SetString(1210, 'I''m forgetting what you said and not changing anything.');
+  SetString(1211, 'Sorry, \setbox is not allowed after \halign in a display,');
+  SetString(1212, 'or between \accent and an accented character.');
+  SetString(1213, 'Bad space factor');
+  SetString(1214, 'I allow only values in the range 1..32767 here.');
+  SetString(1215, 'I allow only nonnegative values here.');
+  SetString(1216, 'Patterns can be loaded only by INITEX');
+  SetString(1217, 'hyphenchar');
+  SetString(1218, 'skewchar');
+  SetString(1219, 'FONT');
+  SetString(1220, 'at');
+  SetString(1221, 'scaled');
+  SetString(1222, 'Improper `at'' size (');
+  SetString(1223, 'pt), replaced by 10pt');
+  SetString(1224, 'I can only handle fonts at positive sizes that are');
+  SetString(1225, 'less than 2048pt, so I''ve changed what you said to 10pt.');
+  SetString(1226, 'select font ');
+  SetString(1227, 'errorstopmode');
+  SetString(1228, 'openin');
+  SetString(1229, 'closein');
+  SetString(1230, 'message');
+  SetString(1231, 'errmessage');
+  SetString(1232, '(That was another \errmessage.)');
+  SetString(1233, 'This error message was generated by an \errmessage');
+  SetString(1234, 'command, so I can''t give any explicit help.');
+  SetString(1235, 'Pretend that you''re Hercule Poirot: Examine all clues,');
+  SetString(1236, 'and deduce the truth by order and method.');
+  SetString(1237, 'lowercase');
+  SetString(1238, 'uppercase');
+  SetString(1239, 'show');
+  SetString(1240, 'showbox');
+  SetString(1241, 'showthe');
+  SetString(1242, 'showlists');
+  SetString(1243, 'This isn''t an error message; I''m just \showing something.');
+  SetString(1244, 'Type `I\show...'' to show more (e.g., \show\cs,');
+  SetString(1245, '\showthe\count10, \showbox255, \showlists).');
+  SetString(1246, 'And type `I\tracingonline=1\show...'' to show boxes and');
+  SetString(1247, 'lists on your terminal as well as in the transcript file.');
+  SetString(1248, '> ');
+  SetString(1249, 'undefined');
+  SetString(1250, 'macro');
+  SetString(1251, 'long macro');
+  SetString(1252, 'outer macro');
+  SetString(1253, 'outer endtemplate');
+  SetString(1254, '> \box');
+  SetString(1255, 'OK');
+  SetString(1256, ' (see the transcript file)');
+  SetString(1257, ' (INITEX)');
+  SetString(1258, 'You can''t dump inside a group');
+  SetString(1259, '`{...\dump}'' is a no-no.');
+  SetString(1260, ' strings of total length ');
+  SetString(1261, ' memory locations dumped; current usage is ');
+  SetString(1262, ' multiletter control sequences');
+  SetString(1263, ' words of font info for ');
+  SetString(1264, ' preloaded font');
+  SetString(1265, '\font');
+  SetString(1266, ' hyphenation exception');
+  SetString(1267, 'Hyphenation trie of length ');
+  SetString(1268, ' has ');
+  SetString(1269, ' op');
+  SetString(1270, ' out of ');
+  SetString(1271, ' for language ');
+  SetString(1272, ' (preloaded format=');
+  SetString(1273, 'format file name');
+  SetString(1274, 'Beginning to dump on file ');
+  SetString(1275, 'Transcript written on ');
+  SetString(1276, ' )');
+  SetString(1277, 'end occurred ');
+  SetString(1278, 'inside a group at level ');
+  SetString(1279, 'when ');
+  SetString(1280, ' on line ');
+  SetString(1281, ' was incomplete)');
+  SetString(1282, '(see the transcript file for additional information)');
+  SetString(1283, '(\dump is performed only by INITEX)');
+  SetString(1284, 'debug # (-1 to exit):');
+  SetString(1285, 'openout');
+  SetString(1286, 'closeout');
+  SetString(1287, 'special');
+  SetString(1288, 'immediate');
+  SetString(1289, 'setlanguage');
+  SetString(1290, '[unknown extension!]');
+  SetString(1291, 'ext1');
+  SetString(1292, ' (hyphenmin ');
+  SetString(1293, 'whatsit?');
+  SetString(1294, 'ext2');
+  SetString(1295, 'ext3');
+  SetString(1296, 'endwrite');
+  SetString(1297, 'Unbalanced write command');
+  SetString(1298, 'On this page there''s a \write with fewer real {''s than }''s.');
+  SetString(1299, 'ext4');
+  SetString(1300, 'output file name');
+  STRPTR := 1301;
+  STRSTART[STRPTR] := POOLPTR;
+end;
+{:47}
+
+{264:}
+PROCEDURE PRIMITIVE(S:STRNUMBER;C:QUARTERWORD;O:HALFWORD);
+VAR K: POOLPOINTER;
+  J: SMALLNUMBER;
+  L: SMALLNUMBER;
+BEGIN
+  IF S<256 THEN CURVAL := S+257
   ELSE
     BEGIN
+      K := STRSTART[S];
+      L := STRSTART[S+1]-K;
+      FOR J:=0 TO L-1 DO
+        BUFFER[J] := STRPOOL[K+J];
+      CURVAL := IDLOOKUP(0,L);
       BEGIN
-        DVIBUF[DVIPTR] := 248;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
+        STRPTR := STRPTR-1;
+        POOLPTR := STRSTART[STRPTR];
       END;
-      DVIFOUR(LASTBOP);
-      LASTBOP := DVIOFFSET+DVIPTR-5;
-      DVIFOUR(25400000);
-      DVIFOUR(473628672);
-      PREPAREMAG;
-      DVIFOUR(EQTB[5280].INT);
-      DVIFOUR(MAXV);
-      DVIFOUR(MAXH);
-      BEGIN
-        DVIBUF[DVIPTR] := MAXPUSH DIV 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := MAXPUSH MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := (TOTALPAGES DIV 256)MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := TOTALPAGES MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-{643:}
-      WHILE FONTPTR>0 DO
-        BEGIN
-          IF FONTUSED[FONTPTR]THEN DVIFONTDEF(
-                                              FONTPTR);
-          FONTPTR := FONTPTR-1;
-        END{:643};
-      BEGIN
-        DVIBUF[DVIPTR] := 249;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      DVIFOUR(LASTBOP);
-      BEGIN
-        DVIBUF[DVIPTR] := 2;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      K := 4+((DVIBUFSIZE-DVIPTR)MOD 4);
-      WHILE K>0 DO
-        BEGIN
-          BEGIN
-            DVIBUF[DVIPTR] := 223;
-            DVIPTR := DVIPTR+1;
-            IF DVIPTR=DVILIMIT THEN DVISWAP;
-          END;
-          K := K-1;
-        END;
-{599:}
-      IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,DVIBUFSIZE-1);
-      IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
-      print_nl_str('Output written on ');
-      slow_print_str(output_file_name);
-      print_str(' (');
-      PRINTINT(TOTALPAGES);
-      print_str(' page');
-      IF TOTALPAGES<>1 THEN PRINTCHAR(115);
-      print_str(', ');
-      PRINTINT(DVIOFFSET+DVIPTR);
-      print_str(' bytes).');
-      close(DVIFILE);
-    END{:642};
-  IF LOGOPENED THEN
-    BEGIN
-      WRITELN(LOGFILE);
-      close(LOGFILE);
-      SELECTOR := SELECTOR-2;
-      IF SELECTOR=17 THEN
-        BEGIN
-          print_nl_str('Transcript written on ');
-          SLOWPRINT(LOGNAME);
-          PRINTCHAR(46);
-          PRINTLN;
-        END;
+      HASH[CURVAL].RH := S;
     END;
-  halt(History);
+  EQTB[CURVAL].HH.B1 := 1;
+  EQTB[CURVAL].HH.B0 := C;
+  EQTB[CURVAL].HH.RH := O;
 END;
-{:1333}
-
-{1335:}
-PROCEDURE FINALCLEANUP;
-VAR C: SMALLNUMBER;
-BEGIN
-  C := CURCHR;
-  IF C<>1 THEN EQTB[5312].INT := -1;
-  IF job_name='' THEN OPENLOGFILE;
-  WHILE INPUTPTR>0 DO
-    IF CURINPUT.STATEFIELD=0 THEN ENDTOKENLIST
-    ELSE
-      ENDFILEREADI;
-  WHILE OPENPARENS>0 DO
-    BEGIN
-      print_str(' )');
-      OPENPARENS := OPENPARENS-1;
-    END;
-  IF CURLEVEL>1 THEN
-    BEGIN
-      PRINTNL(40);
-      print_esc_str('end occurred ');
-      print_str('inside a group at level ');
-      PRINTINT(CURLEVEL-1);
-      PRINTCHAR(41);
-    END;
-  WHILE CONDPTR<>0 DO
-    BEGIN
-      PRINTNL(40);
-      print_esc_str('end occurred ');
-      print_str('when ');
-      PRINTCMDCHR(105,CURIF);
-      IF IFLINE<>0 THEN
-        BEGIN
-          print_str(' on line ');
-          PRINTINT(IFLINE);
-        END;
-      print_str(' was incomplete)');
-      IFLINE := MEM[CONDPTR+1].INT;
-      CURIF := MEM[CONDPTR].HH.B1;
-      TEMPPTR := CONDPTR;
-      CONDPTR := MEM[CONDPTR].HH.RH;
-      FREENODE(TEMPPTR,2);
-    END;
-  IF HISTORY<>0 THEN
-    IF ((HISTORY=1)OR(INTERACTION<3))THEN
-      IF SELECTOR=19
-        THEN
-        BEGIN
-          SELECTOR := 17;
-          print_nl_str('(see the transcript file for additional information)');
-          SELECTOR := 19;
-        END;
-  IF C=1 THEN BEGIN
-    {$IFDEF INITEX}
-      FOR C:=0 TO 4 DO
-        IF CURMARK[C]<>0 THEN DELETETOKENR(CURMARK[C]);
-      IF LASTGLUE<>65535 THEN DELETEGLUERE(LASTGLUE);
-      StoreFormatFile;
-    {$ELSE}
-      print_nl_str('(\dump is performed only by INITEX)');
-    {$ENDIF}
-  END;
-END;
-{:1335}
+{:264}
 
 {1336:}
-{$IFDEF INITEX}
 PROCEDURE INITPRIM;
 BEGIN
   NONEWCONTROL := FALSE;
@@ -22513,7 +22315,12 @@ BEGIN
   PRIMITIVE(1289,59,5);{:1344};
   NONEWCONTROL := TRUE;
 END;{$ENDIF}
-{:1336}{1338:}{$IFDEF DEBUGGING}
+{:1336}
+
+
+
+{1338:}
+{$IFDEF DEBUGGING}
 PROCEDURE DEBUGHELP;
 
 LABEL 888,10;
@@ -22578,6 +22385,233 @@ END;
 {:1338}
 {:1330}
 
+
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  End of program execution
+  ---------------------------------------------------------------------- }
+
+{1335:}
+PROCEDURE FINALCLEANUP;
+VAR C: SMALLNUMBER;
+BEGIN
+  C := CURCHR;
+  IF C<>1 THEN EQTB[5312].INT := -1;
+  IF job_name='' THEN OPENLOGFILE;
+  WHILE INPUTPTR>0 DO
+    IF CURINPUT.STATEFIELD=0 THEN ENDTOKENLIST
+    ELSE
+      ENDFILEREADI;
+  WHILE OPENPARENS>0 DO
+    BEGIN
+      print_str(' )');
+      OPENPARENS := OPENPARENS-1;
+    END;
+  IF CURLEVEL>1 THEN
+    BEGIN
+      print_nl_str('(');
+      print_esc_str('end occurred inside a group at level ');
+      PRINTINT(CURLEVEL-1);
+      PRINTCHAR(41);
+    END;
+  WHILE CONDPTR<>0 DO
+    BEGIN
+      print_nl_str('(');
+      print_esc_str('end occurred when ');
+      PRINTCMDCHR(105,CURIF);
+      IF IFLINE<>0 THEN
+        BEGIN
+          print_str(' on line ');
+          PRINTINT(IFLINE);
+        END;
+      print_str(' was incomplete)');
+      IFLINE := MEM[CONDPTR+1].INT;
+      CURIF := MEM[CONDPTR].HH.B1;
+      TEMPPTR := CONDPTR;
+      CONDPTR := MEM[CONDPTR].HH.RH;
+      FREENODE(TEMPPTR,2);
+    END;
+  IF HISTORY<>0 THEN
+    IF ((HISTORY=1)OR(INTERACTION<3))THEN
+      IF SELECTOR=19
+        THEN
+        BEGIN
+          SELECTOR := 17;
+          print_nl_str('(see the transcript file for additional information)');
+          SELECTOR := 19;
+        END;
+  IF C=1 THEN BEGIN
+    {$IFDEF INITEX}
+      FOR C:=0 TO 4 DO
+        IF CURMARK[C]<>0 THEN DELETETOKENR(CURMARK[C]);
+      IF LASTGLUE<>65535 THEN DELETEGLUERE(LASTGLUE);
+      StoreFormatFile;
+    {$ELSE}
+      print_nl_str('(\dump is performed only by INITEX)');
+    {$ENDIF}
+  END;
+END;
+{:1335}
+
+{1333:}
+PROCEDURE close_files_and_terminate;
+VAR K: Int32;
+BEGIN
+  {1378:}
+  FOR K:=0 TO 15 DO
+    IF WRITEOPEN[K]THEN close(WRITEFILE[K])
+  {:1378};
+  EQTB[5312].INT := -1;{$IFDEF STATS}
+  IF EQTB[5294].INT>0 THEN{1334:}
+    IF LOGOPENED THEN
+      BEGIN
+        WRITELN(LOGFILE,
+                ' ');
+        WRITELN(LOGFILE,'Here is how much of TeX''s memory',' you used:');
+        WRITE(LOGFILE,' ',STRPTR-INITSTRPTR:1,' string');
+        IF STRPTR<>INITSTRPTR+1 THEN WRITE(LOGFILE,'s');
+        WRITELN(LOGFILE,' out of ',MAXSTRINGS-INITSTRPTR:1);
+        WRITELN(LOGFILE,' ',POOLPTR-INITPOOLPTR:1,' string characters out of ',
+                POOLSIZE-INITPOOLPTR:1);
+        WRITELN(LOGFILE,' ',LOMEMMAX-MEMMIN+MEMEND-HIMEMMIN+2:1,
+                ' words of memory out of ',MEMEND+1-MEMMIN:1);
+        WRITELN(LOGFILE,' ',CSCOUNT:1,' multiletter control sequences out of ',
+                2100:1);
+        WRITE(LOGFILE,' ',FMEMPTR:1,' words of font info for ',FONTPTR-0:1,
+              ' font');
+        IF FONTPTR<>1 THEN WRITE(LOGFILE,'s');
+        WRITELN(LOGFILE,', out of ',FONTMEMSIZE:1,' for ',FONTMAX-0:1);
+        WRITE(LOGFILE,' ',HYPHCOUNT:1,' hyphenation exception');
+        IF HYPHCOUNT<>1 THEN WRITE(LOGFILE,'s');
+        WRITELN(LOGFILE,' out of ',307:1);
+        WRITELN(LOGFILE,' ',MAXINSTACK:1,'i,',MAXNESTSTACK:1,'n,',MAXPARAMSTAC:1
+                ,'p,',MAXBUFSTACK+1:1,'b,',MAXSAVESTACK+6:1,'s stack positions out of ',
+                STACKSIZE:1,'i,',NESTSIZE:1,'n,',PARAMSIZE:1,'p,',BUFSIZE:1,'b,',
+                SAVESIZE:1,'s');
+      END{:1334};{$ENDIF};
+{642:}
+  WHILE CURS>-1 DO
+    BEGIN
+      IF CURS>0 THEN
+        BEGIN
+          DVIBUF[DVIPTR] := 142;
+          DVIPTR := DVIPTR+1;
+          IF DVIPTR=DVILIMIT THEN DVISWAP;
+        END
+      ELSE
+        BEGIN
+          BEGIN
+            DVIBUF[DVIPTR] := 140;
+            DVIPTR := DVIPTR+1;
+            IF DVIPTR=DVILIMIT THEN DVISWAP;
+          END;
+          TOTALPAGES := TOTALPAGES+1;
+        END;
+      CURS := CURS-1;
+    END;
+  IF TOTALPAGES=0 THEN print_nl_str('No pages of output.')
+  ELSE
+    BEGIN
+      BEGIN
+        DVIBUF[DVIPTR] := 248;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      DVIFOUR(LASTBOP);
+      LASTBOP := DVIOFFSET+DVIPTR-5;
+      DVIFOUR(25400000);
+      DVIFOUR(473628672);
+      PREPAREMAG;
+      DVIFOUR(EQTB[5280].INT);
+      DVIFOUR(MAXV);
+      DVIFOUR(MAXH);
+      BEGIN
+        DVIBUF[DVIPTR] := MAXPUSH DIV 256;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      BEGIN
+        DVIBUF[DVIPTR] := MAXPUSH MOD 256;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      BEGIN
+        DVIBUF[DVIPTR] := (TOTALPAGES DIV 256)MOD 256;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      BEGIN
+        DVIBUF[DVIPTR] := TOTALPAGES MOD 256;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+{643:}
+      WHILE FONTPTR>0 DO
+        BEGIN
+          IF FONTUSED[FONTPTR]THEN DVIFONTDEF(
+                                              FONTPTR);
+          FONTPTR := FONTPTR-1;
+        END{:643};
+      BEGIN
+        DVIBUF[DVIPTR] := 249;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      DVIFOUR(LASTBOP);
+      BEGIN
+        DVIBUF[DVIPTR] := 2;
+        DVIPTR := DVIPTR+1;
+        IF DVIPTR=DVILIMIT THEN DVISWAP;
+      END;
+      K := 4+((DVIBUFSIZE-DVIPTR)MOD 4);
+      WHILE K>0 DO
+        BEGIN
+          BEGIN
+            DVIBUF[DVIPTR] := 223;
+            DVIPTR := DVIPTR+1;
+            IF DVIPTR=DVILIMIT THEN DVISWAP;
+          END;
+          K := K-1;
+        END;
+{599:}
+      IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,DVIBUFSIZE-1);
+      IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
+      print_nl_str('Output written on ');
+      slow_print_str(output_file_name);
+        {FIXME: this is the only reason for saving output_file_name}
+      print_str(' (');
+      PRINTINT(TOTALPAGES);
+      print_str(' page');
+      IF TOTALPAGES<>1 THEN PRINTCHAR(115);
+      print_str(', ');
+      PRINTINT(DVIOFFSET+DVIPTR);
+      print_str(' bytes).');
+      close(DVIFILE);
+    END{:642};
+  IF LOGOPENED THEN
+    BEGIN
+      WRITELN(LOGFILE);
+      close(LOGFILE);
+      SELECTOR := SELECTOR-2;
+      IF SELECTOR=17 THEN
+        BEGIN
+          print_nl_str('Transcript written on ');
+          SLOWPRINT(LOGNAME);
+          PRINTCHAR(46);
+          PRINTLN;
+        END;
+    END;
+  halt(History);
+END;
+{:1333}
+
+
+
 {1332:}
 BEGIN
   HISTORY := 3;
@@ -22609,9 +22643,10 @@ BEGIN
   assert(cs_token_flag+undefined_control_sequence <= max_halfword);
   assert(2*max_halfword >= mem_top-mem_min);
 
-  INITIALIZE;
+  InitGeneral;
 
 {$IFDEF INITEX}
+  InitInitex;
   GetStringsStarted;
   INITPRIM;
   INITSTRPTR := STRPTR;
@@ -22634,33 +22669,8 @@ BEGIN
   writeln(output, ' (no format preloaded)');
 {$ENDIF}
 
-  job_name := '';
-  NAMEINPROGRE := FALSE;
-  LOGOPENED := FALSE;
-  output_file_name := '';
 
-  INPUTPTR := 0;
-  MAXINSTACK := 0;
-  INOPEN := 0;
-  OPENPARENS := 0;
-  MAXBUFSTACK := 0;
-  PARAMPTR := 0;
-  MAXPARAMSTAC := 0;
-
-  for FIRST := 1 to BUFSIZE do BUFFER[FIRST] := 0;
-  FIRST := 1;
-
-  SCANNERSTATU := 0;
-  WARNINGINDEX := 0;
-  CURINPUT.STATEFIELD := 33;
-  CURINPUT.STARTFIELD := 1;
-  CURINPUT.INDEXFIELD := 0;
-  LINE := 0;
-  CURINPUT.NAMEFIELD := 0;
-  FORCEEOF := FALSE;
-  ALIGNSTATE := 1000000;
-
-  init_terminal;
+  InitTerminal;
 
   TryToLoadFormatFile;
 

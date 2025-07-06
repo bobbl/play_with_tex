@@ -168,16 +168,25 @@ routines
   - [x] Integrate string pool in source code
   - [ ] Replace string pool indices by constant strings
 
+File handling
+
+  - [x] Only use byte-based files
+  - [x] Avoid string pool and global variables for file name construction
+  - [x] Simplify file name handling
+
 Miscellaneous
 
-  - [ ] Remove warnings
+  - [ ] Remove compiler warnings
   - [ ] Remove all GOTOs
   - [ ] Reduce global variables
   - [ ] Use dynamic memory management for large arrays
   - [ ] Re-introduce /WEB/ constants in source code
   - [ ] Program argument instead of conditional compilation for /INITEX/
 
-Long term ideas
+Long term ideas (breaking changes)
 
   - UTF-8 instead of character translation tables
-  - 
+  - Remove built-in debugging facilities
+  - Remove interactive user interface in favour of program arguments and
+    fatal errors
+  - Uniform error messages
