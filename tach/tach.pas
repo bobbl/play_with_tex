@@ -220,6 +220,78 @@ registers.}
   math_code_base = sf_code_base+256;    {table of 256 math mode mappings}
   int_base       = math_code_base+256;  {beginning of region 5}
 
+{@ Region 5 of |eqtb| contains the integer parameters and registers defined
+here, as well as the |del_code| table. The latter table differs from the
+|cat_code..math_code| tables that precede it, since delimiter codes are
+fullword integers while the other kinds of codes occupy at most a
+halfword. This is what makes region~5 different from region~4. We will
+store the |eq_level| information in an auxiliary array of quarterwords
+that will be defined later.}
+
+  pretolerance_code             = 0;  {badness tolerance before hyphenation}
+  tolerance_code                = 1;  {badness tolerance after hyphenation}
+  line_penalty_code             = 2;  {added to the badness of every line}
+  hyphen_penalty_code           = 3;  {penalty for break after discretionary hyphen}
+  ex_hyphen_penalty_code        = 4;  {penalty for break after explicit hyphen}
+  club_penalty_code             = 5;  {penalty for creating a club line}
+  widow_penalty_code            = 6;  {penalty for creating a widow line}
+  display_widow_penalty_code    = 7;  {ditto, just before a display}
+  broken_penalty_code           = 8;  {penalty for breaking a page at a broken line}
+  bin_op_penalty_code           = 9;  {penalty for breaking after a binary operation}
+  rel_penalty_code              = 10; {penalty for breaking after a relation}
+  pre_display_penalty_code      = 11; {penalty for breaking just before a displayed formula}
+  post_display_penalty_code     = 12; {penalty for breaking just after a displayed formula}
+  inter_line_penalty_code       = 13; {additional penalty between lines}
+  double_hyphen_demerits_code   = 14; {demerits for double hyphen break}
+  final_hyphen_demerits_code    = 15; {demerits for final hyphen break}
+  adj_demerits_code             = 16; {demerits for adjacent incompatible lines}
+  mag_code                      = 17; {magnification ratio}
+  delimiter_factor_code         = 18; {ratio for variable-size delimiters}
+  looseness_code                = 19; {change in number of lines for a paragraph}
+  time_code                     = 20; {current time of day}
+  day_code                      = 21; {current day of the month}
+  month_code                    = 22; {current month of the year}
+  year_code                     = 23; {current year of our Lord}
+  show_box_breadth_code         = 24; {nodes per level in |show_box|}
+  show_box_depth_code           = 25; {maximum level in |show_box|}
+  hbadness_code                 = 26; {hboxes exceeding this badness will be shown by |hpack|}
+  vbadness_code                 = 27; {vboxes exceeding this badness will be shown by |vpack|}
+  pausing_code                  = 28; {pause after each line is read from a file}
+  tracing_online_code           = 29; {show diagnostic output on terminal}
+  tracing_macros_code           = 30; {show macros as they are being expanded}
+  tracing_stats_code            = 31; {show memory usage if \TeX\ knows it}
+  tracing_paragraphs_code       = 32; {show line-break calculations}
+  tracing_pages_code            = 33; {show page-break calculations}
+  tracing_output_code           = 34; {show boxes when they are shipped out}
+  tracing_lost_chars_code       = 35; {show characters that aren't in the font}
+  tracing_commands_code         = 36; {show command codes at |big_switch|}
+  tracing_restores_code         = 37; {show equivalents when they are restored}
+  uc_hyph_code                  = 38; {hyphenate words beginning with a capital letter}
+  output_penalty_code           = 39; {penalty found at current page break}
+  max_dead_cycles_code          = 40; {bound on consecutive dead cycles of output}
+  hang_after_code               = 41; {hanging indentation changes after this many lines}
+  floating_penalty_code         = 42; {penalty for insertions held over after a split}
+  global_defs_code              = 43; {override \.{\\global} specifications}
+  cur_fam_code                  = 44; {current family}
+  escape_char_code              = 45; {escape character for token output}
+  default_hyphen_char_code      = 46; {value of \.{\\hyphenchar} when a font is loaded}
+  default_skew_char_code        = 47; {value of \.{\\skewchar} when a font is loaded}
+  end_line_char_code            = 48; {character placed at the right end of the buffer}
+  new_line_char_code            = 49; {character that prints as |print_ln|}
+  language_code                 = 50; {current hyphenation table}
+  left_hyphen_min_code          = 51; {minimum left hyphenation fragment size}
+  right_hyphen_min_code         = 52; {minimum right hyphenation fragment size}
+  holding_inserts_code          = 53; {do not remove insertion nodes from \.{\\box255}}
+  error_context_lines_code      = 54; {maximum intermediate line pairs shown}
+  int_pars                      = 55; {total number of integer parameters}
+
+  count_base = int_base+int_pars;       {256 user \.{\\count} registers}
+  del_code_base = count_base+256;       {256 delimiter code mappings}
+  dimen_base = del_code_base+256;       {beginning of region 6}
+
+
+
+
 
 
   min_quarterword = 0;          {smallest allowable value in a |quarterword|}
@@ -583,7 +655,7 @@ VAR
   CURLIST: LISTSTATEREC;
   SHOWNMODE: -203..203;{:213}{246:}
   OLDSETTING: 0..21;
-  SYSTIME,SYSDAY,SYSMONTH,SYSYEAR: Int32;
+  sys_time, sys_day, sys_month, sys_year: int32;
 {:246}{253:}
   EQTB: ARRAY[1..6106] OF MEMORYWORD;
   XEQLEVEL: ARRAY[5263..6106] OF QUARTERWORD;
@@ -866,6 +938,22 @@ begin
               else ISORound := trunc(x-0.5);
 end;
 
+function IntToStr02(x: Int32) : string;
+var s: string[2];
+begin
+  s := '00';
+  s[1] := chr((x div 10) + 48);
+  s[2] := chr((x mod 10) + 48);
+  IntToStr02 := s;
+end;
+
+function IntToStr(x: Int32) : string;
+var s: string;
+begin
+  str(x, s);
+  IntToStr := s;
+end;
+
 
 PROCEDURE INITIALIZE;
 
@@ -1105,6 +1193,7 @@ BEGIN{8:}{21:}
 {:1267}{1282:}
   LONGHELPSEEN := FALSE;{:1282}{1300:}
   FORMATIDENT := 0;
+  STRPTR := 0; {to determine, if string pool is empty}
 {:1300}{1343:}
   FOR K:=0 TO 17 DO
     WRITEOPEN[K] := FALSE;
@@ -1927,44 +2016,37 @@ end;
 
 {31:}
 FUNCTION INPUTLN(VAR F:alpha_file;BYPASSEOLN:BOOLEAN): BOOLEAN;
-
-VAR LASTNONBLANK: 0..BUFSIZE;
+VAR
+  LASTNONBLANK: 0..BUFSIZE;
   ch: Char;
 BEGIN
   LAST := FIRST;
-  IF EOF(F)THEN INPUTLN := FALSE
-  ELSE
-    BEGIN
-      LASTNONBLANK := FIRST;
-      WHILE NOT EOLN(F) DO
-        BEGIN
-          IF LAST>=MAXBUFSTACK THEN
-            BEGIN
-              MAXBUFSTACK := 
-                             LAST+1;
-              IF MAXBUFSTACK=BUFSIZE THEN{35:}
-                IF FORMATIDENT=0 THEN
-                  BEGIN
-                    WRITELN(
-                            OUTPUT,'Buffer size exceeded!');
-                    halt(History);
-                  END
-              ELSE
-                BEGIN
-                  CURINPUT.LOCFIELD := FIRST;
-                  CURINPUT.LIMITFIELD := LAST-1;
-                  overflow('buffer size', BUFSIZE);
-                END{:35};
-            END;
-          Read(F, ch);
-          BUFFER[LAST] := XORD[ch];
-          LAST := LAST+1;
-          IF BUFFER[LAST-1]<>32 THEN LASTNONBLANK := LAST;
-        END;
-      READLN(F);
-      LAST := LASTNONBLANK;
-      INPUTLN := TRUE;
+  IF EOF(F) THEN INPUTLN := FALSE
+  ELSE BEGIN
+    LASTNONBLANK := FIRST;
+    WHILE NOT EOLN(F) DO BEGIN
+      IF LAST >= MAXBUFSTACK THEN BEGIN
+        MAXBUFSTACK := LAST+1;
+        IF MAXBUFSTACK = BUFSIZE THEN begin
+          IF STRPTR=0 THEN BEGIN 
+            WRITELN(OUTPUT,'Buffer size exceeded!');
+            halt(History);
+          END ELSE BEGIN
+            CURINPUT.LOCFIELD := FIRST;
+            CURINPUT.LIMITFIELD := LAST-1;
+            overflow('buffer size', BUFSIZE);
+          END;
+        end;
+      END;
+      Read(F, ch);
+      BUFFER[LAST] := XORD[ch];
+      LAST := LAST+1;
+      IF BUFFER[LAST-1]<>32 THEN LASTNONBLANK := LAST;
     END;
+    READLN(F);
+    LAST := LASTNONBLANK;
+    INPUTLN := TRUE;
+  END;
 END;
 {:31}
 
@@ -5114,18 +5196,37 @@ BEGIN
     54: print_esc_str('errorcontextlines');
     ELSE print_str('[unknown integer parameter!]')
   END;
-END;{:237}{241:}
-PROCEDURE FIXDATEANDTI;
-BEGIN
-  SYSTIME := 12*60;
-  SYSDAY := 4;
-  SYSMONTH := 7;
-  SYSYEAR := 1776;
-  EQTB[5283].INT := SYSTIME;
-  EQTB[5284].INT := SYSDAY;
-  EQTB[5285].INT := SYSMONTH;
-  EQTB[5286].INT := SYSYEAR;
-END;{:241}{245:}
+END;
+{:237}
+
+{241:}
+procedure fix_date_and_time;
+begin
+{In final version get real date. But for testing a fixed date is better.
+
+  uses sysutils;
+
+var YY, MM, DD, Hour, Min, Sec, Ms: word;
+
+  DecodeDate(Date, YY, MM, DD);
+  DecodeTime(Time, Hour, Min, Sec, Ms);
+  sys_time  := Hour*60+Min;
+  sys_day   := DD;
+  sys_month := MM;
+  sys_year  := YY;
+}
+  sys_time  := 12*60;
+  sys_day   := 4;
+  sys_month := 7;
+  sys_year  := 1776;
+  EQTB[int_base+time_code ].INT := sys_time;
+  EQTB[int_base+day_code  ].INT := sys_day;
+  EQTB[int_base+month_code].INT := sys_month;
+  EQTB[int_base+year_code ].INT := sys_year;
+end;
+{:241}
+
+{245:}
 PROCEDURE BEGINDIAGNOS;
 BEGIN
   OLDSETTING := SELECTOR;
@@ -6619,39 +6720,32 @@ VAR K: 0..BUFSIZE;
   D: 2..3;
 BEGIN
   20: CURCS := 0;
-  IF CURINPUT.STATEFIELD<>0 THEN{343:}
-    BEGIN
-      25:
-          IF CURINPUT.LOCFIELD<=
-             CURINPUT.LIMITFIELD THEN
-            BEGIN
-              CURCHR := BUFFER[CURINPUT.LOCFIELD];
-              CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-              21: CURCMD := EQTB[3983+CURCHR].HH.RH;
-{344:}
-              CASE CURINPUT.STATEFIELD+CURCMD OF {345:}
-                10,26,42,27,43{:345}: GOTO
-                                      25;
-                1,17,33:{354:}
-                         BEGIN
-                           IF CURINPUT.LOCFIELD>CURINPUT.LIMITFIELD THEN CURCS 
-                             := 513
-                           ELSE
-                             BEGIN
-                               26: K := CURINPUT.LOCFIELD;
-                               CURCHR := BUFFER[K];
-                               CAT := EQTB[3983+CURCHR].HH.RH;
-                               K := K+1;
-                               IF CAT=11 THEN CURINPUT.STATEFIELD := 17
-                               ELSE
-                                 IF CAT=10 THEN CURINPUT.
-                                   STATEFIELD := 17
-                               ELSE CURINPUT.STATEFIELD := 1;
-                               IF (CAT=11)AND(K<=CURINPUT.LIMITFIELD)THEN{356:}
-                                 BEGIN
-                                   REPEAT
-                                     CURCHR := 
-                                               BUFFER[K];
+  IF CURINPUT.STATEFIELD<>0 THEN BEGIN
+    {343:}
+25:
+    IF CURINPUT.LOCFIELD<=CURINPUT.LIMITFIELD THEN BEGIN
+      CURCHR := BUFFER[CURINPUT.LOCFIELD];
+      CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
+21:
+      CURCMD := EQTB[3983+CURCHR].HH.RH;
+      {344:}
+      CASE CURINPUT.STATEFIELD+CURCMD OF {345:}
+        10,26,42,27,43{:345}: GOTO 25;
+        1,17,33:{354:} BEGIN
+          IF CURINPUT.LOCFIELD>CURINPUT.LIMITFIELD THEN CURCS := 513
+          ELSE BEGIN
+26:
+            K := CURINPUT.LOCFIELD;
+            CURCHR := BUFFER[K];
+            CAT := EQTB[3983+CURCHR].HH.RH;
+            K := K+1;
+            IF CAT=11 THEN CURINPUT.STATEFIELD := 17
+            ELSE IF CAT=10 THEN CURINPUT.STATEFIELD := 17
+            ELSE CURINPUT.STATEFIELD := 1;
+            IF (CAT=11)AND(K<=CURINPUT.LIMITFIELD) THEN BEGIN
+              {356:}
+              REPEAT
+                CURCHR := BUFFER[K];
                                      CAT := EQTB[3983+CURCHR].HH.RH;
                                      K := K+1;
                                    UNTIL (CAT<>11)OR(K>CURINPUT.LIMITFIELD);
@@ -6848,47 +6942,38 @@ BEGIN
                          CURINPUT.STATEFIELD := 1;
                          ALIGNSTATE := ALIGNSTATE-1;
                        END;
-                20,21,23,25,28,29,36,37,39,41,44,45: CURINPUT.STATEFIELD := 1;
+        20,21,23,25,28,29,36,37,39,41,44,45: CURINPUT.STATEFIELD := 1;
 {:347}
-                ELSE
-              END{:344};
-            END
-          ELSE
-            BEGIN
-              CURINPUT.STATEFIELD := 33;
-{360:}
-              IF CURINPUT.NAMEFIELD>17 THEN{362:}
-                BEGIN
-                  LINE := LINE+1;
-                  FIRST := CURINPUT.STARTFIELD;
-                  IF NOT FORCEEOF THEN
-                    BEGIN
-                      IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD],
-                         TRUE)THEN FIRMUPTHELIN
-                      ELSE FORCEEOF := TRUE;
-                    END;
-                  IF FORCEEOF THEN
-                    BEGIN
-                      PRINTCHAR(41);
-                      OPENPARENS := OPENPARENS-1;
-                      FLUSH(OUTPUT);
-                      FORCEEOF := FALSE;
-                      ENDFILEREADI;
-                      CHECKOUTERVA;
-                      GOTO 20;
-                    END;
-                  IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)THEN CURINPUT.LIMITFIELD := 
-                                                                                         CURINPUT.
-                                                                                         LIMITFIELD-
-                                                                                         1
-                  ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
-                  FIRST := CURINPUT.LIMITFIELD+1;
-                  CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
-                END{:362}
-              ELSE
-                BEGIN
-                  IF NOT(CURINPUT.NAMEFIELD=0)THEN
-                    BEGIN
+        ELSE
+      END{:344};
+    END ELSE BEGIN
+      CURINPUT.STATEFIELD := 33;
+      {360:}
+      IF CURINPUT.NAMEFIELD>17 THEN BEGIN
+        {362:}
+        LINE := LINE+1;
+        FIRST := CURINPUT.STARTFIELD;
+        IF NOT FORCEEOF THEN BEGIN
+          IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD], TRUE) THEN FIRMUPTHELIN
+          ELSE FORCEEOF := TRUE;
+        END;
+        IF FORCEEOF THEN BEGIN
+          PRINTCHAR(41);
+          OPENPARENS := OPENPARENS-1;
+          FLUSH(OUTPUT);
+          FORCEEOF := FALSE;
+          ENDFILEREADI;
+          CHECKOUTERVA;
+          GOTO 20;
+        END;
+        IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
+          THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
+          ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
+        FIRST := CURINPUT.LIMITFIELD+1;
+        CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
+        {:362}
+      END ELSE BEGIN
+        IF NOT(CURINPUT.NAMEFIELD=0) THEN BEGIN
                       CURCMD := 0;
                       CURCHR := 0;
                       GOTO 10;
@@ -6993,7 +7078,9 @@ BEGIN
         END{:789}{:342};
   10:
 END;
-{:341}{363:}
+{:341}
+
+{363:}
 PROCEDURE FIRMUPTHELIN;
 
 VAR K: 0..BUFSIZE;
@@ -9570,37 +9657,42 @@ VAR OLDSETTING: 0..21;
   K: 0..BUFSIZE;
   L: 0..BUFSIZE;
   MONTHS: PACKED ARRAY[1..36] OF CHAR;
-  FileName : string;
+  s: string;
+const 
+  MonthNames: array[1..12] of string[3] =
+    ('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
+     'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC');
 BEGIN
   OLDSETTING := SELECTOR;
   if job_name='' then job_name := 'texput';
   SELECTOR := 17;
 
-  FileName := job_name + '.log';
-  while not a_open_out(LOGFILE, FileName) do begin
-    FileName := prompt_file_name(FileName, 'transcript file name', '.log');
+  s := job_name + '.log';
+  while not a_open_out(LOGFILE, s) do begin
+    s := prompt_file_name(s, 'transcript file name', '.log');
   end;
-  LOGNAME := AddString(FileName);
+  LOGNAME := AddString(s);
 
   SELECTOR := 18;
   LOGOPENED := TRUE;
-{536:}
-  BEGIN
-    WRITE(LOGFILE,'This is TeX, Version 3.141592653 Free Pascal');
-    SLOWPRINT(FORMATIDENT);
-    print_str('  ');
-    PRINTINT(SYSDAY);
-    PRINTCHAR(32);
-    MONTHS := 'JANFEBMARAPRMAYJUNJULAUGSEPOCTNOVDEC';
-    FOR K:=3*SYSMONTH-2 TO 3*SYSMONTH DO
-      WRITE(LOGFILE,MONTHS[K]);
-    PRINTCHAR(32);
-    PRINTINT(SYSYEAR);
-    PRINTCHAR(32);
-    PRINTTWO(SYSTIME DIV 60);
-    PRINTCHAR(58);
-    PRINTTWO(SYSTIME MOD 60);
-  END{:536};
+
+  {536:}
+  WRITE(LOGFILE,'This is TeX, Version 3.141592653 Free Pascal');
+  SLOWPRINT(FORMATIDENT);
+    {This is the single remaining usage for `format_ident`:
+     Safe the string when reading the format file until it is printed here.
+     FIXME: open the log file at a fixed point in the program execution, e.g.
+            directly after loading the format file}
+
+  s := '  '
+    + IntToStr(sys_day) + ' '
+    + MonthNames[sys_month] + ' '
+    + IntToStr(sys_year) + ' '
+    + IntToStr02(sys_time div 60) + ':'
+    + IntToStr02(sys_time mod 60);
+  print_str(s);
+  {:536};
+
   INPUTSTACK[INPUTPTR] := CURINPUT;
   print_nl_str('**');
   L := INPUTSTACK[0].LIMITFIELD;
@@ -10690,13 +10782,12 @@ BEGIN
   CURS := CURS-1;
 END;{:629}{638:}
 PROCEDURE SHIPOUT(P:HALFWORD);
-
 LABEL 30;
-
-VAR PAGELOC: Int32;
+VAR
+  PAGELOC: Int32;
   J,K: 0..9;
-  S: POOLPOINTER;
-  OLDSETTING: 0..21;
+  s: string;
+  i: uint32;
 BEGIN
   IF EQTB[5297].INT>0 THEN
     BEGIN
@@ -10783,30 +10874,20 @@ BEGIN
       DVIFOUR(473628672);
       PREPAREMAG;
       DVIFOUR(EQTB[5280].INT);
-      OLDSETTING := SELECTOR;
-      SELECTOR := 21;
-      print_str(' TeX output ');
-      PRINTINT(EQTB[5286].INT);
-      PRINTCHAR(46);
-      PRINTTWO(EQTB[5285].INT);
-      PRINTCHAR(46);
-      PRINTTWO(EQTB[5284].INT);
-      PRINTCHAR(58);
-      PRINTTWO(EQTB[5283].INT DIV 60);
-      PRINTTWO(EQTB[5283].INT MOD 60);
-      SELECTOR := OLDSETTING;
-      BEGIN
-        DVIBUF[DVIPTR] := (POOLPTR-STRSTART[STRPTR]);
+
+      s := ' TeX output ' + IntToStr(EQTB[int_base+year_code].INT) + '.'
+                          + IntToStr02(EQTB[int_base+month_code].INT) + '.'
+                          + IntToStr02(EQTB[int_base+day_code].INT) + ':'
+                          + IntToStr02(EQTB[int_base+time_code].INT DIV 60)
+                          + IntToStr02(EQTB[int_base+time_code].INT MOD 60);
+      DVIBUF[DVIPTR] := length(s);
+      DVIPTR := DVIPTR+1;
+      IF DVIPTR=DVILIMIT THEN DVISWAP;
+      for i := 1 to length(s) do begin
+        DVIBUF[DVIPTR] := ord(s[i]);
         DVIPTR := DVIPTR+1;
         IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      FOR S:=STRSTART[STRPTR]TO POOLPTR-1 DO
-        BEGIN
-          DVIBUF[DVIPTR] := STRPOOL[S];
-          DVIPTR := DVIPTR+1;
-          IF DVIPTR=DVILIMIT THEN DVISWAP;
-        END;
-      POOLPTR := STRSTART[STRPTR];
+      end;
     END{:617};
   PAGELOC := DVIOFFSET+DVIPTR;
   BEGIN
@@ -20185,6 +20266,8 @@ VAR J,K,L: Int32;
   f: byte_file;
   Buf: array[0..91] of byte;
   FileName: string;
+  s: string;
+  LocalFormatIdent: STRNUMBER;
 BEGIN
   {1304:}
   IF SAVEPTR<>0 THEN
@@ -20209,24 +20292,18 @@ BEGIN
       END;
     END;
   {:1304}
-  
+
   {1328:}
-  SELECTOR := 21;
-  print_str(' (preloaded format=');
-  print_str(job_name);
-  PRINTCHAR(32);
-  PRINTINT(EQTB[5286].INT);
-  PRINTCHAR(46);
-  PRINTINT(EQTB[5285].INT);
-  PRINTCHAR(46);
-  PRINTINT(EQTB[5284].INT);
-  PRINTCHAR(41);
   IF INTERACTION=0 THEN SELECTOR := 18
-  ELSE SELECTOR := 19;
-  BEGIN
-    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-  END;
-  FORMATIDENT := MAKESTRING;
+                   ELSE SELECTOR := 19;
+
+  s := ' (preloaded format=' 
+    + job_name + ' '
+    + IntToStr(EQTB[int_base+year_code].INT) + '.'
+    + IntToStr(EQTB[int_base+month_code].INT) + '.'
+    + IntToStr(EQTB[int_base+day_code].INT) + chr(41);
+  LocalFormatIdent := AddString(s); 
+    {not necessary to set FORMATIDENT, because we are at the end of the program}
 
   FileName := job_name + '.fmt';
   while not b_open_out(f, FileName) do begin
@@ -20235,7 +20312,7 @@ BEGIN
   print_nl_str('Beginning to dump on file ');
   print_str(FileName);
   print_nl_str('');
-  SLOWPRINT(FORMATIDENT);
+  slow_print_str(s);
   {:1328}
 
   {1307: @<Dump constants for consistency check@>}
@@ -20510,7 +20587,7 @@ BEGIN
 
   {1326:}
   SetUInt32LE(Buf, 0, INTERACTION);
-  SetUInt32LE(Buf, 4, FORMATIDENT);
+  SetUInt32LE(Buf, 4, LocalFormatIdent);
   SetUInt32LE(Buf, 8, 69069);
   blockwrite(f, Buf, 12);
   EQTB[5294].INT := 0;
@@ -22539,8 +22616,8 @@ BEGIN
   INITPRIM;
   INITSTRPTR := STRPTR;
   INITPOOLPTR := POOLPTR;
-  FIXDATEANDTI;
 {$ENDIF}
+  fix_date_and_time;
 {55:}
   TALLY := 0;
   TERMOFFSET := 0;
@@ -22590,8 +22667,6 @@ BEGIN
   IF (EQTB[5311].INT<0) OR (EQTB[5311].INT>255) 
     THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
     ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
-
-  FIXDATEANDTI;
 
   MAGICOFFSET := STRSTART[892]-9*16{:765};
   IF INTERACTION=0 THEN SELECTOR := 16
