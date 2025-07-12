@@ -1383,13 +1383,6 @@ begin
      ((FILEOFFSET>0)AND(SELECTOR>=18)) THEN PRINTLN;
   print_str(s);
 end;
-
-PROCEDURE PRINTNL(S:STRNUMBER);
-BEGIN
-  IF ((TERMOFFSET>0)AND(ODD(SELECTOR)))OR((FILEOFFSET>0)AND(SELECTOR
-     >=18))THEN PRINTLN;
-  PRINT(S);
-END;
 {:62}
 
 {63:}
@@ -1467,53 +1460,28 @@ BEGIN
         PRINTESC(P-257);
         IF EQTB[3983+P-257].HH.RH=11 THEN PRINTCHAR(32);
       END
-    ELSE
-      IF P<1 THEN 
-        print_esc_str('IMPOSSIBLE.')
-      ELSE
-        slow_print_char(P-1)
-  ELSE
-    IF P>=2881 THEN
-      print_esc_str('IMPOSSIBLE.')
-    ELSE
-      IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) THEN
-        print_esc_str('NONEXISTENT.')
-      ELSE BEGIN
-        PRINTESC(HASH[P].RH);
-        PRINTCHAR(32);
-      END;
+    ELSE IF P<1 THEN print_esc_str('IMPOSSIBLE.')
+    ELSE slow_print_char(P-1)
+  ELSE IF P>=2881 THEN print_esc_str('IMPOSSIBLE.')
+  ELSE IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) THEN print_esc_str('NONEXISTENT.')
+  ELSE BEGIN
+    PRINTESC(HASH[P].RH);
+    PRINTCHAR(32);
+  END;
 END;
 {:262}{263:}
 PROCEDURE SPRINTCS(P:HALFWORD);
 BEGIN
   IF P<514 THEN
     IF P<257 THEN slow_print_char(P-1)
-  ELSE
-    IF P<513 THEN PRINTESC(P-257)
-  ELSE
-    BEGIN
+    ELSE IF P<513 THEN PRINTESC(P-257)
+    ELSE BEGIN
       print_esc_str('csname');
       print_esc_str('endcsname');
     END
   ELSE PRINTESC(HASH[P].RH);
 END;
-{:263}{518:}
-PROCEDURE PRINTFILENAM(N,A,E:Int32);
-BEGIN
-  SLOWPRINT(A);
-  SLOWPRINT(N);
-  SLOWPRINT(E);
-END;
-{:518}{699:}
-PROCEDURE PRINTSIZE(S:Int32);
-BEGIN
-  IF S=0 THEN print_esc_str('textfont')
-  ELSE
-    IF S=16 THEN print_esc_str('scriptfont')
-  ELSE
-    print_esc_str('scriptscriptfont');
-END;
-{:699}
+{:263}
 
 {1355:}
 procedure print_write_whatsit_str(s: string; P: HALFWORD);
@@ -1526,8 +1494,6 @@ BEGIN
   ELSE PRINTCHAR(45);
 END;
 {:1355}{78:}
-PROCEDURE NORMALIZESEL;
-FORWARD;
 PROCEDURE GETTOKEN;
 FORWARD;
 PROCEDURE TERMINPUT;
@@ -1732,6 +1698,24 @@ BEGIN
   10:
 END;
 {:82}
+
+{91:}
+PROCEDURE INTERROR(N: Int32);
+BEGIN
+  print_str(' (' + IntToStr(N) + ')');
+  ERROR;
+END;
+{:91}
+
+{92:}
+PROCEDURE NORMALIZESEL;
+BEGIN
+  IF LOGOPENED THEN SELECTOR := 19
+  ELSE SELECTOR := 17;
+  IF job_name='' THEN OPENLOGFILE;
+  IF INTERACTION=0 THEN SELECTOR := SELECTOR-1;
+END;
+{:92}
 
 procedure succumb;
 BEGIN
@@ -2003,16 +1987,10 @@ BEGIN
     K := K+1;
   END;
   STREQBUF := TRUE;
-END;{:45}
-
-{66:}
-PROCEDURE PRINTTWO(N:Int32);
-BEGIN
-  N := ABS(N)MOD 100;
-  PRINTCHAR(48+(N DIV 10));
-  PRINTCHAR(48+(N MOD 10));
 END;
-{:66}{67:}
+{:45}
+
+{67:}
 PROCEDURE PRINTHEX(N:Int32);
 
 VAR K: 0..22;
@@ -2025,11 +2003,12 @@ BEGIN
     K := K+1;
   UNTIL N=0;
   PRINTTHEDIGS(K);
-END;{:67}{69:}
+END;
+{:67}
+
+{69:}
 PROCEDURE PRINTROMANIN(N:Int32);
-
 LABEL 10;
-
 VAR J,K: POOLPOINTER;
   U,V: NONNEGATIVEI;
 BEGIN
@@ -2105,23 +2084,8 @@ BEGIN
 END;
 {:71}
 
-{91:}
-PROCEDURE INTERROR(N:Int32);
-BEGIN
-  print_str(' (');
-  PRINTINT(N);
-  PRINTCHAR(41);
-  ERROR;
-END;
-{:91}{92:}
-PROCEDURE NORMALIZESEL;
-BEGIN
-  IF LOGOPENED THEN SELECTOR := 19
-  ELSE SELECTOR := 17;
-  IF job_name='' THEN OPENLOGFILE;
-  IF INTERACTION=0 THEN SELECTOR := SELECTOR-1;
-END;
-{:92}{98:}
+
+{98:}
 PROCEDURE PAUSEFORINST;
 BEGIN
   IF OKTOINTERRUP THEN
@@ -2164,28 +2128,39 @@ BEGIN
     END;
   ROUNDDECIMAL := (A+1)DIV 2;
 END;
-{:102}{103:}
-PROCEDURE PRINTSCALED(S:SCALED);
+{:102}
 
-VAR DELTA: SCALED;
+{103:}
+{convert SCALED to string}
+function ScaledStr(Scale: SCALED) : string;
+VAR
+  Delta: SCALED;
+  st: string;
 BEGIN
-  IF S<0 THEN
-    BEGIN
-      PRINTCHAR(45);
-      S := -S;
-    END;
-  PRINTINT(S DIV 65536);
-  PRINTCHAR(46);
-  S := 10*(S MOD 65536)+5;
-  DELTA := 10;
+  st := '';
+  if Scale<0 then begin
+    st := st + '-';
+    Scale := -Scale;
+  end;
+  st := st + IntToStr(Scale shr 16) + '.';
+  Scale := 10*(Scale and 65535)+5;
+  Delta := 10;
   REPEAT
-    IF DELTA>65536 THEN S := S-17232;
-    PRINTCHAR(48+(S DIV 65536));
-    S := 10*(S MOD 65536);
-    DELTA := DELTA*10;
-  UNTIL S<=DELTA;
+    IF Delta>65536 THEN Scale := Scale-17232;
+    st := st + chr((Scale shr 16)+48);
+    Scale := 10*(Scale and 65535);
+    Delta := Delta*10;
+  UNTIL Scale <= Delta;
+  ScaledStr := st;
 END;
-{:103}{105:}
+
+PROCEDURE PRINTSCALED(S:SCALED);
+BEGIN
+  print_str(ScaledStr(S));
+END;
+{:103}
+
+{105:}
 FUNCTION MULTANDADD(N:Int32;X,Y,MAXANSWER:SCALED): SCALED;
 BEGIN
   IF N<0 THEN
@@ -2283,36 +2258,11 @@ BEGIN
       IF R>1290 THEN BADNESS := 10000
       ELSE BADNESS := (R*R*R+131072)DIV 262144;
     END;
-END;{:108}{114:}{$IFDEF DEBUGGING}
-PROCEDURE PRINTWORD(W:MEMORYWORD);
-BEGIN
-  PRINTINT(W.INT);
-  PRINTCHAR(32);
-  PRINTSCALED(W.INT);
-  PRINTCHAR(32);
-  PRINTSCALED(ISORound(65536*W.GR));
-  PRINTLN;
-  PRINTINT(W.HH.LH);
-  PRINTCHAR(61);
-  PRINTINT(W.HH.B0);
-  PRINTCHAR(58);
-  PRINTINT(W.HH.B1);
-  PRINTCHAR(59);
-  PRINTINT(W.HH.RH);
-  PRINTCHAR(32);
-  PRINTINT(W.QQQQ.B0);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B1);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B2);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B3);
-END;{$ENDIF}
-{:114}{119:}{292:}
+END;{:108}
+
+{119:}
+{292:}
 PROCEDURE SHOWTOKENLIS(P,Q:Int32;L:Int32);
-
-LABEL 10;
-
 VAR M,C: Int32;
   MATCHCHR: ASCIICODE;
   N: ASCIICODE;
@@ -2320,64 +2270,61 @@ BEGIN
   MATCHCHR := 35;
   N := 48;
   TALLY := 0;
-  WHILE (P<>0)AND(TALLY<L) DO
-    BEGIN
-      IF P=Q THEN{320:}
-        BEGIN
-          FIRSTCOUNT := TALLY
-          ;
-          TRICKCOUNT := TALLY+1+ERRORLINE-HALFERRORLIN;
-          IF TRICKCOUNT<ERRORLINE THEN TRICKCOUNT := ERRORLINE;
-        END{:320};
-{293:}
-      IF (P<HIMEMMIN)OR(P>MEMEND)THEN
-        BEGIN
-          print_esc_str('CLOBBERED.');
-          GOTO 10;
-        END;
-      IF MEM[P].HH.LH>=4095 THEN PRINTCS(MEM[P].HH.LH-4095)
-      ELSE
-        BEGIN
-          M := MEM[P
-               ].HH.LH DIV 256;
-          C := MEM[P].HH.LH MOD 256;
-          IF MEM[P].HH.LH<0 THEN print_esc_str('BAD.')
-          ELSE{294:}
-            CASE M OF 
-              1,2,3,4,7,8,10,
-              11,12: slow_print_char(C);
-              6:
-                 BEGIN
-                   slow_print_char(C);
-                   slow_print_char(C);
-                 END;
-              5:
-                 BEGIN
-                   PRINT(MATCHCHR);
-                   IF C<=9 THEN PRINTCHAR(C+48)
-                   ELSE
-                     BEGIN
-                       PRINTCHAR(33);
-                       GOTO 10;
-                     END;
-                 END;
-              13:
-                  BEGIN
-                    MATCHCHR := C;
-                    slow_print_char(C);
-                    N := N+1;
-                    PRINTCHAR(N);
-                    IF N>57 THEN GOTO 10;
-                  END;
-              14: print_str('->');
-              ELSE print_esc_str('BAD.')
-            END{:294};
-        END{:293};
-      P := MEM[P].HH.RH;
+  WHILE (P<>0)AND(TALLY<L) DO BEGIN
+    IF P=Q THEN BEGIN
+      {320:}
+      FIRSTCOUNT := TALLY;
+      TRICKCOUNT := TALLY+1+ERRORLINE-HALFERRORLIN;
+      IF TRICKCOUNT<ERRORLINE THEN TRICKCOUNT := ERRORLINE;
+      {:320}
     END;
+
+    {293:}
+    IF (P<HIMEMMIN)OR(P>MEMEND) THEN BEGIN
+      print_esc_str('CLOBBERED.');
+      exit;
+    END;
+    IF MEM[P].HH.LH>=4095 THEN PRINTCS(MEM[P].HH.LH-4095)
+    ELSE BEGIN
+      M := MEM[P].HH.LH DIV 256;
+      C := MEM[P].HH.LH MOD 256;
+      IF MEM[P].HH.LH<0 THEN print_esc_str('BAD.')
+      ELSE
+        {294:}
+        CASE M OF 
+          1,2,3,4,7,8,10,11,12: slow_print_char(C);
+          6: BEGIN
+               slow_print_char(C);
+               slow_print_char(C);
+             END;
+          5: BEGIN
+               PRINT(MATCHCHR);
+               IF C<=9 THEN PRINTCHAR(C+48)
+               ELSE BEGIN
+                 PRINTCHAR(33);
+                 exit;
+               END;
+             END;
+          13: BEGIN
+                MATCHCHR := C;
+                slow_print_char(C);
+                N := N+1;
+                PRINTCHAR(N);
+                IF N>57 THEN exit;
+              END;
+          14: print_str('->');
+          ELSE print_esc_str('BAD.')
+        END
+        {:294};
+    END
+    {:293};
+    P := MEM[P].HH.RH;
+  END;
   IF P<>0 THEN print_esc_str('ETC.');
-  10:
-END;{:292}{306:}
+END;
+{:292}
+
+{306:}
 PROCEDURE RUNAWAY;
 
 VAR P: HALFWORD;
@@ -2938,36 +2885,34 @@ END;
 {:176}
 
 {177:}
-procedure print_glue_str(D:SCALED;ORDER:Int32; s: string);
-BEGIN
-  PRINTSCALED(D);
-  IF (ORDER<0)OR(ORDER>3) THEN print_str('foul')
-  ELSE IF ORDER>0 THEN BEGIN
-    print_str('fil');
-    WHILE ORDER>1 DO BEGIN
-      PRINTCHAR(108);
-      ORDER := ORDER-1;
-    END;
-  END ELSE IF s<>'' THEN print_str(s);
-END;
+function GlueStr(Scale: SCALED; Order: int32; Units: string) : string;
+var s: string;
+begin
+  s := ScaledStr(Scale);
+  case Order of
+    0: s := s + Units;
+    1: s := s + 'fil';
+    2: s := s + 'fill';
+    3: s := s + 'filll';
+    else s := s + 'foul';
+  end;
+  GlueStr := s;
+end;
 {:177}
 
 {178:}
-procedure print_spec_str(P: Int32; s: string);
-BEGIN
-  IF (P<MEMMIN)OR(P>=LOMEMMAX)THEN PRINTCHAR(42)
+function SpecStr(P: Int32; Units: string) : string;
+var s: string;
+begin
+  if (P<mem_min) or (P>=LOMEMMAX) THEN s := '*'
   ELSE BEGIN
-    PRINTSCALED(MEM[P+1].INT);
-    IF S<>'' THEN print_str(s);
-    IF MEM[P+2].INT<>0 THEN BEGIN
-      print_str(' plus ');
-      print_glue_str(MEM[P+2].INT, MEM[P].HH.B0, s);
-    END;
-    IF MEM[P+3].INT<>0 THEN BEGIN
-      print_str(' minus ');
-      print_glue_str(MEM[P+3].INT, MEM[P].HH.B1, s);
-    END;
+    s := ScaledStr(MEM[P+1].INT) + Units;
+    IF MEM[P+2].INT<>0 THEN
+      s := s + ' plus ' + GlueStr(MEM[P+2].INT, MEM[P].HH.B0, Units);
+    IF MEM[P+3].INT<>0 THEN 
+      s := s + ' minus ' + GlueStr(MEM[P+3].INT, MEM[P].HH.B1, Units);
   END;
+  SpecStr := s;
 END;
 {:178}
 
@@ -3102,30 +3047,17 @@ BEGIN
                 IF MEM[P].HH.B0=0 THEN print_esc_str('h')
                 ELSE IF MEM[P].HH.B0=1 THEN print_esc_str('v')
                 ELSE print_esc_str('unset');
-                print_str('box(');
-                PRINTSCALED(MEM[P+3].INT);
-                PRINTCHAR(43);
-                PRINTSCALED(MEM[P+2].INT);
-                print_str(')x');
-                PRINTSCALED(MEM[P+1].INT);
+                print_str('box(' + ScaledStr(MEM[P+3].INT)
+                  + '+' + ScaledStr(MEM[P+2].INT)
+                  + ')x' + ScaledStr(MEM[P+1].INT));
                 IF MEM[P].HH.B0=13 THEN{185:}
                   BEGIN
                     IF MEM[P].HH.B1<>0 THEN
-                      BEGIN
-                        print_str(' (');
-                        PRINTINT(MEM[P].HH.B1+1);
-                        print_str(' columns)');
-                      END;
+                        print_str(' (' + IntToStr(MEM[P].HH.B1+1) + ' columns)');
                     IF MEM[P+6].INT<>0 THEN
-                      BEGIN
-                        print_str(', stretch ');
-                        print_glue_str(MEM[P+6].INT, MEM[P+5].HH.B1, '');
-                      END;
+                        print_str(', stretch ' + GlueStr(MEM[P+6].INT, MEM[P+5].HH.B1, ''));
                     IF MEM[P+4].INT<>0 THEN
-                      BEGIN
-                        print_str(', shrink ');
-                        print_glue_str(MEM[P+4].INT, MEM[P+5].HH.B0, '');
-                      END;
+                        print_str(', shrink ' + GlueStr(MEM[P+4].INT, MEM[P+5].HH.B0, ''));
                   END{:185}
                 ELSE
                   BEGIN{186:}
@@ -3140,15 +3072,12 @@ BEGIN
                             BEGIN
                               IF G>0.0 THEN PRINTCHAR(62)
                               ELSE print_str('< -');
-                              print_glue_str(20000*65536, MEM[P+5].HH.B1, '');
+                              print_str(GlueStr(20000*65536, MEM[P+5].HH.B1, ''));
                             END
-                        ELSE print_glue_str(ISORound(65536*G), MEM[P+5].HH.B1, '');
+                        ELSE print_str(GlueStr(ISORound(65536*G), MEM[P+5].HH.B1, ''));
                       END{:186};
                     IF MEM[P+4].INT<>0 THEN
-                      BEGIN
-                        print_str(', shifted ');
-                        PRINTSCALED(MEM[P+4].INT);
-                      END;
+                        print_str(', shifted ' + ScaledStr(MEM[P+4].INT));
                   END;
                 BEGIN
                   BEGIN
@@ -3170,16 +3099,11 @@ BEGIN
              END{:187};
           3:{188:}
              BEGIN
-               print_esc_str('insert');
-               PRINTINT(MEM[P].HH.B1-0);
-               print_str(', natural size ');
-               PRINTSCALED(MEM[P+3].INT);
-               print_str('; split(');
-               print_spec_str(MEM[P+4].HH.RH, '');
-               PRINTCHAR(44);
-               PRINTSCALED(MEM[P+2].INT);
-               print_str('); float cost ');
-               PRINTINT(MEM[P+1].INT);
+               print_esc_str('insert' + IntToStr(MEM[P].HH.B1-0)
+                 + ', natural size ' + ScaledStr(MEM[P+3].INT)
+                 + '; split(' + SpecStr(MEM[P+4].HH.RH, '')
+                 + ',' + ScaledStr(MEM[P+2].INT)
+                 + '); float cost ' + IntToStr(MEM[P+1].INT));
                BEGIN
                  BEGIN
                    STRPOOL[POOLPTR] := 46;
@@ -3195,7 +3119,10 @@ BEGIN
                   BEGIN
                     print_write_whatsit_str('openout', P);
                     PRINTCHAR(61);
-                    PRINTFILENAM(MEM[P+1].HH.RH,MEM[P+2].HH.LH,MEM[P+2].HH.RH);
+                    {print_file_name}
+                    print_str(GetString(MEM[P+2].HH.LH) +
+                              GetString(MEM[P+1].HH.RH) +
+                              GetString(MEM[P+2].HH.RH));
                   END;
                1:
                   BEGIN
@@ -3225,11 +3152,8 @@ BEGIN
                 BEGIN
                   print_esc_str('');
                   IF MEM[P].HH.B1=101 THEN PRINTCHAR(99)
-                  ELSE
-                    IF MEM[P].HH.B1=102 THEN
-                      PRINTCHAR(120);
-                  print_str('leaders ');
-                  print_spec_str(MEM[P+1].HH.LH, '');
+                  ELSE IF MEM[P].HH.B1=102 THEN PRINTCHAR(120);
+                  print_str('leaders ' + SpecStr(MEM[P+1].HH.LH, ''));
                   BEGIN
                     BEGIN
                       STRPOOL[POOLPTR] := 46;
@@ -3246,17 +3170,15 @@ BEGIN
                     BEGIN
                       PRINTCHAR(40);
                       IF MEM[P].HH.B1<98 THEN PRINTSKIPPAR(MEM[P].HH.B1-1)
-                      ELSE
-                        IF MEM[P].HH.B1
-                           =98 THEN print_esc_str('nonscript')
+                      ELSE IF MEM[P].HH.B1=98 THEN print_esc_str('nonscript')
                       ELSE print_esc_str('mskip');
                       PRINTCHAR(41);
                     END;
                   IF MEM[P].HH.B1<>98 THEN
                     BEGIN
                       PRINTCHAR(32);
-                      IF MEM[P].HH.B1<98 THEN print_spec_str(MEM[P+1].HH.LH, '')
-                      ELSE print_spec_str(MEM[P+1].HH.LH, 'mu');
+                      IF MEM[P].HH.B1<98 THEN print_str(SpecStr(MEM[P+1].HH.LH, ''))
+                                         ELSE print_str(SpecStr(MEM[P+1].HH.LH, 'mu'));
                     END;
                 END{:189};
           11:{191:}
@@ -3267,22 +3189,14 @@ BEGIN
                   PRINTSCALED(MEM[P+1].INT);
                   IF MEM[P].HH.B1=2 THEN print_str(' (for accent)');
                 END
-              ELSE
-                BEGIN
-                  print_esc_str('mkern');
-                  PRINTSCALED(MEM[P+1].INT);
-                  print_str('mu');
-                END{:191};
+              ELSE print_esc_str('mkern' + ScaledStr(MEM[P+1].INT) + 'mu');
+            {:191}
           9:{192:}
              BEGIN
                print_esc_str('math');
                IF MEM[P].HH.B1=0 THEN print_str('on')
-               ELSE print_str('off');
-               IF MEM[P+1].INT<>0 THEN
-                 BEGIN
-                   print_str(', surrounded ');
-                   PRINTSCALED(MEM[P+1].INT);
-                 END;
+                                 ELSE print_str('off');
+               IF MEM[P+1].INT<>0 THEN print_str(', surrounded ' + ScaledStr(MEM[P+1].INT));
              END{:192};
           6:{193:}
              BEGIN
@@ -3461,8 +3375,7 @@ END;{:200}{201:}
 PROCEDURE DELETEGLUERE(P:HALFWORD);
 BEGIN
   IF MEM[P].HH.RH=0 THEN FREENODE(P,4)
-  ELSE MEM[P].HH.RH := MEM[P].HH.
-                       RH-1;
+  ELSE MEM[P].HH.RH := MEM[P].HH.RH-1;
 END;{:201}{202:}
 PROCEDURE FLUSHNODELIS(P:HALFWORD);
 
@@ -3743,11 +3656,27 @@ BEGIN
   NESTPTR := NESTPTR-1;
   CURLIST := NEST[NESTPTR];
 END;
-{:217}{218:}
-PROCEDURE PRINTTOTALS;
-FORWARD;
-PROCEDURE SHOWACTIVITI;
+{:217}
 
+{985:}
+PROCEDURE PRINTTOTALS;
+BEGIN
+  PRINTSCALED(PAGESOFAR[1]);
+  IF PAGESOFAR[2]<>0 THEN
+      print_str(' plus ' + ScaledStr(PAGESOFAR[2]));
+  IF PAGESOFAR[3]<>0 THEN
+      print_str(' plus ' + ScaledStr(PAGESOFAR[3]) + 'fil');
+  IF PAGESOFAR[4]<>0 THEN
+      print_str(' plus ' + ScaledStr(PAGESOFAR[4]) + 'fill');
+  IF PAGESOFAR[5]<>0 THEN
+      print_str(' plus ' + ScaledStr(PAGESOFAR[5]) + 'filll');
+  IF PAGESOFAR[6]<>0 THEN
+      print_str(' minus ' + ScaledStr(PAGESOFAR[6]));
+END;
+{:985}
+
+{218:}
+PROCEDURE SHOWACTIVITI;
 VAR P: 0..NESTSIZE;
   M: -203..203;
   A: MEMORYWORD;
@@ -3788,8 +3717,7 @@ BEGIN
                 BEGIN
                   print_nl_str('total height ');
                   PRINTTOTALS;
-                  print_nl_str(' goal height ');
-                  PRINTSCALED(PAGESOFAR[0]);
+                  print_nl_str(' goal height ' + ScaledStr(PAGESOFAR[0]));
                   R := MEM[30000].HH.RH;
                   WHILE R<>30000 DO
                     BEGIN
@@ -4379,34 +4307,37 @@ BEGIN
           print_esc_str('mathchar');
           PRINTHEX(CHRCODE);
         END;
-{:1223}{1231:}
-    85:
-        IF CHRCODE=3983 THEN print_esc_str('catcode')
+{:1223}
+
+{1231:}
+    85: IF CHRCODE=3983 THEN print_esc_str('catcode')
         ELSE IF CHRCODE=5007 THEN print_esc_str('mathcode')
         ELSE IF CHRCODE=4239 THEN print_esc_str('lccode')
         ELSE IF CHRCODE=4495 THEN print_esc_str('uccode')
         ELSE IF CHRCODE=4751 THEN print_esc_str('sfcode')
         ELSE print_esc_str('delcode');
-    86: PRINTSIZE(CHRCODE-3935);
-{:1231}{1251:}
-    99:
-        IF CHRCODE=1 THEN print_esc_str('patterns')
+    86: if CHRCODE=3935 then print_esc_str('textfont')
+        else if CHRCODE=3951 then print_esc_str('scriptfont')
+        else print_esc_str('scriptscriptfont');
+
+{:1231}
+
+{1251:}
+    99: IF CHRCODE=1 THEN print_esc_str('patterns')
         ELSE print_esc_str('hyphenation');
-{:1251}{1255:}
-    78:
-        IF CHRCODE=0 THEN print_esc_str('hyphenchar')
+{:1251}
+
+{1255:}
+    78: IF CHRCODE=0 THEN print_esc_str('hyphenchar')
         ELSE print_esc_str('skewchar');
-{:1255}{1261:}
-    87:
-        BEGIN
+{:1255}
+
+{1261:}
+    87: BEGIN
           print_str('select font ');
           SLOWPRINT(FONTNAME[CHRCODE]);
-          IF FONTSIZE[CHRCODE]<>FONTDSIZE[CHRCODE]THEN
-            BEGIN
-              print_str(' at ');
-              PRINTSCALED(FONTSIZE[CHRCODE]);
-              print_str('pt');
-            END;
+          IF FONTSIZE[CHRCODE]<>FONTDSIZE[CHRCODE] THEN
+              print_str(' at ' + ScaledStr(FONTSIZE[CHRCODE]) + 'pt');
         END;
 {:1261}{1263:}
     100:
@@ -4419,15 +4350,15 @@ BEGIN
 {:1263}{1273:}
     60:
         IF CHRCODE=0 THEN print_esc_str('closein')
-        ELSE print_esc_str('openin');
+                     ELSE print_esc_str('openin');
 {:1273}{1278:}
     58:
         IF CHRCODE=0 THEN print_esc_str('message')
-        ELSE print_esc_str('errmessage');
+                     ELSE print_esc_str('errmessage');
 {:1278}{1287:}
     57:
         IF CHRCODE=4239 THEN print_esc_str('lowercase')
-        ELSE print_esc_str('uppercase');
+                        ELSE print_esc_str('uppercase');
 {:1287}{1292:}
     19:
         CASE CHRCODE OF 
@@ -4459,182 +4390,114 @@ BEGIN
         END;{:1346}
     ELSE print_str('[unknown command code!]')
   END;
-END;{:298}{$IFDEF STATS}
+END;{:298}
+
+{$IFDEF STATS}
 PROCEDURE SHOWEQTB(N:HALFWORD);
 BEGIN
   IF N<1 THEN PRINTCHAR(63)
-  ELSE
-    IF N<2882 THEN{223:}
-      BEGIN
-        SPRINTCS(N
-        );
-        PRINTCHAR(61);
-        PRINTCMDCHR(EQTB[N].HH.B0,EQTB[N].HH.RH);
-        IF EQTB[N].HH.B0>=111 THEN
-          BEGIN
-            PRINTCHAR(58);
-            SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
-          END;
-      END{:223}
-  ELSE
-    IF N<3412 THEN{229:}
-      IF N<2900 THEN
-        BEGIN
-          PRINTSKIPPAR(N
-                       -2882);
-          PRINTCHAR(61);
-          IF N<2897 THEN print_spec_str(EQTB[N].HH.RH, 'pt')
-          ELSE print_spec_str(EQTB[N].HH.RH, 'mu');
-        END
-  ELSE
-    IF N<3156 THEN
-      BEGIN
-        print_esc_str('skip');
-        PRINTINT(N-2900);
-        PRINTCHAR(61);
-        print_spec_str(EQTB[N].HH.RH, 'pt');
-      END
-  ELSE
-    BEGIN
-      print_esc_str('muskip');
-      PRINTINT(N-3156);
+  ELSE IF N<2882 THEN BEGIN
+    SPRINTCS(N);
+    PRINTCHAR(61);
+    PRINTCMDCHR(EQTB[N].HH.B0,EQTB[N].HH.RH);
+    IF EQTB[N].HH.B0>=111 THEN BEGIN
+      PRINTCHAR(58);
+      SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+    END;
+  END ELSE IF N<3412 THEN begin
+    IF N<2900 THEN BEGIN
+      PRINTSKIPPAR(N-2882);
       PRINTCHAR(61);
-      print_spec_str(EQTB[N].HH.RH, 'mu');
-    END{:229}
-  ELSE
-    IF N<5263 THEN{233:}
-      IF N=3412 THEN
-        BEGIN
-          print_esc_str('parshape');
-          PRINTCHAR(61);
-          IF EQTB[3412].HH.RH=0 THEN PRINTCHAR(48)
-          ELSE PRINTINT(MEM[EQTB[3412].HH.
-                        RH].HH.LH);
-        END
-  ELSE
-    IF N<3422 THEN
-      BEGIN
-        PRINTCMDCHR(72,N);
-        PRINTCHAR(61);
-        IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
-      END
-  ELSE
-    IF N<3678 THEN
-      BEGIN
-        print_esc_str('toks');
-        PRINTINT(N-3422);
-        PRINTCHAR(61);
-        IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
-      END
-  ELSE
-    IF N<3934 THEN
-      BEGIN
-        print_esc_str('box');
-        PRINTINT(N-3678);
-        PRINTCHAR(61);
-        IF EQTB[N].HH.RH=0 THEN print_str('void')
-        ELSE
-          BEGIN
-            DEPTHTHRESHO := 0;
-            BREADTHMAX := 1;
-            SHOWNODELIST(EQTB[N].HH.RH);
-          END;
-      END
-  ELSE
-    IF N<3983 THEN{234:}
-      BEGIN
-        IF N=3934 THEN print_str('current font')
-        ELSE
-          IF N<
-             3951 THEN
-            BEGIN
-              print_esc_str('textfont');
-              PRINTINT(N-3935);
-            END
-        ELSE
-          IF N<3967 THEN
-            BEGIN
-              print_esc_str('scriptfont');
-              PRINTINT(N-3951);
-            END
-        ELSE
-          BEGIN
-            print_esc_str('scriptscriptfont');
-            PRINTINT(N-3967);
-          END;
-        PRINTCHAR(61);
-        PRINTESC(HASH[2624+EQTB[N].HH.RH].RH);
-      END{:234}
-  ELSE{235:}
-    IF N<5007 THEN
-      BEGIN
-        IF N<4239 THEN
-          BEGIN
-            print_esc_str('catcode');
-            PRINTINT(N-3983);
-          END
-        ELSE
-          IF N<4495 THEN
-            BEGIN
-              print_esc_str('lccode');
-              PRINTINT(N-4239);
-            END
-        ELSE
-          IF N<4751 THEN
-            BEGIN
-              print_esc_str('uccode');
-              PRINTINT(N-4495);
-            END
-        ELSE
-          BEGIN
-            print_esc_str('sfcode');
-            PRINTINT(N-4751);
-          END;
-        PRINTCHAR(61);
-        PRINTINT(EQTB[N].HH.RH);
-      END
-  ELSE
-    BEGIN
+      IF N<2897 THEN print_str(SpecStr(EQTB[N].HH.RH, 'pt'))
+                ELSE print_str(SpecStr(EQTB[N].HH.RH, 'mu'));
+    END ELSE IF N<3156 THEN BEGIN
+      print_esc_str('skip' + IntToStr(N-2900) + '=' + SpecStr(EQTB[N].HH.RH, 'pt'));
+    END ELSE BEGIN
+      print_esc_str('muskip' + IntToStr(N-3156) + '=' + SpecStr(EQTB[N].HH.RH, 'mu'));
+    END
+  end ELSE IF N<5263 THEN begin
+    IF N=3412 THEN BEGIN
+      print_esc_str('parshape');
+      PRINTCHAR(61);
+      IF EQTB[3412].HH.RH=0 THEN PRINTCHAR(48)
+                            ELSE PRINTINT(MEM[EQTB[3412].HH.RH].HH.LH);
+    END ELSE IF N<3422 THEN BEGIN
+      PRINTCMDCHR(72,N);
+      PRINTCHAR(61);
+      IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+    END ELSE IF N<3678 THEN BEGIN
+      print_esc_str('toks');
+      PRINTINT(N-3422);
+      PRINTCHAR(61);
+      IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+    END ELSE IF N<3934 THEN BEGIN
+      print_esc_str('box');
+      PRINTINT(N-3678);
+      PRINTCHAR(61);
+      IF EQTB[N].HH.RH=0 THEN print_str('void')
+      ELSE BEGIN
+        DEPTHTHRESHO := 0;
+        BREADTHMAX := 1;
+        SHOWNODELIST(EQTB[N].HH.RH);
+      END;
+    END ELSE IF N<3983 THEN BEGIN
+      IF N=3934 THEN print_str('current font')
+      ELSE IF N<3951 THEN BEGIN
+        print_esc_str('textfont');
+        PRINTINT(N-3935);
+      END ELSE IF N<3967 THEN BEGIN
+        print_esc_str('scriptfont');
+        PRINTINT(N-3951);
+      END ELSE BEGIN
+        print_esc_str('scriptscriptfont');
+        PRINTINT(N-3967);
+      END;
+      PRINTCHAR(61);
+      PRINTESC(HASH[2624+EQTB[N].HH.RH].RH);
+    END ELSE IF N<5007 THEN BEGIN
+      IF N<4239 THEN BEGIN
+        print_esc_str('catcode');
+        PRINTINT(N-3983);
+      END ELSE IF N<4495 THEN BEGIN
+        print_esc_str('lccode');
+        PRINTINT(N-4239);
+      END ELSE IF N<4751 THEN BEGIN
+        print_esc_str('uccode');
+        PRINTINT(N-4495);
+      END ELSE BEGIN
+        print_esc_str('sfcode');
+        PRINTINT(N-4751);
+      END;
+      PRINTCHAR(61);
+      PRINTINT(EQTB[N].HH.RH);
+    END ELSE BEGIN
       print_esc_str('mathcode');
       PRINTINT(N-5007);
       PRINTCHAR(61);
       PRINTINT(EQTB[N].HH.RH-0);
-    END{:235}{:233}
-  ELSE
-    IF N<5830 THEN{242:}
-      BEGIN
-        IF N<5318 THEN PRINTPARAM(N-5263)
-        ELSE
-          IF N<5574 THEN
-            BEGIN
-              print_esc_str('count');
-              PRINTINT(N-5318);
-            END
-        ELSE
-          BEGIN
-            print_esc_str('delcode');
-            PRINTINT(N-5574);
-          END;
-        PRINTCHAR(61);
-        PRINTINT(EQTB[N].INT);
-      END{:242}
-  ELSE
-    IF N<=6106 THEN{251:}
-      BEGIN
-        IF N<5851 THEN PRINTLENGTHP(N
-                                    -5830)
-        ELSE
-          BEGIN
-            print_esc_str('dimen');
-            PRINTINT(N-5851);
-          END;
-        PRINTCHAR(61);
-        PRINTSCALED(EQTB[N].INT);
-        print_str('pt');
-      END{:251}
-  ELSE PRINTCHAR(63);
+    END
+  end ELSE IF N<5830 THEN BEGIN
+    IF N<5318 THEN begin
+      PRINTPARAM(N-5263)
+    end ELSE IF N<5574 THEN BEGIN
+      print_esc_str('count');
+      PRINTINT(N-5318);
+    END ELSE BEGIN
+      print_esc_str('delcode');
+      PRINTINT(N-5574);
+    END;
+    PRINTCHAR(61);
+    PRINTINT(EQTB[N].INT);
+  END ELSE IF N<=6106 THEN BEGIN
+    IF N<5851 THEN PRINTLENGTHP(N-5830)
+    ELSE print_esc_str('dimen' + IntToSStr(N-5851));
+    print_str('=' + ScaledStr(EQTB[N].INT) + 'pt');
+  END ELSE PRINTCHAR(63);
 END;
-{$ENDIF}{:252}{259:}
+{$ENDIF}
+{:252}
+
+{259:}
 FUNCTION IDLOOKUP(J,L:Int32): HALFWORD;
 
 LABEL 40;
@@ -4942,7 +4805,9 @@ PROCEDURE TOKENSHOW(P:HALFWORD);
 BEGIN
   IF P<>0 THEN SHOWTOKENLIS(MEM[P].HH.RH,0,10000000);
 END;
-{:295}{296:}
+{:295}
+
+{296:}
 PROCEDURE PRINTMEANING;
 BEGIN
   PRINTCMDCHR(CURCMD,CURCHR);
@@ -4959,7 +4824,10 @@ BEGIN
         PRINTLN;
         TOKENSHOW(CURMARK[CURCHR]);
       END;
-END;{:296}{299:}
+END;
+{:296}
+
+{299:}
 PROCEDURE SHOWCURCMDCH;
 BEGIN
   BEGINDIAGNOS;
@@ -6075,9 +5943,7 @@ BEGIN
                 IF EQTB[5293].INT>0 THEN
                   BEGIN
                     BEGINDIAGNOS;
-                    PRINTNL(MATCHCHR);
-                    PRINTINT(N);
-                    print_str('<-');
+                    print_nl_str(GetString(MATCHCHR) + IntToStr(N) + '<-');
                     SHOWTOKENLIS(PSTACK[N-1],0,1000);
                     ENDDIAGNOSTI(FALSE);
                   END;
@@ -7486,6 +7352,7 @@ BEGIN
   SCANRULESPEC := Q;
 END;
 {:463}{464:}
+
 FUNCTION STRTOKS(B:POOLPOINTER): HALFWORD;
 
 VAR P: HALFWORD;
@@ -7526,12 +7393,52 @@ BEGIN
   POOLPTR := B;
   STRTOKS := P;
 END;
-{:464}{465:}
-FUNCTION THETOKS: HALFWORD;
 
-VAR OLDSETTING: 0..21;
+
+{@Before we get into the details of |scan_toks|, let's consider a much
+simpler task, that of converting the current string into a token list.
+The |str_toks| function does this; it classifies spaces as type |spacer|
+and everything else as type |other_char|.
+
+The token list created by |str_toks| begins at |link(temp_head)| and ends
+at the value |p| that is returned. (If |p=temp_head|, the list is empty.)}
+
+function str_toks(const s: string): HALFWORD;
+VAR 
+  P: HALFWORD;
+  Q: HALFWORD;
+  T: HALFWORD;
+  i: uint32;
+BEGIN
+  P := 29997;
+  MEM[P].HH.RH := 0;
+
+  for i := 1 to length(s) do begin
+    T := ord(s[i]);
+    IF T=32 THEN T := 2592
+            ELSE T := 3072+T;
+    Q := AVAIL;
+    IF Q=0 THEN Q := GETAVAIL
+    ELSE BEGIN
+      AVAIL := MEM[Q].HH.RH;
+      MEM[Q].HH.RH := 0;
+{$IFDEF STATS}
+      DYNUSED := DYNUSED+1;
+{$ENDIF}
+    END;
+    MEM[P].HH.RH := Q;
+    MEM[Q].HH.LH := T;
+    P := Q;
+  end;
+  str_toks := P;
+END;
+{:464}
+
+{465:}
+FUNCTION THETOKS: HALFWORD;
+VAR
   P,Q,R: HALFWORD;
-  B: POOLPOINTER;
+  s: string;
 BEGIN
   GETXTOKEN;
   SCANSOMETHIN(5,FALSE);
@@ -7561,7 +7468,8 @@ BEGIN
                         AVAIL := MEM[Q].HH.RH;
                         MEM[Q].HH.RH := 0;
 {$IFDEF STATS}
-                        DYNUSED := DYNUSED+1;{$ENDIF}
+                        DYNUSED := DYNUSED+1;
+{$ENDIF}
                       END;
                   END;
                   MEM[P].HH.RH := Q;
@@ -7573,36 +7481,33 @@ BEGIN
           END;
       THETOKS := P;
     END{:466}
-  ELSE
-    BEGIN
-      OLDSETTING := SELECTOR;
-      SELECTOR := 21;
-      B := POOLPTR;
-      CASE CURVALLEVEL OF 
-        0: PRINTINT(CURVAL);
-        1: BEGIN
-             PRINTSCALED(CURVAL);
-             print_str('pt');
-           END;
-        2: BEGIN
-             print_spec_str(CURVAL, 'pt');
-             DELETEGLUERE(CURVAL);
-           END;
-        3: BEGIN
-             print_spec_str(CURVAL, 'mu');
-             DELETEGLUERE(CURVAL);
-           END;
-      END;
-      SELECTOR := OLDSETTING;
-      THETOKS := STRTOKS(B);
-    END;
+  ELSE BEGIN
+    case CURVALLEVEL of
+      0: str(CURVAL, s);
+      1: s := ScaledStr(CURVAL) + 'pt';
+      2: begin
+           s := SpecStr(CURVAL, 'pt');
+           DELETEGLUERE(CURVAL);
+         end;
+      3: begin
+           s := SpecStr(CURVAL, 'mu');
+           DELETEGLUERE(CURVAL);
+         end;
+    end;
+    THETOKS := str_toks(s);
+  END;
 END;
-{:465}{467:}
+{:465}
+
+{467:}
 PROCEDURE INSTHETOKS;
 BEGIN
   MEM[29988].HH.RH := THETOKS;
   BEGINTOKENLI(MEM[29997].HH.RH,4);
-END;{:467}{470:}
+END;
+{:467}
+
+{470:}
 PROCEDURE CONVTOKS;
 
 VAR OLDSETTING: 0..21;
@@ -7624,33 +7529,32 @@ BEGIN
     5:
        IF job_name='' THEN OPENLOGFILE;
   END{:471};
+
   OLDSETTING := SELECTOR;
   SELECTOR := 21;
   B := POOLPTR;{472:}
-  CASE C OF 
+  CASE C OF
     0: PRINTINT(CURVAL);
     1: PRINTROMANIN(CURVAL);
     2:
        IF CURCS<>0 THEN SPRINTCS(CURCS)
        ELSE PRINTCHAR(CURCHR);
     3: PRINTMEANING;
-    4:
-       BEGIN
+    4: BEGIN
          PRINT(FONTNAME[CURVAL]);
-         IF FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL]THEN
-           BEGIN
-             print_str(' at ');
-             PRINTSCALED(FONTSIZE[CURVAL]);
-             print_str('pt');
-           END;
+         IF FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL] THEN
+           print_str(' at ' + ScaledStr(FONTSIZE[CURVAL]) + 'pt');
        END;
     5: print_str(job_name);
   END{:472};
   SELECTOR := OLDSETTING;
   MEM[29988].HH.RH := STRTOKS(B);
+
   BEGINTOKENLI(MEM[29997].HH.RH,4);
 END;
-{:470}{473:}
+{:470}
+
+{473:}
 FUNCTION SCANTOKS(MACRODEF,XPAND:BOOLEAN): HALFWORD;
 
 LABEL 40,22,30,31,32;
@@ -9848,9 +9752,7 @@ BEGIN
                   MEM[MEM[Q].HH.RH+1].INT := EQTB[5846].INT;
                 END;
               PRINTLN;
-              print_nl_str('Overfull \hbox (');
-              PRINTSCALED(-X-TOTALSHRINK[0]);
-              print_str('pt too wide');
+              print_nl_str('Overfull \hbox (' + ScaledStr(-X-TOTALSHRINK[0]) + 'pt too wide');
               GOTO 50;
             END{:666};
         END
@@ -10016,15 +9918,11 @@ BEGIN
         GOTO 10;
       END{:673}
   ELSE{676:}
-    BEGIN{665:}
-      IF TOTALSHRINK[3]<>0 THEN O := 3
-      ELSE
-        IF 
-           TOTALSHRINK[2]<>0 THEN O := 2
-      ELSE
-        IF TOTALSHRINK[1]<>0 THEN O := 1
-      ELSE O := 
-                0{:665};
+    BEGIN
+      IF      TOTALSHRINK[3]<>0 THEN O := 3
+      ELSE IF TOTALSHRINK[2]<>0 THEN O := 2
+      ELSE IF TOTALSHRINK[1]<>0 THEN O := 1
+      ELSE O := 0;
       MEM[R+5].HH.B1 := O;
       MEM[R+5].HH.B0 := 2;
       IF TOTALSHRINK[O]<>0 THEN MEM[R+6].GR := (-X)/TOTALSHRINK[O]
@@ -10042,9 +9940,7 @@ BEGIN
           IF (-X-TOTALSHRINK[0]>EQTB[5839].INT)OR(EQTB[5290].INT<100)THEN
             BEGIN
               PRINTLN;
-              print_nl_str('Overfull \vbox (');
-              PRINTSCALED(-X-TOTALSHRINK[0]);
-              print_str('pt too high');
+              print_nl_str('Overfull \vbox (' + ScaledStr(-X-TOTALSHRINK[0]) + 'pt too high');
               GOTO 50;
             END{:677};
         END
@@ -10500,12 +10396,11 @@ BEGIN
   CURF := EQTB[3935+MEM[A].HH.B0+CURSIZE].HH.RH;
   IF CURF=0 THEN{723:}
     BEGIN
-      BEGIN
-        IF INTERACTION=3 THEN;
-        print_nl_str('! ');
-        print_str('');
-      END;
-      PRINTSIZE(CURSIZE);
+      print_nl_str('! ');
+      if CURSIZE=0       then print_esc_str('textfont')
+      else if CURSIZE=16 then print_esc_str('scriptfont')
+                         else print_esc_str('scriptscriptfont');
+
       PRINTCHAR(32);
       PRINTINT(MEM[A].HH.B0);
       print_str(' is undefined (character ');
@@ -14724,40 +14619,9 @@ BEGIN
   VSPLIT := VPACKAGE(P,H,0,EQTB[5836].INT);
   10:
 END;
-{:977}{985:}
-PROCEDURE PRINTTOTALS;
-BEGIN
-  PRINTSCALED(PAGESOFAR[1]);
-  IF PAGESOFAR[2]<>0 THEN
-    BEGIN
-      print_str(' plus ');
-      PRINTSCALED(PAGESOFAR[2]);
-      print_str('');
-    END;
-  IF PAGESOFAR[3]<>0 THEN
-    BEGIN
-      print_str(' plus ');
-      PRINTSCALED(PAGESOFAR[3]);
-      print_str('fil');
-    END;
-  IF PAGESOFAR[4]<>0 THEN
-    BEGIN
-      print_str(' plus ');
-      PRINTSCALED(PAGESOFAR[4]);
-      print_str('fill');
-    END;
-  IF PAGESOFAR[5]<>0 THEN
-    BEGIN
-      print_str(' plus ');
-      PRINTSCALED(PAGESOFAR[5]);
-      print_str('filll');
-    END;
-  IF PAGESOFAR[6]<>0 THEN
-    BEGIN
-      print_str(' minus ');
-      PRINTSCALED(PAGESOFAR[6]);
-    END;
-END;{:985}{987:}
+{:977}
+
+{987:}
 PROCEDURE FREEZEPAGESP(S:SMALLNUMBER);
 BEGIN
   PAGECONTENTS := S;
@@ -14770,18 +14634,20 @@ BEGIN
   PAGESOFAR[4] := 0;
   PAGESOFAR[5] := 0;
   PAGESOFAR[6] := 0;
-  LEASTPAGECOS := 1073741823;{$IFDEF STATS}
-  IF EQTB[5296].INT>0 THEN
-    BEGIN
-      BEGINDIAGNOS;
-      print_nl_str('%% goal height=');
-      PRINTSCALED(PAGESOFAR[0]);
-      print_str(', max depth=');
-      PRINTSCALED(PAGEMAXDEPTH);
-      ENDDIAGNOSTI(FALSE);
-    END;{$ENDIF}
+  LEASTPAGECOS := 1073741823;
+
+{$IFDEF STATS}
+  IF EQTB[5296].INT>0 THEN BEGIN
+    BEGINDIAGNOS;
+    print_nl_str('%% goal height=' + ScaledStr(PAGESOFAR[0])
+                  + ', max depth=' + ScaledStr(PAGEMAXDEPTH));
+    ENDDIAGNOSTI(FALSE);
+  END;
+{$ENDIF}
 END;
-{:987}{992:}
+{:987}
+
+{992:}
 PROCEDURE BOXERROR(N:EIGHTBITS);
 BEGIN
   ERROR;
@@ -15213,17 +15079,10 @@ BEGIN
                    IF EQTB[5296].INT>0 THEN{1011:}
                      BEGIN
                        BEGINDIAGNOS;
-                       print_nl_str('% split');
-                       PRINTINT(N);
-                       print_str(' to ');
-                       PRINTSCALED(W);
-                       PRINTCHAR(44);
-                       PRINTSCALED(BESTHEIGHTPL);
-                       print_str(' p=');
+                       print_nl_str('% split' + IntToStr(N) + ' to ' + ScaledStr(W)
+                         + ',' + ScaledStr(BESTHEIGHTPL) + ' p=');
                        IF Q=0 THEN PRINTINT(-10000)
-                       ELSE
-                         IF MEM[Q].HH.B0=12 THEN PRINTINT(MEM[Q
-                                                          +1].INT)
+                       ELSE IF MEM[Q].HH.B0=12 THEN PRINTINT(MEM[Q+1].INT)
                        ELSE PRINTCHAR(48);
                        ENDDIAGNOSTI(FALSE);
                      END{:1011};{$ENDIF}
@@ -15245,23 +15104,19 @@ BEGIN
     END{:1000};
 {1005:}
     IF PI<10000 THEN
-      BEGIN{1007:}
-        IF PAGESOFAR[1]<PAGESOFAR[0]THEN
-          IF (
-             PAGESOFAR[3]<>0)OR(PAGESOFAR[4]<>0)OR(PAGESOFAR[5]<>0)THEN B := 0
-        ELSE B := 
-                  BADNESS(PAGESOFAR[0]-PAGESOFAR[1],PAGESOFAR[2])
-        ELSE
-          IF PAGESOFAR[1]-
-             PAGESOFAR[0]>PAGESOFAR[6]THEN B := 1073741823
-        ELSE B := BADNESS(PAGESOFAR[1]
-                  -PAGESOFAR[0],PAGESOFAR[6]){:1007};
+      BEGIN
+        {1007:}
+        IF PAGESOFAR[1]<PAGESOFAR[0] THEN
+          IF (PAGESOFAR[3]<>0)OR(PAGESOFAR[4]<>0)OR(PAGESOFAR[5]<>0) THEN B := 0
+          ELSE B := BADNESS(PAGESOFAR[0]-PAGESOFAR[1],PAGESOFAR[2])
+        ELSE IF PAGESOFAR[1]-PAGESOFAR[0]>PAGESOFAR[6] THEN B := 1073741823
+        ELSE B := BADNESS(PAGESOFAR[1]-PAGESOFAR[0],PAGESOFAR[6]);
+        {:1007}
+
         IF B<1073741823 THEN
           IF PI<=-10000 THEN C := PI
-        ELSE
-          IF B<10000 THEN C := B+
-                               PI+INSERTPENALT
-        ELSE C := 100000
+          ELSE IF B<10000 THEN C := B+PI+INSERTPENALT
+          ELSE C := 100000
         ELSE C := B;
         IF INSERTPENALT>=10000 THEN C := 1073741823;{$IFDEF STATS}
         IF EQTB[5296].INT>0 THEN{1006:}
@@ -15269,14 +15124,10 @@ BEGIN
             BEGINDIAGNOS;
             print_nl_str('% t=');
             PRINTTOTALS;
-            print_str(' g=');
-            PRINTSCALED(PAGESOFAR[0]);
-            print_str(' b=');
+            print_str(' g=' + ScaledStr(PAGESOFAR[0]) + ' b=');
             IF B=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(B);
-            print_str(' p=');
-            PRINTINT(PI);
-            print_str(' c=');
+            print_str(' p=' + IntToStr(PI) + ' c=');
             IF C=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(C);
             IF C<=LEASTPAGECOS THEN PRINTCHAR(35);
@@ -18055,19 +17906,12 @@ BEGIN
   end;
 
   {Report an error according to ErrorCode}
-  print_nl_str('! ');
-  print_str('Font ');
+  print_nl_str('! Font ');
   SPRINTCS(U);
   PRINTCHAR(61);
   print_str(RemoveFileExtension(FileName));
-  IF S>=0 THEN BEGIN
-     print_str(' at ');
-     PRINTSCALED(S);
-     print_str('pt');
-  END ELSE IF S<>-1000 THEN BEGIN
-     print_str(' scaled ');
-     PRINTINT(-S);
-  END;
+  IF S>=0 THEN print_str(' at ' + ScaledStr(S) + 'pt')
+  ELSE IF S<>-1000 THEN print_str(' scaled ' + IntToStr(-S));
 
   if ErrorCode = 1 then begin
     print_str(' not loaded: Not enough room left');
@@ -18158,41 +18002,28 @@ VAR
 BEGIN
   IF job_name='' THEN OPENLOGFILE;
   GETRTOKEN;
+
   U := CURCS;
-  IF U>=514 THEN T := HASH[U].RH
-  ELSE
-    IF U>=257 THEN
-      IF U=513 THEN T := 1219
-  ELSE T := U-257
-  ELSE
-    BEGIN
-      OLDSETTING := SELECTOR;
-      SELECTOR := 21;
-      print_str('FONT');
-      PRINT(U-1);
-      SELECTOR := OLDSETTING;
-      BEGIN
-        IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-      END;
-      T := MAKESTRING;
-    END;
-  IF (A>=4)THEN GEQDEFINE(U,87,0)
-  ELSE EQDEFINE(U,87,0);
+  if      U =  null_cs     then T := 1219 {'FONT'}
+  else if U >= hash_base   then T := HASH[U].RH
+  else if U >= single_base then T := U - single_base
+  else T := AddString('FONT' + GetString(U-1));
+
+  IF A>=4 THEN GEQDEFINE(U,87,0)
+          ELSE EQDEFINE(U,87,0);
   SCANOPTIONAL;
 
   FileNameArea := RemoveFileExtension(scan_file_name);
 
 {1258:}
   NAMEINPROGRE := TRUE;
-  IF scan_keyword_str('at')THEN BEGIN
+  IF scan_keyword_str('at') THEN BEGIN
 
     {1259:}
     SCANDIMEN(FALSE,FALSE,FALSE);
     S := CURVAL;
     IF (S<=0)OR(S>=134217728) THEN BEGIN
-      print_nl_str('! Improper `at'' size (');
-      PRINTSCALED(S);
-      print_str('pt), replaced by 10pt');
+      print_nl_str('! Improper `at'' size (' + ScaledStr(S) + 'pt), replaced by 10pt');
       BEGIN
         HELPPTR := 2;
         help_line[1] := 'I can only handle fonts at positive sizes that are';
@@ -20571,22 +20402,18 @@ BEGIN
     SetUInt32LE(Buf, 84, FONTBCHAR[K]);
     SetUInt32LE(Buf, 88, FONTFALSEBCH[K]);
     blockwrite(f, Buf, 92);
-    print_nl_str('\font');
+    print_nl_str('\font'); // FIXME: escape char hardcoded
     PRINTESC(HASH[2624+K].RH);
     PRINTCHAR(61);
-    PRINTFILENAM(FONTNAME[K],FONTAREA[K],338);
+    print_str(GetString(FONTAREA[K]) + GetString(FONTNAME[K]));
     IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
-      print_str(' at ');
-      PRINTSCALED(FONTSIZE[K]);
-      print_str('pt');
+      print_str(' at ' + ScaledStr(FONTSIZE[K]) + 'pt');
     END;
     {:1322}
   END;
   PRINTLN;
-  PRINTINT(FMEMPTR-7);
-  print_str(' words of font info for ');
-  PRINTINT(FONTPTR-0);
-  print_str(' preloaded font');
+  print_str(IntToStr(FMEMPTR-7) + ' words of font info for ' 
+    + IntToStr(FONTPTR-0) + ' preloaded font');
   IF FONTPTR<>1 THEN PRINTCHAR(115);
   {:1320}
 
@@ -22319,16 +22146,40 @@ END;{$ENDIF}
 
 
 
-{1338:}
+
+
+
 {$IFDEF DEBUGGING}
+PROCEDURE PRINTWORD(W:MEMORYWORD);
+BEGIN
+  PRINTINT(W.INT);
+  PRINTCHAR(32);
+  PRINTSCALED(W.INT);
+  PRINTCHAR(32);
+  PRINTSCALED(ISORound(65536*W.GR));
+  PRINTLN;
+  PRINTINT(W.HH.LH);
+  PRINTCHAR(61);
+  PRINTINT(W.HH.B0);
+  PRINTCHAR(58);
+  PRINTINT(W.HH.B1);
+  PRINTCHAR(59);
+  PRINTINT(W.HH.RH);
+  PRINTCHAR(32);
+  PRINTINT(W.QQQQ.B0);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B1);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B2);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B3);
+END;
+
 PROCEDURE DEBUGHELP;
-
 LABEL 888,10;
-
 VAR K,L,M,N: Int32;
 BEGIN;
-  WHILE TRUE DO
-    BEGIN;
+  WHILE TRUE DO BEGIN
       print_nl_str('debug # (-1 to exit):');
       FLUSH(OUTPUT);
       READ(INPUT,M);
@@ -22374,7 +22225,6 @@ BEGIN;
                   SHORTDISPLAY(N);
                 END;
             16: PANICKING := NOT PANICKING;
-{:1339}
             ELSE PRINTCHAR(63)
           END;
         END;
@@ -22382,8 +22232,6 @@ BEGIN;
   10:
 END;
 {$ENDIF}
-{:1338}
-{:1330}
 
 
 
