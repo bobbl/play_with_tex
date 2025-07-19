@@ -289,6 +289,33 @@ that will be defined later.}
   del_code_base = count_base+256;       {256 delimiter code mappings}
   dimen_base = del_code_base+256;       {beginning of region 6}
 
+{@ The final region of |eqtb| contains the dimension parameters defined
+here, and the 256 \dimen registers.}
+
+  par_indent_code               = 0; {indentation of paragraphs}
+  math_surround_code            = 1; {space around math in text}
+  line_skip_limit_code          = 2; {threshold for |line_skip| instead of |baseline_skip|}
+  hsize_code=3; {line width in horizontal mode}
+  vsize_code=4; {page height in vertical mode}
+  max_depth_code=5; {maximum depth of boxes on main pages}
+  split_max_depth_code=6; {maximum depth of boxes on split pages}
+  box_max_depth_code=7; {maximum depth of explicit vboxes}
+  hfuzz_code=8; {tolerance for overfull hbox messages}
+  vfuzz_code=9; {tolerance for overfull vbox messages}
+  delimiter_shortfall_code=10; {maximum amount uncovered by variable delimiters}
+  null_delimiter_space_code=11; {blank space in null delimiters}
+  script_space_code=12; {extra space after subscript or superscript}
+  pre_display_size_code=13; {length of text preceding a display}
+  display_width_code=14; {length of line for displayed equation}
+  display_indent_code=15; {indentation of line for displayed equation}
+  overfull_rule_code=16; {width of rule that identifies overfull hboxes}
+  hang_indent_code=17; {amount of hanging indentation}
+  h_offset_code=18; {amount of horizontal offset when shipping pages out}
+  v_offset_code=19; {amount of vertical offset when shipping pages out}
+  emergency_stretch_code=20; {reduces badnesses on final pass of line-breaking}
+  dimen_pars=21; {total number of dimension parameters}
+  scaled_base=dimen_base+dimen_pars; {table of 256 user-defined \dimen registers}
+  eqtb_size=scaled_base+255; {largest subscript of |eqtb|}
 
 
 
@@ -306,7 +333,6 @@ that will be defined later.}
 
 
 
-  eqtb_size = 6106;
 
   lo_mem_stat_max = 19;
   hi_mem_stat_min = 29987;
@@ -1012,11 +1038,11 @@ begin
   IntToStr02 := s;
 end;
 
-function IntToStr(x: Int32) : string;
+function print_int(x: Int32) : string;
 var s: string;
 begin
   str(x, s);
-  IntToStr := s;
+  print_int := s;
 end;
 
 
@@ -1264,6 +1290,31 @@ BEGIN{21:}
 {:1343}
 end;
 
+procedure fix_date_and_time;
+begin
+{In final version get real date. But for testing a fixed date is better.
+
+  uses sysutils;
+
+var YY, MM, DD, Hour, Min, Sec, Ms: word;
+
+  DecodeDate(Date, YY, MM, DD);
+  DecodeTime(Time, Hour, Min, Sec, Ms);
+  sys_time  := Hour*60+Min;
+  sys_day   := DD;
+  sys_month := MM;
+  sys_year  := YY;
+}
+  sys_time  := 12*60;
+  sys_day   := 4;
+  sys_month := 7;
+  sys_year  := 1776;
+  EQTB[int_base+time_code ].INT := sys_time;
+  EQTB[int_base+day_code  ].INT := sys_day;
+  EQTB[int_base+month_code].INT := sys_month;
+  EQTB[int_base+year_code ].INT := sys_year;
+end;
+
 
 
 
@@ -1400,35 +1451,46 @@ END;
 {:59}
 
 {60:}
-{print and escape control characters}
-procedure slow_print_char(ch: byte);
+{If char is unprintable, translate to something readable}
+function PrintableChar(ch: byte) : string;
 const
   Hex: array [0..15] of char = '0123456789abcdef';
 var
-  t: string[4];
+  s: string[4];
 begin
   if ch < 32 then begin
-    t := '^^A';
-    t[3] := chr(ch + 64);
-    print_str(t);
+    s := '^^A';
+    s[3] := chr(ch + 64);
   end else if ch < 127 then begin
-    PRINTCHAR(ch);
+    s := chr(ch);
   end else if ch = 127 then begin
-    print_str('^^?');
+    s := '^^?';
   end else begin
-    t := '^^00';
-    t[3] := Hex[ch shr 4];
-    t[4] := Hex[ch and 15];
+    s := '^^00';
+    s[3] := Hex[ch shr 4];
+    s[4] := Hex[ch and 15];
   end;
+  PrintableChar := s;
+end;
+
+function PrintableStr(const s: string) : string;
+var
+  i: sizeint;
+  t: string;
+begin
+  t := '';
+  for i := 1 to length(s) do t := t + PrintableChar(ord(s[i]));
+  PrintableStr := t;
+end;
+
+procedure slow_print_char(ch: byte);
+begin
+  print_str(PrintableChar(ch));
 end;
 
 procedure slow_print_str(s: string);
-var
-  i: integer;
 begin
-  for i := 1 to length(s) do begin
-    slow_print_char(ord(s[i]));
-  end;
+  print_str(PrintableStr(s));
 end;
 
 PROCEDURE SLOWPRINT(S:Int32);
@@ -1456,6 +1518,15 @@ end;
 {:62}
 
 {63:}
+{Precede string with escape character (which is usually a backslash)}
+function print_esc(Name: string) : string;
+var ch: int32;
+begin
+  ch := EQTB[5308].INT; {current escape character}
+  if (ch>=0) and (ch<256) then print_esc := PrintableChar(ch) + Name
+                          else print_esc := Name;
+end;
+
 procedure print_esc_str(s: string);
 var ch: int32;
 begin
@@ -1558,9 +1629,7 @@ procedure print_write_whatsit_str(s: string; P: HALFWORD);
 BEGIN
   print_esc_str(s);
   IF MEM[P+1].HH.LH<16 THEN PRINTINT(MEM[P+1].HH.LH)
-  ELSE
-    IF MEM[P+1].HH.LH
-       =16 THEN PRINTCHAR(42)
+  ELSE IF MEM[P+1].HH.LH=16 THEN PRINTCHAR(42)
   ELSE PRINTCHAR(45);
 END;
 {:1355}
@@ -1793,7 +1862,7 @@ END;
 {91:}
 PROCEDURE INTERROR(N: Int32);
 BEGIN
-  print_str(' (' + IntToStr(N) + ')');
+  print_str(' (' + print_int(N) + ')');
   ERROR;
 END;
 {:91}
@@ -2332,9 +2401,9 @@ BEGIN
             directly after loading the format file}
 
   s := '  '
-    + IntToStr(sys_day) + ' '
+    + print_int(sys_day) + ' '
     + MonthNames[sys_month] + ' '
-    + IntToStr(sys_year) + ' '
+    + print_int(sys_year) + ' '
     + IntToStr02(sys_time div 60) + ':'
     + IntToStr02(sys_time mod 60);
   print_str(s);
@@ -2484,23 +2553,28 @@ END;
 
 
 
-{67:}
-PROCEDURE PRINTHEX(N:Int32);
 
-VAR K: 0..22;
-BEGIN
-  K := 0;
-  PRINTCHAR(34);
-  REPEAT
-    DIG[K] := N MOD 16;
-    N := N DIV 16;
-    K := K+1;
-  UNTIL N=0;
-  PRINTTHEDIGS(K);
-END;
-{:67}
+{@ Hexadecimal printing of nonnegative integers is accomplished by |print_hex|.}
 
-{69:}
+function print_hex(n: int32): string;
+var 
+  s: string[9];
+  i: uint32;
+  Digit: uint32;
+begin
+  setlength(s, 9);
+  i := 9;
+  repeat
+    Digit := n mod 16;
+    n := n div 16;
+    if Digit > 10 then Digit := Digit - 10 + ord('A') - ord('0');
+    s[i] := chr(Digit + ord('0'));
+    i := i - 1;
+  until n=0;
+  s[i] := '"';
+  print_hex := copy(s, i, 10-i);
+end;
+
 PROCEDURE PRINTROMANIN(N:Int32);
 LABEL 10;
 VAR J,K: POOLPOINTER;
@@ -2540,7 +2614,7 @@ END;
 
 {103:}
 {convert SCALED to string}
-function ScaledStr(Scale: SCALED) : string;
+function print_scaled(Scale: SCALED) : string;
 VAR
   Delta: SCALED;
   st: string;
@@ -2550,7 +2624,7 @@ BEGIN
     st := st + '-';
     Scale := -Scale;
   end;
-  st := st + IntToStr(Scale shr 16) + '.';
+  st := st + print_int(Scale shr 16) + '.';
   Scale := 10*(Scale and 65535)+5;
   Delta := 10;
   REPEAT
@@ -2559,12 +2633,12 @@ BEGIN
     Scale := 10*(Scale and 65535);
     Delta := Delta*10;
   UNTIL Scale <= Delta;
-  ScaledStr := st;
+  print_scaled := st;
 END;
 
 PROCEDURE PRINTSCALED(S:SCALED);
 BEGIN
-  print_str(ScaledStr(S));
+  print_str(print_scaled(S));
 END;
 {:103}
 
@@ -3033,11 +3107,11 @@ BEGIN
   MEM[P].HH.B1 := 0;
   MEM[P+1].INT := M;
   NEWPENALTY := P;
-END;{:158}{167:}{$IFDEF DEBUGGING}
+END;{:158}
+
+{$IFDEF DEBUGGING}
 PROCEDURE CHECKMEM(PRINTLOCS:BOOLEAN);
-
 LABEL 31,32;
-
 VAR P,Q: HALFWORD;
   CLOBBERED: BOOLEAN;
 BEGIN
@@ -3135,11 +3209,8 @@ BEGIN
   WASMEMEND := MEMEND;
   WASLOMAX := LOMEMMAX;
   WASHIMIN := HIMEMMIN;
-END;{$ENDIF}
-{:167}
+END;
 
-{172:}
-{$IFDEF DEBUGGING}
 PROCEDURE SEARCHMEM(P:HALFWORD);
 VAR Q: Int32;
 BEGIN
@@ -3206,7 +3277,8 @@ BEGIN
     END{:933};
 END;
 {$ENDIF}
-{:172}
+
+
 
 {174:}
 PROCEDURE SHORTDISPLAY(P:Int32);
@@ -3281,15 +3353,16 @@ END;
 function RuleDimStr(Dim: SCALED): string;
 begin 
   if (Dim=-1073741824) then RuleDimStr := '*'
-                       else RuleDimStr := ScaledStr(Dim);
+                       else RuleDimStr := print_scaled(Dim);
 end;
 {:176}
 
-{177:}
-function GlueStr(Scale: SCALED; Order: int32; Units: string) : string;
+
+{glue stretch and shrink, possibly followed by the name of finite units}
+function print_glue(Scale: SCALED; Order: int32; Units: string) : string;
 var s: string;
 begin
-  s := ScaledStr(Scale);
+  s := print_scaled(Scale);
   case Order of
     0: s := s + Units;
     1: s := s + 'fil';
@@ -3297,25 +3370,23 @@ begin
     3: s := s + 'filll';
     else s := s + 'foul';
   end;
-  GlueStr := s;
+  print_glue := s;
 end;
-{:177}
 
-{178:}
-function SpecStr(P: Int32; Units: string) : string;
+{whole glue specification}
+function print_spec(P: Int32; Units: string) : string;
 var s: string;
 begin
   if (P<mem_min) or (P>=LOMEMMAX) THEN s := '*'
   ELSE BEGIN
-    s := ScaledStr(MEM[P+1].INT) + Units;
+    s := print_scaled(MEM[P+1].INT) + Units;
     IF MEM[P+2].INT<>0 THEN
-      s := s + ' plus ' + GlueStr(MEM[P+2].INT, MEM[P].HH.B0, Units);
+      s := s + ' plus ' + print_glue(MEM[P+2].INT, MEM[P].HH.B0, Units);
     IF MEM[P+3].INT<>0 THEN 
-      s := s + ' minus ' + GlueStr(MEM[P+3].INT, MEM[P].HH.B1, Units);
+      s := s + ' minus ' + print_glue(MEM[P+3].INT, MEM[P].HH.B1, Units);
   END;
-  SpecStr := s;
+  print_spec := s;
 END;
-{:178}
 
 {179:}
 {691:}
@@ -3333,7 +3404,7 @@ BEGIN
   A := MEM[P].QQQQ.B0*256+MEM[P].QQQQ.B1-0;
   A := A*4096+MEM[P].QQQQ.B2*256+MEM[P].QQQQ.B3-0;
   IF A<0 THEN PRINTINT(A)
-  ELSE PRINTHEX(A);
+  ELSE print_str(print_hex(A));
 END;
 {:691}
 
@@ -3345,8 +3416,7 @@ from a post-|forward| procedure is, frankly, so intolerable to the author
 of \TeX\ that he would rather stoop to communication via a global temporary
 variable. (A similar stoopidity occurred with respect to |hlist_out| and
 |vlist_out| above, and it will occur with respect to |mlist_to_hlist| below.)}
-PROCEDURE SHOWINFO;
-FORWARD;
+PROCEDURE SHOWINFO; FORWARD;
 
 PROCEDURE PRINTSUBSIDI(P:HALFWORD;C:ASCIICODE);
 BEGIN
@@ -3381,42 +3451,48 @@ BEGIN
 END;
 {:692}
 
-{694:}
-PROCEDURE PRINTSTYLE(C:Int32);
-BEGIN
-  CASE C DIV 2 OF 
-    0: print_esc_str('displaystyle');
-    1: print_esc_str('textstyle');
-    2: print_esc_str('scriptstyle');
-    3: print_esc_str('scriptscriptstyle');
-    ELSE print_str('Unknown style!')
+function print_style(Code: int32) : string;
+begin
+  case Code div 2 of
+    0: print_style := print_esc('displaystyle');
+    1: print_style := print_esc('textstyle');
+    2: print_style := print_esc('scriptstyle');
+    3: print_style := print_esc('scriptscriptstyle');
+    else print_style := 'Unknown style!';
+  end;
+end;
+
+{@ Sometimes we need to convert \TeX's internal code numbers into symbolic
+form. The |print_skip_param| routine gives the symbolic name of a glue
+parameter.}
+
+function print_skip_param(GlueParam: int32) : string;
+begin
+  case GlueParam of 
+    0: print_skip_param := print_esc('lineskip');
+    1: print_skip_param := print_esc('baselineskip');
+    2: print_skip_param := print_esc('parskip');
+    3: print_skip_param := print_esc('abovedisplayskip');
+    4: print_skip_param := print_esc('belowdisplayskip');
+    5: print_skip_param := print_esc('abovedisplayshortskip');
+    6: print_skip_param := print_esc('belowdisplayshortskip');
+    7: print_skip_param := print_esc('leftskip');
+    8: print_skip_param := print_esc('rightskip');
+    9: print_skip_param := print_esc('topskip');
+    10: print_skip_param := print_esc('splittopskip');
+    11: print_skip_param := print_esc('tabskip');
+    12: print_skip_param := print_esc('spaceskip');
+    13: print_skip_param := print_esc('xspaceskip');
+    14: print_skip_param := print_esc('parfillskip');
+    15: print_skip_param := print_esc('thinmuskip');
+    16: print_skip_param := print_esc('medmuskip');
+    17: print_skip_param := print_esc('thickmuskip');
+    ELSE print_skip_param := '[unknown glue parameter!]';
   END;
 END;
-{:694}{225:}
-PROCEDURE PRINTSKIPPAR(N:Int32);
-BEGIN
-  CASE N OF 
-    0: print_esc_str('lineskip');
-    1: print_esc_str('baselineskip');
-    2: print_esc_str('parskip');
-    3: print_esc_str('abovedisplayskip');
-    4: print_esc_str('belowdisplayskip');
-    5: print_esc_str('abovedisplayshortskip');
-    6: print_esc_str('belowdisplayshortskip');
-    7: print_esc_str('leftskip');
-    8: print_esc_str('rightskip');
-    9: print_esc_str('topskip');
-    10: print_esc_str('splittopskip');
-    11: print_esc_str('tabskip');
-    12: print_esc_str('spaceskip');
-    13: print_esc_str('xspaceskip');
-    14: print_esc_str('parfillskip');
-    15: print_esc_str('thinmuskip');
-    16: print_esc_str('medmuskip');
-    17: print_esc_str('thickmuskip');
-    ELSE print_str('[unknown glue parameter!]')
-  END;
-END;{:225}{:179}{182:}
+
+
+{182:}
 PROCEDURE SHOWNODELIST(P:Int32);
 
 LABEL 10;
@@ -3456,17 +3532,17 @@ BEGIN
                 IF MEM[P].HH.B0=0 THEN print_esc_str('h')
                 ELSE IF MEM[P].HH.B0=1 THEN print_esc_str('v')
                 ELSE print_esc_str('unset');
-                print_str('box(' + ScaledStr(MEM[P+3].INT)
-                  + '+' + ScaledStr(MEM[P+2].INT)
-                  + ')x' + ScaledStr(MEM[P+1].INT));
+                print_str('box(' + print_scaled(MEM[P+3].INT)
+                  + '+' + print_scaled(MEM[P+2].INT)
+                  + ')x' + print_scaled(MEM[P+1].INT));
                 IF MEM[P].HH.B0=13 THEN{185:}
                   BEGIN
                     IF MEM[P].HH.B1<>0 THEN
-                        print_str(' (' + IntToStr(MEM[P].HH.B1+1) + ' columns)');
+                        print_str(' (' + print_int(MEM[P].HH.B1+1) + ' columns)');
                     IF MEM[P+6].INT<>0 THEN
-                        print_str(', stretch ' + GlueStr(MEM[P+6].INT, MEM[P+5].HH.B1, ''));
+                        print_str(', stretch ' + print_glue(MEM[P+6].INT, MEM[P+5].HH.B1, ''));
                     IF MEM[P+4].INT<>0 THEN
-                        print_str(', shrink ' + GlueStr(MEM[P+4].INT, MEM[P+5].HH.B0, ''));
+                        print_str(', shrink ' + print_glue(MEM[P+4].INT, MEM[P+5].HH.B0, ''));
                   END{:185}
                 ELSE
                   BEGIN{186:}
@@ -3481,12 +3557,12 @@ BEGIN
                             BEGIN
                               IF G>0.0 THEN PRINTCHAR(62)
                               ELSE print_str('< -');
-                              print_str(GlueStr(20000*65536, MEM[P+5].HH.B1, ''));
+                              print_str(print_glue(20000*65536, MEM[P+5].HH.B1, ''));
                             END
-                        ELSE print_str(GlueStr(ISORound(65536*G), MEM[P+5].HH.B1, ''));
+                        ELSE print_str(print_glue(ISORound(65536*G), MEM[P+5].HH.B1, ''));
                       END{:186};
                     IF MEM[P+4].INT<>0 THEN
-                        print_str(', shifted ' + ScaledStr(MEM[P+4].INT));
+                        print_str(', shifted ' + print_scaled(MEM[P+4].INT));
                   END;
                 BEGIN
                   BEGIN
@@ -3505,11 +3581,11 @@ BEGIN
              END{:187};
           3:{188:}
              BEGIN
-               print_esc_str('insert' + IntToStr(MEM[P].HH.B1-0)
-                 + ', natural size ' + ScaledStr(MEM[P+3].INT)
-                 + '; split(' + SpecStr(MEM[P+4].HH.RH, '')
-                 + ',' + ScaledStr(MEM[P+2].INT)
-                 + '); float cost ' + IntToStr(MEM[P+1].INT));
+               print_esc_str('insert' + print_int(MEM[P].HH.B1-0)
+                 + ', natural size ' + print_scaled(MEM[P+3].INT)
+                 + '; split(' + print_spec(MEM[P+4].HH.RH, '')
+                 + ',' + print_scaled(MEM[P+2].INT)
+                 + '); float cost ' + print_int(MEM[P+1].INT));
                BEGIN
                  BEGIN
                    STRPOOL[POOLPTR] := 46;
@@ -3559,7 +3635,7 @@ BEGIN
                   print_esc_str('');
                   IF MEM[P].HH.B1=101 THEN PRINTCHAR(99)
                   ELSE IF MEM[P].HH.B1=102 THEN PRINTCHAR(120);
-                  print_str('leaders ' + SpecStr(MEM[P+1].HH.LH, ''));
+                  print_str('leaders ' + print_spec(MEM[P+1].HH.LH, ''));
                   BEGIN
                     BEGIN
                       STRPOOL[POOLPTR] := 46;
@@ -3575,7 +3651,7 @@ BEGIN
                   IF MEM[P].HH.B1<>0 THEN
                     BEGIN
                       PRINTCHAR(40);
-                      IF MEM[P].HH.B1<98 THEN PRINTSKIPPAR(MEM[P].HH.B1-1)
+                      IF MEM[P].HH.B1<98 THEN print_str(print_skip_param(MEM[P].HH.B1-1))
                       ELSE IF MEM[P].HH.B1=98 THEN print_esc_str('nonscript')
                       ELSE print_esc_str('mskip');
                       PRINTCHAR(41);
@@ -3583,8 +3659,8 @@ BEGIN
                   IF MEM[P].HH.B1<>98 THEN
                     BEGIN
                       PRINTCHAR(32);
-                      IF MEM[P].HH.B1<98 THEN print_str(SpecStr(MEM[P+1].HH.LH, ''))
-                                         ELSE print_str(SpecStr(MEM[P+1].HH.LH, 'mu'));
+                      IF MEM[P].HH.B1<98 THEN print_str(print_spec(MEM[P+1].HH.LH, ''))
+                                         ELSE print_str(print_spec(MEM[P+1].HH.LH, 'mu'));
                     END;
                 END{:189};
           11:{191:}
@@ -3595,14 +3671,14 @@ BEGIN
                   PRINTSCALED(MEM[P+1].INT);
                   IF MEM[P].HH.B1=2 THEN print_str(' (for accent)');
                 END
-              ELSE print_esc_str('mkern' + ScaledStr(MEM[P+1].INT) + 'mu');
+              ELSE print_esc_str('mkern' + print_scaled(MEM[P+1].INT) + 'mu');
             {:191}
           9:{192:}
              BEGIN
                print_esc_str('math');
                IF MEM[P].HH.B1=0 THEN print_str('on')
                                  ELSE print_str('off');
-               IF MEM[P+1].INT<>0 THEN print_str(', surrounded ' + ScaledStr(MEM[P+1].INT));
+               IF MEM[P+1].INT<>0 THEN print_str(', surrounded ' + print_scaled(MEM[P+1].INT));
              END{:192};
           6:{193:}
              BEGIN
@@ -3659,7 +3735,7 @@ BEGIN
                  POOLPTR := POOLPTR-1;
                END;
              END{:197};{690:}
-          14: PRINTSTYLE(MEM[P].HH.B1);
+          14: print_str(print_style(MEM[P].HH.B1));
           15:{695:}
               BEGIN
                 print_esc_str('mathchoice');
@@ -3737,8 +3813,7 @@ BEGIN
               BEGIN
                 print_esc_str('fraction, thickness ');
                 IF MEM[P+1].INT=1073741824 THEN print_str('= default')
-                ELSE PRINTSCALED(MEM[P+1].INT)
-                ;
+                ELSE PRINTSCALED(MEM[P+1].INT);
                 IF (MEM[P+4].QQQQ.B0<>0)OR(MEM[P+4].QQQQ.B1<>0)OR(MEM[P+4].QQQQ.B2<>0)OR(
                    MEM[P+4].QQQQ.B3<>0)THEN
                   BEGIN
@@ -3798,19 +3873,21 @@ END;
 {:211}
 
 {985:}
-PROCEDURE PRINTTOTALS;
+function print_totals : string;
+var s: string;
 BEGIN
-  PRINTSCALED(PAGESOFAR[1]);
+  s := print_scaled(PAGESOFAR[1]);
   IF PAGESOFAR[2]<>0 THEN
-      print_str(' plus ' + ScaledStr(PAGESOFAR[2]));
+    s := s + ' plus ' + print_scaled(PAGESOFAR[2]);
   IF PAGESOFAR[3]<>0 THEN
-      print_str(' plus ' + ScaledStr(PAGESOFAR[3]) + 'fil');
+    s := s + ' plus ' + print_scaled(PAGESOFAR[3]) + 'fil';
   IF PAGESOFAR[4]<>0 THEN
-      print_str(' plus ' + ScaledStr(PAGESOFAR[4]) + 'fill');
+    s := s + ' plus ' + print_scaled(PAGESOFAR[4]) + 'fill';
   IF PAGESOFAR[5]<>0 THEN
-      print_str(' plus ' + ScaledStr(PAGESOFAR[5]) + 'filll');
+    s := s + ' plus ' + print_scaled(PAGESOFAR[5]) + 'filll';
   IF PAGESOFAR[6]<>0 THEN
-      print_str(' minus ' + ScaledStr(PAGESOFAR[6]));
+    s := s + ' minus ' + print_scaled(PAGESOFAR[6]);
+  print_totals := s;
 END;
 {:985}
 
@@ -3854,9 +3931,8 @@ BEGIN
               SHOWBOX(MEM[29998].HH.RH);
               IF PAGECONTENTS>0 THEN
                 BEGIN
-                  print_nl_str('total height ');
-                  PRINTTOTALS;
-                  print_nl_str(' goal height ' + ScaledStr(PAGESOFAR[0]));
+                  print_nl_str('total height ' + print_totals);
+                  print_nl_str(' goal height ' + print_scaled(PAGESOFAR[0]));
                   R := MEM[30000].HH.RH;
                   WHILE R<>30000 DO
                     BEGIN
@@ -3866,8 +3942,7 @@ BEGIN
                       PRINTINT(T);
                       print_str(' adds ');
                       IF EQTB[5318+T].INT=1000 THEN T := MEM[R+3].INT
-                      ELSE T := XOVERN(MEM[R+3].
-                                INT,1000)*EQTB[5318+T].INT;
+                      ELSE T := XOVERN(MEM[R+3].INT,1000)*EQTB[5318+T].INT;
                       PRINTSCALED(T);
                       IF MEM[R].HH.B0=1 THEN
                         BEGIN
@@ -3926,598 +4001,438 @@ END;
 {:218}
 
 {237:}
-PROCEDURE PRINTPARAM(N:Int32);
-BEGIN
-  CASE N OF 
-    0: print_esc_str('pretolerance');
-    1: print_esc_str('tolerance');
-    2: print_esc_str('linepenalty');
-    3: print_esc_str('hyphenpenalty');
-    4: print_esc_str('exhyphenpenalty');
-    5: print_esc_str('clubpenalty');
-    6: print_esc_str('widowpenalty');
-    7: print_esc_str('displaywidowpenalty');
-    8: print_esc_str('brokenpenalty');
-    9: print_esc_str('binoppenalty');
-    10: print_esc_str('relpenalty');
-    11: print_esc_str('predisplaypenalty');
-    12: print_esc_str('postdisplaypenalty');
-    13: print_esc_str('interlinepenalty');
-    14: print_esc_str('doublehyphendemerits');
-    15: print_esc_str('finalhyphendemerits');
-    16: print_esc_str('adjdemerits');
-    17: print_esc_str('mag');
-    18: print_esc_str('delimiterfactor');
-    19: print_esc_str('looseness');
-    20: print_esc_str('time');
-    21: print_esc_str('day');
-    22: print_esc_str('month');
-    23: print_esc_str('year');
-    24: print_esc_str('showboxbreadth');
-    25: print_esc_str('showboxdepth');
-    26: print_esc_str('hbadness');
-    27: print_esc_str('vbadness');
-    28: print_esc_str('pausing');
-    29: print_esc_str('tracingonline');
-    30: print_esc_str('tracingmacros');
-    31: print_esc_str('tracingstats');
-    32: print_esc_str('tracingparagraphs');
-    33: print_esc_str('tracingpages');
-    34: print_esc_str('tracingoutput');
-    35: print_esc_str('tracinglostchars');
-    36: print_esc_str('tracingcommands');
-    37: print_esc_str('tracingrestores');
-    38: print_esc_str('uchyph');
-    39: print_esc_str('outputpenalty');
-    40: print_esc_str('maxdeadcycles');
-    41: print_esc_str('hangafter');
-    42: print_esc_str('floatingpenalty');
-    43: print_esc_str('globaldefs');
-    44: print_esc_str('fam');
-    45: print_esc_str('escapechar');
-    46: print_esc_str('defaulthyphenchar');
-    47: print_esc_str('defaultskewchar');
-    48: print_esc_str('endlinechar');
-    49: print_esc_str('newlinechar');
-    50: print_esc_str('language');
-    51: print_esc_str('lefthyphenmin');
-    52: print_esc_str('righthyphenmin');
-    53: print_esc_str('holdinginserts');
-    54: print_esc_str('errorcontextlines');
-    ELSE print_str('[unknown integer parameter!]')
-  END;
-END;
+function print_param(Code: int32) : string;
+begin
+  case Code-int_base of
+    0: print_param := print_esc('pretolerance');
+    1: print_param := print_esc('tolerance');
+    2: print_param := print_esc('linepenalty');
+    3: print_param := print_esc('hyphenpenalty');
+    4: print_param := print_esc('exhyphenpenalty');
+    5: print_param := print_esc('clubpenalty');
+    6: print_param := print_esc('widowpenalty');
+    7: print_param := print_esc('displaywidowpenalty');
+    8: print_param := print_esc('brokenpenalty');
+    9: print_param := print_esc('binoppenalty');
+    10: print_param := print_esc('relpenalty');
+    11: print_param := print_esc('predisplaypenalty');
+    12: print_param := print_esc('postdisplaypenalty');
+    13: print_param := print_esc('interlinepenalty');
+    14: print_param := print_esc('doublehyphendemerits');
+    15: print_param := print_esc('finalhyphendemerits');
+    16: print_param := print_esc('adjdemerits');
+    17: print_param := print_esc('mag');
+    18: print_param := print_esc('delimiterfactor');
+    19: print_param := print_esc('looseness');
+    20: print_param := print_esc('time');
+    21: print_param := print_esc('day');
+    22: print_param := print_esc('month');
+    23: print_param := print_esc('year');
+    24: print_param := print_esc('showboxbreadth');
+    25: print_param := print_esc('showboxdepth');
+    26: print_param := print_esc('hbadness');
+    27: print_param := print_esc('vbadness');
+    28: print_param := print_esc('pausing');
+    29: print_param := print_esc('tracingonline');
+    30: print_param := print_esc('tracingmacros');
+    31: print_param := print_esc('tracingstats');
+    32: print_param := print_esc('tracingparagraphs');
+    33: print_param := print_esc('tracingpages');
+    34: print_param := print_esc('tracingoutput');
+    35: print_param := print_esc('tracinglostchars');
+    36: print_param := print_esc('tracingcommands');
+    37: print_param := print_esc('tracingrestores');
+    38: print_param := print_esc('uchyph');
+    39: print_param := print_esc('outputpenalty');
+    40: print_param := print_esc('maxdeadcycles');
+    41: print_param := print_esc('hangafter');
+    42: print_param := print_esc('floatingpenalty');
+    43: print_param := print_esc('globaldefs');
+    44: print_param := print_esc('fam');
+    45: print_param := print_esc('escapechar');
+    46: print_param := print_esc('defaulthyphenchar');
+    47: print_param := print_esc('defaultskewchar');
+    48: print_param := print_esc('endlinechar');
+    49: print_param := print_esc('newlinechar');
+    50: print_param := print_esc('language');
+    51: print_param := print_esc('lefthyphenmin');
+    52: print_param := print_esc('righthyphenmin');
+    53: print_param := print_esc('holdinginserts');
+    54: print_param := print_esc('errorcontextlines');
+    else print_param := '[unknown integer parameter!]';
+  end;
+end;
 {:237}
 
-{241:}
-procedure fix_date_and_time;
+function print_length_param(Code: int32) : string;
 begin
-{In final version get real date. But for testing a fixed date is better.
-
-  uses sysutils;
-
-var YY, MM, DD, Hour, Min, Sec, Ms: word;
-
-  DecodeDate(Date, YY, MM, DD);
-  DecodeTime(Time, Hour, Min, Sec, Ms);
-  sys_time  := Hour*60+Min;
-  sys_day   := DD;
-  sys_month := MM;
-  sys_year  := YY;
-}
-  sys_time  := 12*60;
-  sys_day   := 4;
-  sys_month := 7;
-  sys_year  := 1776;
-  EQTB[int_base+time_code ].INT := sys_time;
-  EQTB[int_base+day_code  ].INT := sys_day;
-  EQTB[int_base+month_code].INT := sys_month;
-  EQTB[int_base+year_code ].INT := sys_year;
+  case Code-dimen_base of
+    0: print_length_param := print_esc('parindent');
+    1: print_length_param := print_esc('mathsurround');
+    2: print_length_param := print_esc('lineskiplimit');
+    3: print_length_param := print_esc('hsize');
+    4: print_length_param := print_esc('vsize');
+    5: print_length_param := print_esc('maxdepth');
+    6: print_length_param := print_esc('splitmaxdepth');
+    7: print_length_param := print_esc('boxmaxdepth');
+    8: print_length_param := print_esc('hfuzz');
+    9: print_length_param := print_esc('vfuzz');
+    10: print_length_param := print_esc('delimitershortfall');
+    11: print_length_param := print_esc('nulldelimiterspace');
+    12: print_length_param := print_esc('scriptspace');
+    13: print_length_param := print_esc('predisplaysize');
+    14: print_length_param := print_esc('displaywidth');
+    15: print_length_param := print_esc('displayindent');
+    16: print_length_param := print_esc('overfullrule');
+    17: print_length_param := print_esc('hangindent');
+    18: print_length_param := print_esc('hoffset');
+    19: print_length_param := print_esc('voffset');
+    20: print_length_param := print_esc('emergencystretch');
+    ELSE print_length_param := '[unknown dimen parameter!]';
+  end;
 end;
-{:241}
+
+function chr_cmd(Name: string; ChrCode: HALFWORD) : string;
+begin
+  chr_cmd := Name + GetString(ChrCode);
+end;
+
+{@ The |print_cmd_chr| routine prints a symbolic interpretation of a
+command code and its modifier. This is used in certain "'You can't"
+error messages, and in the implementation of diagnostic routines like
+\show.
+
+The body of |print_cmd_chr| is a rather tedious listing of print
+commands, and most of it is essentially an inverse to the |primitive|
+routine that enters a \TeX\ primitive into |eqtb|. Therefore much of
+this procedure appears elsewhere in the program,
+together with the corresponding |primitive| calls.}
+
+function print_cmd_chr(Cmd: QUARTERWORD; chr_code: HALFWORD) : string;
+var s: string;
+begin
+  case Cmd of
+    left_brace:  print_cmd_chr := chr_cmd('begin-group character ', chr_code);
+    right_brace: print_cmd_chr := chr_cmd('end-group character ', chr_code);
+    math_shift:  print_cmd_chr := chr_cmd('math shift character ', chr_code);
+    mac_param:   print_cmd_chr := chr_cmd('macro parameter character ', chr_code);
+    sup_mark:    print_cmd_chr := chr_cmd('superscript character ', chr_code);
+    sub_mark:    print_cmd_chr := chr_cmd('subscript character ', chr_code);
+    endv:        print_cmd_chr := 'end of alignment template';
+    spacer:      print_cmd_chr := chr_cmd('blank space ', chr_code);
+    letter:      print_cmd_chr := chr_cmd('the letter ', chr_code);
+    other_char:  print_cmd_chr := chr_cmd('the character ', chr_code);
 
 
-{247:}
-PROCEDURE PRINTLENGTHP(N:Int32);
-BEGIN
-  CASE N OF 
-    0: print_esc_str('parindent');
-    1: print_esc_str('mathsurround');
-    2: print_esc_str('lineskiplimit');
-    3: print_esc_str('hsize');
-    4: print_esc_str('vsize');
-    5: print_esc_str('maxdepth');
-    6: print_esc_str('splitmaxdepth');
-    7: print_esc_str('boxmaxdepth');
-    8: print_esc_str('hfuzz');
-    9: print_esc_str('vfuzz');
-    10: print_esc_str('delimitershortfall');
-    11: print_esc_str('nulldelimiterspace');
-    12: print_esc_str('scriptspace');
-    13: print_esc_str('predisplaysize');
-    14: print_esc_str('displaywidth');
-    15: print_esc_str('displayindent');
-    16: print_esc_str('overfullrule');
-    17: print_esc_str('hangindent');
-    18: print_esc_str('hoffset');
-    19: print_esc_str('voffset');
-    20: print_esc_str('emergencystretch');
-    ELSE print_str('[unknown dimen parameter!]')
-  END;
-END;
-{:247}{252:}{298:}
-PROCEDURE PRINTCMDCHR(CMD:QUARTERWORD;
-                      CHRCODE:HALFWORD);
-BEGIN
-  CASE CMD OF 
-    1:
-       BEGIN
-         print_str('begin-group character ');
-         PRINT(CHRCODE);
-       END;
-    2:
-       BEGIN
-         print_str('end-group character ');
-         PRINT(CHRCODE);
-       END;
-    3:
-       BEGIN
-         print_str('math shift character ');
-         PRINT(CHRCODE);
-       END;
-    6:
-       BEGIN
-         print_str('macro parameter character ');
-         PRINT(CHRCODE);
-       END;
-    7:
-       BEGIN
-         print_str('superscript character ');
-         PRINT(CHRCODE);
-       END;
-    8:
-       BEGIN
-         print_str('subscript character ');
-         PRINT(CHRCODE);
-       END;
-    9: print_str('end of alignment template');
-    10:
-        BEGIN
-          print_str('blank space ');
-          PRINT(CHRCODE);
-        END;
-    11:
-        BEGIN
-          print_str('the letter ');
-          PRINT(CHRCODE);
-        END;
-    12:
-        BEGIN
-          print_str('the character ');
-          PRINT(CHRCODE);
-        END;
-{227:}
-    75,76:
-           IF CHRCODE<2900 THEN PRINTSKIPPAR(CHRCODE-2882)
-           ELSE
-             IF 
-                CHRCODE<3156 THEN
-               BEGIN
-                 print_esc_str('skip');
-                 PRINTINT(CHRCODE-2900);
-               END
-           ELSE
-             BEGIN
-               print_esc_str('muskip');
-               PRINTINT(CHRCODE-3156);
-             END;
-{:227}{231:}
-    72:
-        IF CHRCODE>=3422 THEN
-          BEGIN
-            print_esc_str('toks');
-            PRINTINT(CHRCODE-3422);
-          END
-        ELSE
-          CASE CHRCODE OF 
-            3413: print_esc_str('output');
-            3414: print_esc_str('everypar');
-            3415: print_esc_str('everymath');
-            3416: print_esc_str('everydisplay');
-            3417: print_esc_str('everyhbox');
-            3418: print_esc_str('everyvbox');
-            3419: print_esc_str('everyjob');
-            3420: print_esc_str('everycr');
-            ELSE print_esc_str('errhelp')
-          END;
-{:231}{239:}
-    73:
-        IF CHRCODE<5318 THEN PRINTPARAM(CHRCODE-5263)
-        ELSE
-          BEGIN
-            print_esc_str('count');
-            PRINTINT(CHRCODE-5318);
-          END;
-{:239}{249:}
-    74:
-        IF CHRCODE<5851 THEN PRINTLENGTHP(CHRCODE-5830)
-        ELSE
-          BEGIN
-            print_esc_str('dimen');
-            PRINTINT(CHRCODE-5851);
-          END;{:249}{266:}
-    45: print_esc_str('accent');
-    90: print_esc_str('advance');
-    40: print_esc_str('afterassignment');
-    41: print_esc_str('aftergroup');
-    77: print_esc_str('fontdimen');
-    61: print_esc_str('begingroup');
-    42: print_esc_str('penalty');
-    16: print_esc_str('char');
-    107: print_esc_str('csname');
-    88: print_esc_str('font');
-    15: print_esc_str('delimiter');
-    92: print_esc_str('divide');
-    67: print_esc_str('endcsname');
-    62: print_esc_str('endgroup');
-    64: print_esc_str(' ');
-    102: print_esc_str('expandafter');
-    32: print_esc_str('halign');
-    36: print_esc_str('hrule');
-    39: print_esc_str('ignorespaces');
-    37: print_esc_str('insert');
-    44: print_esc_str('/');
-    18: print_esc_str('mark');
-    46: print_esc_str('mathaccent');
-    17: print_esc_str('mathchar');
-    54: print_esc_str('mathchoice');
-    91: print_esc_str('multiply');
-    34: print_esc_str('noalign');
-    65: print_esc_str('noboundary');
-    103: print_esc_str('noexpand');
-    55: print_esc_str('nonscript');
-    63: print_esc_str('omit');
-    66: print_esc_str('radical');
-    96: print_esc_str('read');
-    0: print_esc_str('relax');
-    98: print_esc_str('setbox');
-    80: print_esc_str('prevgraf');
-    84: print_esc_str('parshape');
-    109: print_esc_str('the');
-    71: print_esc_str('toks');
-    38: print_esc_str('vadjust');
-    33: print_esc_str('valign');
-    56: print_esc_str('vcenter');
-    35: print_esc_str('vrule');{:266}{335:}
-    13: print_esc_str('par');
-{:335}{377:}
-    104:
-         IF CHRCODE=0 THEN print_esc_str('input')
-         ELSE print_esc_str('endinput');
-{:377}{385:}
-    110:
-         CASE CHRCODE OF 
-           1: print_esc_str('firstmark');
-           2: print_esc_str('botmark');
-           3: print_esc_str('splitfirstmark');
-           4: print_esc_str('splitbotmark');
-           ELSE print_esc_str('topmark')
-         END;
-{:385}{412:}
-    89:
-        IF CHRCODE=0 THEN print_esc_str('count')
-        ELSE
-          IF CHRCODE=1 THEN
-            print_esc_str('dimen')
-        ELSE
-          IF CHRCODE=2 THEN print_esc_str('skip')
-        ELSE print_esc_str('muskip');
-{:412}{417:}
-    79:
-        IF CHRCODE=1 THEN print_esc_str('prevdepth')
-        ELSE print_esc_str('spacefactor');
-    82:
-        IF CHRCODE=0 THEN print_esc_str('deadcycles')
-        ELSE print_esc_str('insertpenalties');
-    83:
-        IF CHRCODE=1 THEN print_esc_str('wd')
-        ELSE
-          IF CHRCODE=3 THEN print_esc_str('ht')
-        ELSE print_esc_str('dp');
-    70:
-        CASE CHRCODE OF 
-          0: print_esc_str('lastpenalty');
-          1: print_esc_str('lastkern');
-          2: print_esc_str('lastskip');
-          3: print_esc_str('inputlineno');
-          ELSE print_esc_str('badness')
-        END;
-{:417}{469:}
-    108:
-         CASE CHRCODE OF 
-           0: print_esc_str('number');
-           1: print_esc_str('romannumeral');
-           2: print_esc_str('string');
-           3: print_esc_str('meaning');
-           4: print_esc_str('fontname');
-           ELSE print_esc_str('jobname')
-         END;
-{:469}{488:}
-    105:
-         CASE CHRCODE OF 
-           1: print_esc_str('ifcat');
-           2: print_esc_str('ifnum');
-           3: print_esc_str('ifdim');
-           4: print_esc_str('ifodd');
-           5: print_esc_str('ifvmode');
-           6: print_esc_str('ifhmode');
-           7: print_esc_str('ifmmode');
-           8: print_esc_str('ifinner');
-           9: print_esc_str('ifvoid');
-           10: print_esc_str('ifhbox');
-           11: print_esc_str('ifvbox');
-           12: print_esc_str('ifx');
-           13: print_esc_str('ifeof');
-           14: print_esc_str('iftrue');
-           15: print_esc_str('iffalse');
-           16: print_esc_str('ifcase');
-           ELSE print_esc_str('if')
-         END;
-{:488}{492:}
-    106:
-         IF CHRCODE=2 THEN print_esc_str('fi')
-         ELSE
-           IF CHRCODE=4 THEN
-             print_esc_str('or')
-         ELSE print_esc_str('else');
-{:492}{781:}
-    4:
-       IF CHRCODE=256 THEN print_esc_str('span')
-       ELSE
-         BEGIN
-           print_str('alignment tab character ');
-           PRINT(CHRCODE);
-         END;
-    5:
-       IF CHRCODE=257 THEN print_esc_str('cr')
-       ELSE print_esc_str('crcr');
-{:781}{984:}
-    81:
-        CASE CHRCODE OF 
-          0: print_esc_str('pagegoal');
-          1: print_esc_str('pagetotal');
-          2: print_esc_str('pagestretch');
-          3: print_esc_str('pagefilstretch');
-          4: print_esc_str('pagefillstretch');
-          5: print_esc_str('pagefilllstretch');
-          6: print_esc_str('pageshrink');
-          ELSE print_esc_str('pagedepth')
-        END;
-{:984}{1053:}
-    14:
-        IF CHRCODE=1 THEN print_esc_str('dump')
-        ELSE print_esc_str('end');
-{:1053}{1059:}
-    26:
-        CASE CHRCODE OF 
-          4: print_esc_str('hskip');
-          0: print_esc_str('hfil');
-          1: print_esc_str('hfill');
-          2: print_esc_str('hss');
-          ELSE print_esc_str('hfilneg')
-        END;
-    27:
-        CASE CHRCODE OF 
-          4: print_esc_str('vskip');
-          0: print_esc_str('vfil');
-          1: print_esc_str('vfill');
-          2: print_esc_str('vss');
-          ELSE print_esc_str('vfilneg')
-        END;
-    28: print_esc_str('mskip');
-    29: print_esc_str('kern');
-    30: print_esc_str('mkern');
-{:1059}{1072:}
-    21:
-        IF CHRCODE=1 THEN print_esc_str('moveleft')
-        ELSE print_esc_str('moveright');
-    22:
-        IF CHRCODE=1 THEN print_esc_str('raise')
-        ELSE print_esc_str('lower');
-    20:
-        CASE CHRCODE OF 
-          0: print_esc_str('box');
-          1: print_esc_str('copy');
-          2: print_esc_str('lastbox');
-          3: print_esc_str('vsplit');
-          4: print_esc_str('vtop');
-          5: print_esc_str('vbox');
-          ELSE print_esc_str('hbox')
-        END;
-    31:
-        IF CHRCODE=100 THEN print_esc_str('leaders')
-        ELSE
-          IF CHRCODE=101 THEN print_esc_str('cleaders')
-        ELSE
-          IF CHRCODE=102 THEN print_esc_str('xleaders')
-        ELSE print_esc_str('shipout');
-{:1072}{1089:}
-    43:
-        IF CHRCODE=0 THEN print_esc_str('noindent')
-        ELSE print_esc_str('indent');
-{:1089}{1108:}
-    25:
-        IF CHRCODE=10 THEN print_esc_str('unskip')
-        ELSE
-          IF CHRCODE=11
-            THEN print_esc_str('unkern')
-        ELSE print_esc_str('unpenalty');
-    23:
-        IF CHRCODE=1 THEN print_esc_str('unhcopy')
-        ELSE print_esc_str('unhbox');
-    24:
-        IF CHRCODE=1 THEN print_esc_str('unvcopy')
-        ELSE print_esc_str('unvbox');
-{:1108}{1115:}
-    47:
-        IF CHRCODE=1 THEN print_esc_str('-')
-        ELSE print_esc_str('discretionary');
-{:1115}{1143:}
-    48:
-        IF CHRCODE=1 THEN print_esc_str('leqno')
-        ELSE print_esc_str('eqno');
-{:1143}{1157:}
-    50:
-        CASE CHRCODE OF 
-          16: print_esc_str('mathord');
-          17: print_esc_str('mathop');
-          18: print_esc_str('mathbin');
-          19: print_esc_str('mathrel');
-          20: print_esc_str('mathopen');
-          21: print_esc_str('mathclose');
-          22: print_esc_str('mathpunct');
-          23: print_esc_str('mathinner');
-          26: print_esc_str('underline');
-          ELSE print_esc_str('overline')
-        END;
-    51:
-        IF CHRCODE=1 THEN print_esc_str('limits')
-        ELSE IF CHRCODE=2 THEN print_esc_str('nolimits')
-        ELSE print_esc_str('displaylimits');{:1157}{1170:}
-    53: PRINTSTYLE(CHRCODE);
-{:1170}{1179:}
-    52:
-        CASE CHRCODE OF 
-          1: print_esc_str('over');
-          2: print_esc_str('atop');
-          3: print_esc_str('abovewithdelims');
-          4: print_esc_str('overwithdelims');
-          5: print_esc_str('atopwithdelims');
-          ELSE print_esc_str('above')
-        END;
-{:1179}{1189:}
-    49:
-        IF CHRCODE=30 THEN print_esc_str('left')
-        ELSE print_esc_str('right');
-{:1189}{1209:}
-    93:
-        IF CHRCODE=1 THEN print_esc_str('long')
-        ELSE IF CHRCODE=2 THEN print_esc_str('outer')
-        ELSE print_esc_str('global');
-    97:
-        IF CHRCODE=0 THEN print_esc_str('def')
-        ELSE IF CHRCODE=1 THEN print_esc_str('gdef')
-        ELSE IF CHRCODE=2 THEN print_esc_str('edef')
-        ELSE print_esc_str('xdef');
-{:1209}{1220:}
-    94:
-        IF CHRCODE<>0 THEN print_esc_str('futurelet')
-        ELSE print_esc_str('let');
-{:1220}{1223:}
-    95:
-        CASE CHRCODE OF 
-          0: print_esc_str('chardef');
-          1: print_esc_str('mathchardef');
-          2: print_esc_str('countdef');
-          3: print_esc_str('dimendef');
-          4: print_esc_str('skipdef');
-          5: print_esc_str('muskipdef');
-          ELSE print_esc_str('toksdef')
-        END;
-    68:
-        BEGIN
-          print_esc_str('char');
-          PRINTHEX(CHRCODE);
-        END;
-    69:
-        BEGIN
-          print_esc_str('mathchar');
-          PRINTHEX(CHRCODE);
-        END;
-{:1223}
 
-{1231:}
-    85: IF CHRCODE=3983 THEN print_esc_str('catcode')
-        ELSE IF CHRCODE=5007 THEN print_esc_str('mathcode')
-        ELSE IF CHRCODE=4239 THEN print_esc_str('lccode')
-        ELSE IF CHRCODE=4495 THEN print_esc_str('uccode')
-        ELSE IF CHRCODE=4751 THEN print_esc_str('sfcode')
-        ELSE print_esc_str('delcode');
-    86: if CHRCODE=3935 then print_esc_str('textfont')
-        else if CHRCODE=3951 then print_esc_str('scriptfont')
-        else print_esc_str('scriptscriptfont');
+    0: print_cmd_chr := print_esc('relax');
 
-{:1231}
+    4: IF chr_code=256 THEN print_cmd_chr := print_esc('span')
+                       ELSE print_cmd_chr := 'alignment tab character ' + GetString(chr_code);
+    5: IF chr_code=257 THEN print_cmd_chr := print_esc('cr')
+                       ELSE print_cmd_chr := print_esc('crcr');
 
-{1251:}
-    99: IF CHRCODE=1 THEN print_esc_str('patterns')
-        ELSE print_esc_str('hyphenation');
-{:1251}
-
-{1255:}
-    78: IF CHRCODE=0 THEN print_esc_str('hyphenchar')
-        ELSE print_esc_str('skewchar');
-{:1255}
-
-{1261:}
-    87: BEGIN
-          print_str('select font ');
-          SLOWPRINT(FONTNAME[CHRCODE]);
-          IF FONTSIZE[CHRCODE]<>FONTDSIZE[CHRCODE] THEN
-              print_str(' at ' + ScaledStr(FONTSIZE[CHRCODE]) + 'pt');
+    13: print_cmd_chr := print_esc('par');
+    14: IF chr_code=1 THEN print_cmd_chr := print_esc('dump')
+                      ELSE print_cmd_chr := print_esc('end');
+    15: print_cmd_chr := print_esc('delimiter');
+    16: print_cmd_chr := print_esc('char');
+    17: print_cmd_chr := print_esc('mathchar');
+    18: print_cmd_chr := print_esc('mark');
+    19: CASE chr_code OF 
+          1: print_cmd_chr := print_esc('showbox');
+          2: print_cmd_chr := print_esc('showthe');
+          3: print_cmd_chr := print_esc('showlists');
+          ELSE print_cmd_chr := print_esc('show');
+        end;
+    20: CASE chr_code OF 
+          0: print_cmd_chr := print_esc('box');
+          1: print_cmd_chr := print_esc('copy');
+          2: print_cmd_chr := print_esc('lastbox');
+          3: print_cmd_chr := print_esc('vsplit');
+          4: print_cmd_chr := print_esc('vtop');
+          5: print_cmd_chr := print_esc('vbox');
+          ELSE print_cmd_chr := print_esc('hbox')
         END;
-{:1261}{1263:}
-    100:
-         CASE CHRCODE OF 
-           0: print_esc_str('batchmode');
-           1: print_esc_str('nonstopmode');
-           2: print_esc_str('scrollmode');
-           ELSE print_esc_str('errorstopmode')
-         END;
-{:1263}{1273:}
-    60:
-        IF CHRCODE=0 THEN print_esc_str('closein')
-                     ELSE print_esc_str('openin');
-{:1273}{1278:}
-    58:
-        IF CHRCODE=0 THEN print_esc_str('message')
-                     ELSE print_esc_str('errmessage');
-{:1278}{1287:}
-    57:
-        IF CHRCODE=4239 THEN print_esc_str('lowercase')
-                        ELSE print_esc_str('uppercase');
-{:1287}{1292:}
-    19:
-        CASE CHRCODE OF 
-          1: print_esc_str('showbox');
-          2: print_esc_str('showthe');
-          3: print_esc_str('showlists');
-          ELSE print_esc_str('show')
-        END;{:1292}{1295:}
-    101: print_str('undefined');
-    111: print_str('macro');
-    112: print_esc_str('long macro');
-    113: print_esc_str('outer macro');
-    114:
-         BEGIN
-           print_esc_str('long');
-           print_esc_str('outer macro');
-         END;
-    115: print_esc_str('outer endtemplate');
-{:1295}{1346:}
-    59:
-        CASE CHRCODE OF 
-          0: print_esc_str('openout');
-          1: print_esc_str('write');
-          2: print_esc_str('closeout');
-          3: print_esc_str('special');
-          4: print_esc_str('immediate');
-          5: print_esc_str('setlanguage');
+    21: IF chr_code=1 THEN print_cmd_chr := print_esc('moveleft')
+                      ELSE print_cmd_chr := print_esc('moveright');
+    22: IF chr_code=1 THEN print_cmd_chr := print_esc('raise')
+                      ELSE print_cmd_chr := print_esc('lower');
+    23: IF chr_code=1 THEN print_cmd_chr := print_esc('unhcopy')
+                      ELSE print_cmd_chr := print_esc('unhbox');
+    24: IF chr_code=1 THEN print_cmd_chr := print_esc('unvcopy')
+                      ELSE print_cmd_chr := print_esc('unvbox');
+    25: IF      chr_code=10 THEN print_cmd_chr := print_esc('unskip')
+        ELSE IF chr_code=11 THEN print_cmd_chr := print_esc('unkern')
+                            ELSE print_cmd_chr := print_esc('unpenalty');
+    26: CASE chr_code OF 
+          4: print_cmd_chr := print_esc('hskip');
+          0: print_cmd_chr := print_esc('hfil');
+          1: print_cmd_chr := print_esc('hfill');
+          2: print_cmd_chr := print_esc('hss');
+          ELSE print_cmd_chr := print_esc('hfilneg')
+        END;
+    27: CASE chr_code OF 
+          4: print_cmd_chr := print_esc('vskip');
+          0: print_cmd_chr := print_esc('vfil');
+          1: print_cmd_chr := print_esc('vfill');
+          2: print_cmd_chr := print_esc('vss');
+          ELSE print_cmd_chr := print_esc('vfilneg')
+        END;
+    28: print_cmd_chr := print_esc('mskip');
+    29: print_cmd_chr := print_esc('kern');
+    30: print_cmd_chr := print_esc('mkern');
+    31: IF      chr_code=100 THEN print_cmd_chr := print_esc('leaders')
+        ELSE IF chr_code=101 THEN print_cmd_chr := print_esc('cleaders')
+        ELSE IF chr_code=102 THEN print_cmd_chr := print_esc('xleaders')
+                             ELSE print_cmd_chr := print_esc('shipout');
+    32: print_cmd_chr := print_esc('halign');
+    33: print_cmd_chr := print_esc('valign');
+    34: print_cmd_chr := print_esc('noalign');
+    35: print_cmd_chr := print_esc('vrule');
+    36: print_cmd_chr := print_esc('hrule');
+    37: print_cmd_chr := print_esc('insert');
+    38: print_cmd_chr := print_esc('vadjust');
+    39: print_cmd_chr := print_esc('ignorespaces');
+    40: print_cmd_chr := print_esc('afterassignment');
+    41: print_cmd_chr := print_esc('aftergroup');
+    42: print_cmd_chr := print_esc('penalty');
+    43: IF chr_code=0 THEN print_cmd_chr := print_esc('noindent')
+                      ELSE print_cmd_chr := print_esc('indent');
+    44: print_cmd_chr := print_esc('/');
+    45: print_cmd_chr := print_esc('accent');
+    46: print_cmd_chr := print_esc('mathaccent');
+    47: IF chr_code=1 THEN print_cmd_chr := print_esc('-')
+                      ELSE print_cmd_chr := print_esc('discretionary');
+    48: IF chr_code=1 THEN print_cmd_chr := print_esc('leqno')
+                      ELSE print_cmd_chr := print_esc('eqno');
+    49: IF chr_code=30 THEN print_cmd_chr := print_esc('left')
+                       ELSE print_cmd_chr := print_esc('right');
+    50: CASE chr_code OF 
+          16: print_cmd_chr := print_esc('mathord');
+          17: print_cmd_chr := print_esc('mathop');
+          18: print_cmd_chr := print_esc('mathbin');
+          19: print_cmd_chr := print_esc('mathrel');
+          20: print_cmd_chr := print_esc('mathopen');
+          21: print_cmd_chr := print_esc('mathclose');
+          22: print_cmd_chr := print_esc('mathpunct');
+          23: print_cmd_chr := print_esc('mathinner');
+          26: print_cmd_chr := print_esc('underline');
+          ELSE print_cmd_chr := print_esc('overline')
+        END;
+    51: IF      chr_code=1 THEN print_cmd_chr := print_esc('limits')
+        ELSE IF chr_code=2 THEN print_cmd_chr := print_esc('nolimits')
+                           ELSE print_cmd_chr := print_esc('displaylimits');
+    52: CASE chr_code OF 
+          1: print_cmd_chr := print_esc('over');
+          2: print_cmd_chr := print_esc('atop');
+          3: print_cmd_chr := print_esc('abovewithdelims');
+          4: print_cmd_chr := print_esc('overwithdelims');
+          5: print_cmd_chr := print_esc('atopwithdelims');
+          ELSE print_cmd_chr := print_esc('above')
+        END;
+    53: print_cmd_chr := print_style(chr_code);
+    54: print_cmd_chr := print_esc('mathchoice');
+    55: print_cmd_chr := print_esc('nonscript');
+    56: print_cmd_chr := print_esc('vcenter');
+
+    58: IF chr_code=0    THEN print_cmd_chr := print_esc('message')
+                         ELSE print_cmd_chr := print_esc('errmessage');
+    57: IF chr_code=4239 THEN print_cmd_chr := print_esc('lowercase')
+                         ELSE print_cmd_chr := print_esc('uppercase');
+    59: CASE chr_code OF 
+          0: print_cmd_chr := print_esc('openout');
+          1: print_cmd_chr := print_esc('write');
+          2: print_cmd_chr := print_esc('closeout');
+          3: print_cmd_chr := print_esc('special');
+          4: print_cmd_chr := print_esc('immediate');
+          5: print_cmd_chr := print_esc('setlanguage');
           ELSE print_str('[unknown extension!]')
-        END;{:1346}
+        END;
+    60: IF chr_code=0 THEN print_cmd_chr := print_esc('closein')
+                      ELSE print_cmd_chr := print_esc('openin');
+    61: print_cmd_chr := print_esc('begingroup');
+    62: print_cmd_chr := print_esc('endgroup');
+    63: print_cmd_chr := print_esc('omit');
+    64: print_cmd_chr := print_esc(' ');
+    65: print_cmd_chr := print_esc('noboundary');
+    66: print_cmd_chr := print_esc('radical');
+    67: print_cmd_chr := print_esc('endcsname');
+    68: print_cmd_chr := print_esc('char') + print_hex(chr_code);
+    69: print_cmd_chr := print_esc('mathchar') + print_hex(chr_code);
+    70: CASE chr_code OF 
+          0: print_cmd_chr := print_esc('lastpenalty');
+          1: print_cmd_chr := print_esc('lastkern');
+          2: print_cmd_chr := print_esc('lastskip');
+          3: print_cmd_chr := print_esc('inputlineno');
+          ELSE print_cmd_chr := print_esc('badness')
+        END;
+    71: print_cmd_chr := print_esc('toks');
+    assign_toks:{72} begin
+        if chr_code>=toks_base then
+          print_cmd_chr := print_esc('toks') + print_int(chr_code-3422)
+        else case chr_code of
+          output_routine_loc: print_cmd_chr := print_esc('output');
+          every_par_loc:      print_cmd_chr := print_esc('everypar');
+          every_math_loc:     print_cmd_chr := print_esc('everymath');
+          every_display_loc:  print_cmd_chr := print_esc('everydisplay');
+          every_hbox_loc:     print_cmd_chr := print_esc('everyhbox');
+          every_vbox_loc:     print_cmd_chr := print_esc('everyvbox');
+          every_job_loc:      print_cmd_chr := print_esc('everyjob');
+          every_cr_loc:       print_cmd_chr := print_esc('everycr');
+          else                print_cmd_chr := print_esc('errhelp');
+        end;
+      end;
+    assign_int:{73} begin
+        if chr_code<count_base then
+          print_cmd_chr := print_param(chr_code)
+        else
+          print_cmd_chr := print_esc('count') + print_int(chr_code-count_base);
+      end;
+    assign_dimen:{74} begin
+        if chr_code<scaled_base then
+          print_cmd_chr := print_length_param(chr_code)
+        else
+          print_cmd_chr := print_esc('dimen') + print_int(chr_code-scaled_base);
+      end;
+    assign_glue, {75}
+    assign_mu_glue:{76} begin
+        if chr_code < skip_base then 
+          print_cmd_chr := print_skip_param(chr_code-glue_base)
+        else if chr_code < mu_skip_base then 
+          print_cmd_chr := print_esc('skip') + print_int(chr_code-skip_base)
+        else 
+          print_cmd_chr := print_esc('skip') + print_int(chr_code-mu_skip_base);
+      end;
+    77: print_cmd_chr := print_esc('fontdimen');
+    78: IF chr_code=0 THEN print_cmd_chr := print_esc('hyphenchar')
+                      ELSE print_cmd_chr := print_esc('skewchar');
+    79: IF chr_code=1 THEN print_cmd_chr := print_esc('prevdepth')
+                      ELSE print_cmd_chr := print_esc('spacefactor');
+    80: print_cmd_chr := print_esc('prevgraf');
+    81: CASE chr_code OF 
+          0: print_cmd_chr := print_esc('pagegoal');
+          1: print_cmd_chr := print_esc('pagetotal');
+          2: print_cmd_chr := print_esc('pagestretch');
+          3: print_cmd_chr := print_esc('pagefilstretch');
+          4: print_cmd_chr := print_esc('pagefillstretch');
+          5: print_cmd_chr := print_esc('pagefilllstretch');
+          6: print_cmd_chr := print_esc('pageshrink');
+          ELSE print_cmd_chr := print_esc('pagedepth')
+        END;
+    82: IF chr_code=0 THEN print_cmd_chr := print_esc('deadcycles')
+                      ELSE print_cmd_chr := print_esc('insertpenalties');
+    83: IF      chr_code=1 THEN print_cmd_chr := print_esc('wd')
+        ELSE IF chr_code=3 THEN print_cmd_chr := print_esc('ht')
+                           ELSE print_cmd_chr := print_esc('dp');
+    84: print_cmd_chr := print_esc('parshape');
+    85: IF      chr_code=3983 THEN print_cmd_chr := print_esc('catcode')
+        ELSE IF chr_code=5007 THEN print_cmd_chr := print_esc('mathcode')
+        ELSE IF chr_code=4239 THEN print_cmd_chr := print_esc('lccode')
+        ELSE IF chr_code=4495 THEN print_cmd_chr := print_esc('uccode')
+        ELSE IF chr_code=4751 THEN print_cmd_chr := print_esc('sfcode')
+                              ELSE print_cmd_chr := print_esc('delcode');
+    86: if      chr_code=3935 then print_cmd_chr := print_esc('textfont')
+        else if chr_code=3951 then print_cmd_chr := print_esc('scriptfont')
+                              else print_cmd_chr := print_esc('scriptscriptfont');
+    87: BEGIN
+          s := 'select font ' + PrintableStr(GetString(FONTNAME[chr_code]));
+          IF FONTSIZE[chr_code]<>FONTDSIZE[chr_code] THEN
+            print_cmd_chr := s + ' at ' + print_scaled(FONTSIZE[chr_code]) + 'pt'
+          ELSE
+            print_cmd_chr := s;
+        END;
+    88: print_cmd_chr := print_esc('font');
+    89: IF      chr_code=0 THEN print_cmd_chr := print_esc('count')
+        ELSE IF chr_code=1 THEN print_cmd_chr := print_esc('dimen')
+        ELSE IF chr_code=2 THEN print_cmd_chr := print_esc('skip')
+                           ELSE print_cmd_chr := print_esc('muskip');
+    90: print_cmd_chr := print_esc('advance');
+    91: print_cmd_chr := print_esc('multiply');
+    92: print_cmd_chr := print_esc('divide');
+    93: IF      chr_code=1 THEN print_cmd_chr := print_esc('long')
+        ELSE IF chr_code=2 THEN print_cmd_chr := print_esc('outer')
+                           ELSE print_cmd_chr := print_esc('global');
+    94: IF chr_code<>0     THEN print_cmd_chr := print_esc('futurelet')
+                           ELSE print_cmd_chr := print_esc('let');
+    95: CASE chr_code OF 
+          0: print_cmd_chr := print_esc('chardef');
+          1: print_cmd_chr := print_esc('mathchardef');
+          2: print_cmd_chr := print_esc('countdef');
+          3: print_cmd_chr := print_esc('dimendef');
+          4: print_cmd_chr := print_esc('skipdef');
+          5: print_cmd_chr := print_esc('muskipdef');
+          ELSE print_cmd_chr := print_esc('toksdef')
+        END;
+    96: print_cmd_chr := print_esc('read');
+    97: IF      chr_code=0 THEN print_cmd_chr := print_esc('def')
+        ELSE IF chr_code=1 THEN print_cmd_chr := print_esc('gdef')
+        ELSE IF chr_code=2 THEN print_cmd_chr := print_esc('edef')
+                           ELSE print_cmd_chr := print_esc('xdef');
+    98: print_cmd_chr := print_esc('setbox');
+    99: IF chr_code=1      THEN print_cmd_chr := print_esc('patterns')
+                           ELSE print_cmd_chr := print_esc('hyphenation');
+    100: CASE chr_code OF 
+           0: print_cmd_chr := print_esc('batchmode');
+           1: print_cmd_chr := print_esc('nonstopmode');
+           2: print_cmd_chr := print_esc('scrollmode');
+           ELSE print_cmd_chr := print_esc('errorstopmode');
+         END;
+    101: print_cmd_chr := 'undefined';
+    102: print_cmd_chr := print_esc('expandafter');
+    103: print_cmd_chr := print_esc('noexpand');
+    104: IF chr_code=0     THEN print_cmd_chr := print_esc('input')
+                           ELSE print_cmd_chr := print_esc('endinput');
+    105: CASE chr_code OF 
+           1: print_cmd_chr := print_esc('ifcat');
+           2: print_cmd_chr := print_esc('ifnum');
+           3: print_cmd_chr := print_esc('ifdim');
+           4: print_cmd_chr := print_esc('ifodd');
+           5: print_cmd_chr := print_esc('ifvmode');
+           6: print_cmd_chr := print_esc('ifhmode');
+           7: print_cmd_chr := print_esc('ifmmode');
+           8: print_cmd_chr := print_esc('ifinner');
+           9: print_cmd_chr := print_esc('ifvoid');
+           10: print_cmd_chr := print_esc('ifhbox');
+           11: print_cmd_chr := print_esc('ifvbox');
+           12: print_cmd_chr := print_esc('ifx');
+           13: print_cmd_chr := print_esc('ifeof');
+           14: print_cmd_chr := print_esc('iftrue');
+           15: print_cmd_chr := print_esc('iffalse');
+           16: print_cmd_chr := print_esc('ifcase');
+           ELSE print_cmd_chr := print_esc('if')
+         END;
+    106: IF      chr_code=2 THEN print_cmd_chr := print_esc('fi')
+         ELSE IF chr_code=4 THEN print_cmd_chr := print_esc('or')
+                            ELSE print_cmd_chr := print_esc('else');
+    107: print_cmd_chr := print_esc('csname');
+    108: CASE chr_code OF 
+           0: print_cmd_chr := print_esc('number');
+           1: print_cmd_chr := print_esc('romannumeral');
+           2: print_cmd_chr := print_esc('string');
+           3: print_cmd_chr := print_esc('meaning');
+           4: print_cmd_chr := print_esc('fontname');
+           ELSE print_cmd_chr := print_esc('jobname')
+         END;
+    109: print_cmd_chr := print_esc('the');
+    110: CASE chr_code OF 
+           1: print_cmd_chr := print_esc('firstmark');
+           2: print_cmd_chr := print_esc('botmark');
+           3: print_cmd_chr := print_esc('splitfirstmark');
+           4: print_cmd_chr := print_esc('splitbotmark');
+           ELSE print_cmd_chr := print_esc('topmark')
+         END;
+    111: print_cmd_chr := 'macro';
+    112: print_cmd_chr := print_esc('long macro');
+    113: print_cmd_chr := print_esc('outer macro');
+    114: print_cmd_chr := print_esc('long') + print_esc('outer macro');
+    115: print_cmd_chr := print_esc('outer endtemplate');
+
     ELSE print_str('[unknown command code!]')
   END;
 END;{:298}
+
+
 
 {$IFDEF STATS}
 PROCEDURE SHOWEQTB(N:HALFWORD);
@@ -4526,21 +4441,21 @@ BEGIN
   ELSE IF N<2882 THEN BEGIN
     SPRINTCS(N);
     PRINTCHAR(61);
-    PRINTCMDCHR(EQTB[N].HH.B0,EQTB[N].HH.RH);
+    print_str(print_cmd_chr(EQTB[N].HH.B0,EQTB[N].HH.RH));
     IF EQTB[N].HH.B0>=111 THEN BEGIN
       PRINTCHAR(58);
       SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
     END;
   END ELSE IF N<3412 THEN begin
     IF N<2900 THEN BEGIN
-      PRINTSKIPPAR(N-2882);
+      print_str(print_skip_param(N-2882));
       PRINTCHAR(61);
-      IF N<2897 THEN print_str(SpecStr(EQTB[N].HH.RH, 'pt'))
-                ELSE print_str(SpecStr(EQTB[N].HH.RH, 'mu'));
+      IF N<2897 THEN print_str(print_spec(EQTB[N].HH.RH, 'pt'))
+                ELSE print_str(print_spec(EQTB[N].HH.RH, 'mu'));
     END ELSE IF N<3156 THEN BEGIN
-      print_esc_str('skip' + IntToStr(N-2900) + '=' + SpecStr(EQTB[N].HH.RH, 'pt'));
+      print_esc_str('skip' + print_int(N-2900) + '=' + print_spec(EQTB[N].HH.RH, 'pt'));
     END ELSE BEGIN
-      print_esc_str('muskip' + IntToStr(N-3156) + '=' + SpecStr(EQTB[N].HH.RH, 'mu'));
+      print_esc_str('muskip' + print_int(N-3156) + '=' + print_spec(EQTB[N].HH.RH, 'mu'));
     END
   end ELSE IF N<5263 THEN begin
     IF N=3412 THEN BEGIN
@@ -4549,7 +4464,7 @@ BEGIN
       IF EQTB[3412].HH.RH=0 THEN PRINTCHAR(48)
                             ELSE PRINTINT(MEM[EQTB[3412].HH.RH].HH.LH);
     END ELSE IF N<3422 THEN BEGIN
-      PRINTCMDCHR(72,N);
+      print_str(print_cmd_chr(72,N));
       PRINTCHAR(61);
       IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
     END ELSE IF N<3678 THEN BEGIN
@@ -4604,8 +4519,8 @@ BEGIN
       PRINTINT(EQTB[N].HH.RH-0);
     END
   end ELSE IF N<5830 THEN BEGIN
-    IF N<5318 THEN begin
-      PRINTPARAM(N-5263)
+    IF N<5318 THEN
+      print_str(print_param(N))
     end ELSE IF N<5574 THEN BEGIN
       print_esc_str('count');
       PRINTINT(N-5318);
@@ -4616,9 +4531,9 @@ BEGIN
     PRINTCHAR(61);
     PRINTINT(EQTB[N].INT);
   END ELSE IF N<=6106 THEN BEGIN
-    IF N<5851 THEN PRINTLENGTHP(N-5830)
+    IF N<5851 THEN print_str(print_length_param(N))
     ELSE print_esc_str('dimen' + IntToSStr(N-5851));
-    print_str('=' + ScaledStr(EQTB[N].INT) + 'pt');
+    print_str('=' + print_scaled(EQTB[N].INT) + 'pt');
   END ELSE PRINTCHAR(63);
 END;
 {$ENDIF}
@@ -4627,7 +4542,7 @@ END;
 {296:}
 PROCEDURE PRINTMEANING;
 BEGIN
-  PRINTCMDCHR(CURCMD,CURCHR);
+  print_str(print_cmd_chr(CURCMD,CURCHR));
   IF CURCMD>=111 THEN
     BEGIN
       PRINTCHAR(58);
@@ -4655,7 +4570,7 @@ BEGIN
       print_str(': ');
       SHOWNMODE := CURLIST.MODEFIELD;
     END;
-  PRINTCMDCHR(CURCMD,CURCHR);
+  print_str(print_cmd_chr(CURCMD,CURCHR));
   PRINTCHAR(125);
   ENDDIAGNOSTI(FALSE);
 END;
@@ -5476,7 +5391,7 @@ BEGIN
               CASE T OF 
                 14: print_esc_str('mark');
                 15: print_esc_str('write');
-                ELSE PRINTCMDCHR(72,T+3407)
+                ELSE print_str(print_cmd_chr(72,T+3407));
               END;
               print_str('->');
               TOKENSHOW(P);
@@ -5653,8 +5568,7 @@ BEGIN
             print_nl_str('! ');
             print_str('Incomplete ');
           END;
-          PRINTCMDCHR(105,CURIF);
-          print_str('; all text was ignored after line ');
+          print_str(print_cmd_chr(105, CURIF) + '; all text was ignored after line ');
           PRINTINT(SKIPLINE);
           BEGIN
             HELPPTR := 3;
@@ -6328,7 +6242,7 @@ BEGIN
                 IF EQTB[5293].INT>0 THEN
                   BEGIN
                     BEGINDIAGNOS;
-                    print_nl_str(GetString(MATCHCHR) + IntToStr(N) + '<-');
+                    print_nl_str(GetString(MATCHCHR) + print_int(N) + '<-');
                     SHOWTOKENLIS(PSTACK[N-1],0,1000);
                     ENDDIAGNOSTI(FALSE);
                   END;
@@ -6495,7 +6409,7 @@ BEGIN
                    print_nl_str('! ');
                    print_str('Extra ');
                  END;
-                 PRINTCMDCHR(106,CURCHR);
+                 print_str(print_cmd_chr(106,CURCHR));
                  BEGIN
                    HELPPTR := 1;
                    help_line[0] := 'I''m ignoring this; it doesn''t match any \if.';
@@ -6991,7 +6905,7 @@ BEGIN
               print_nl_str('! ');
               print_str('Improper ');
             END;
-            PRINTCMDCHR(79,M);
+            print_str(print_cmd_chr(79,M));
             BEGIN
               HELPPTR := 4;
               help_line[3] := 'You can refer to \spacefactor only in horizontal mode;';
@@ -7151,13 +7065,10 @@ BEGIN
     ELSE{428:}
       BEGIN
         BEGIN
-          IF INTERACTION=3 THEN;
           print_nl_str('! ');
           print_str('You can''t use `');
         END;
-        PRINTCMDCHR(CURCMD,CURCHR);
-        print_str(''' after ');
-        print_esc_str('the');
+        print_str(print_cmd_chr(CURCMD, CURCHR) + ''' after ' + print_esc('the'));
         BEGIN
           HELPPTR := 1;
           help_line[0] := 'I''m forgetting what you said and using zero instead.';
@@ -7862,13 +7773,13 @@ BEGIN
   ELSE BEGIN
     case CURVALLEVEL of
       0: str(CURVAL, s);
-      1: s := ScaledStr(CURVAL) + 'pt';
+      1: s := print_scaled(CURVAL) + 'pt';
       2: begin
-           s := SpecStr(CURVAL, 'pt');
+           s := print_spec(CURVAL, 'pt');
            DELETEGLUERE(CURVAL);
          end;
       3: begin
-           s := SpecStr(CURVAL, 'mu');
+           s := print_spec(CURVAL, 'mu');
            DELETEGLUERE(CURVAL);
          end;
     end;
@@ -7921,7 +7832,7 @@ BEGIN
     4: BEGIN
          PRINT(FONTNAME[CURVAL]);
          IF FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL] THEN
-           print_str(' at ' + ScaledStr(FONTSIZE[CURVAL]) + 'pt');
+           print_str(' at ' + print_scaled(FONTSIZE[CURVAL]) + 'pt');
        END;
     5: print_str(job_name);
   END{:472};
@@ -8365,7 +8276,7 @@ BEGIN{495:}
                  print_nl_str('! ');
                  print_str('Missing = inserted for ');
                END;
-               PRINTCMDCHR(105,THISIF);
+               print_str(print_cmd_chr(105,THISIF));
                BEGIN
                  HELPPTR := 1;
                  help_line[0] := 'I was expecting to see `<'', `='', or `>''. Didn''t.';
@@ -9615,7 +9526,7 @@ BEGIN
       PREPAREMAG;
       DVIFOUR(EQTB[5280].INT);
 
-      s := ' TeX output ' + IntToStr(EQTB[int_base+year_code].INT) + '.'
+      s := ' TeX output ' + print_int(EQTB[int_base+year_code].INT) + '.'
                           + IntToStr02(EQTB[int_base+month_code].INT) + '.'
                           + IntToStr02(EQTB[int_base+day_code].INT) + ':'
                           + IntToStr02(EQTB[int_base+time_code].INT DIV 60)
@@ -9928,7 +9839,7 @@ BEGIN
                   MEM[MEM[Q].HH.RH+1].INT := EQTB[5846].INT;
                 END;
               PRINTLN;
-              print_nl_str('Overfull \hbox (' + ScaledStr(-X-TOTALSHRINK[0]) + 'pt too wide');
+              print_nl_str('Overfull \hbox (' + print_scaled(-X-TOTALSHRINK[0]) + 'pt too wide');
               GOTO 50;
             END{:666};
         END
@@ -10116,7 +10027,7 @@ BEGIN
           IF (-X-TOTALSHRINK[0]>EQTB[5839].INT)OR(EQTB[5290].INT<100)THEN
             BEGIN
               PRINTLN;
-              print_nl_str('Overfull \vbox (' + ScaledStr(-X-TOTALSHRINK[0]) + 'pt too high');
+              print_nl_str('Overfull \vbox (' + print_scaled(-X-TOTALSHRINK[0]) + 'pt too high');
               GOTO 50;
             END{:677};
         END
@@ -14850,8 +14761,8 @@ BEGIN
 {$IFDEF STATS}
   IF EQTB[5296].INT>0 THEN BEGIN
     BEGINDIAGNOS;
-    print_nl_str('%% goal height=' + ScaledStr(PAGESOFAR[0])
-                  + ', max depth=' + ScaledStr(PAGEMAXDEPTH));
+    print_nl_str('%% goal height=' + print_scaled(PAGESOFAR[0])
+                  + ', max depth=' + print_scaled(PAGEMAXDEPTH));
     ENDDIAGNOSTI(FALSE);
   END;
 {$ENDIF}
@@ -15290,8 +15201,8 @@ BEGIN
                    IF EQTB[5296].INT>0 THEN{1011:}
                      BEGIN
                        BEGINDIAGNOS;
-                       print_nl_str('% split' + IntToStr(N) + ' to ' + ScaledStr(W)
-                         + ',' + ScaledStr(BESTHEIGHTPL) + ' p=');
+                       print_nl_str('% split' + print_int(N) + ' to ' + print_scaled(W)
+                         + ',' + print_scaled(BESTHEIGHTPL) + ' p=');
                        IF Q=0 THEN PRINTINT(-10000)
                        ELSE IF MEM[Q].HH.B0=12 THEN PRINTINT(MEM[Q+1].INT)
                        ELSE PRINTCHAR(48);
@@ -15333,12 +15244,10 @@ BEGIN
         IF EQTB[5296].INT>0 THEN{1006:}
           BEGIN
             BEGINDIAGNOS;
-            print_nl_str('% t=');
-            PRINTTOTALS;
-            print_str(' g=' + ScaledStr(PAGESOFAR[0]) + ' b=');
+            print_nl_str('% t=' + print_totals + ' g=' + print_scaled(PAGESOFAR[0]) + ' b=');
             IF B=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(B);
-            print_str(' p=' + IntToStr(PI) + ' c=');
+            print_str(' p=' + print_int(PI) + ' c=');
             IF C=1073741823 THEN PRINTCHAR(42)
             ELSE PRINTINT(C);
             IF C<=LEASTPAGECOS THEN PRINTCHAR(35);
@@ -15483,8 +15392,7 @@ BEGIN
     print_nl_str('! ');
     print_str('You can''t use `');
   END;
-  PRINTCMDCHR(CURCMD,CURCHR);
-  print_str(''' in ');
+  print_str(print_cmd_chr(CURCMD,CURCHR) + ''' in ');
   PRINTMODE(CURLIST.MODEFIELD);
 END;{:1049}{1050:}
 PROCEDURE REPORTILLEGA;
@@ -15588,7 +15496,7 @@ BEGIN
         print_nl_str('! ');
         print_str('Extra ');
       END;
-      PRINTCMDCHR(CURCMD,CURCHR);
+      print_str(print_cmd_chr(CURCMD,CURCHR));
       BEGIN
         HELPPTR := 1;
         help_line[0] := 'Things are pretty mixed up, but I think the worst is over.';
@@ -16404,7 +16312,7 @@ BEGIN
         print_nl_str('! ');
         print_str('Misplaced ');
       END;
-      PRINTCMDCHR(CURCMD,CURCHR);
+      print_str(print_cmd_chr(CURCMD,CURCHR));
       IF CURTOK=1062 THEN
         BEGIN
           BEGIN
@@ -17501,9 +17409,7 @@ BEGIN
               print_nl_str('! ');
               print_str('You can''t use `');
             END;
-            PRINTCMDCHR(CURCMD,CURCHR);
-            print_str(''' after ');
-            PRINTCMDCHR(Q,0);
+            print_str(print_cmd_chr(CURCMD,CURCHR) + ''' after ' + print_cmd_chr(Q, 0));
             BEGIN
               HELPPTR := 1;
               help_line[0] := 'I''m forgetting what you said and not changing anything.';
@@ -17824,7 +17730,6 @@ end;
 function ReadFontFile(var TFMFILE: byte_file;
                       F: INTERNALFONT;
                       S: SCALED) : uint32;
-LABEL 11,45;
 VAR K: FONTINDEX;
   LF,LH,BC,EC,NW,NH,ND,NI,NL,NK,NE,NP: HALFWORD;
   A,B,C,D: EIGHTBITS;
@@ -17909,6 +17814,7 @@ BEGIN
   {:568};
 
   {569: @<Read character data@>}
+
   FOR K:=FMEMPTR TO WIDTHBASE[F]-1 DO BEGIN
     if not store_four_quaters(TFMFILE, QW) then exit;
     FONTINFO[K].QQQQ := QW;
@@ -17921,15 +17827,20 @@ BEGIN
       lig_tag:  IF D>=NL THEN exit;
       ext_tag:  IF D>=NE THEN exit;
       list_tag: BEGIN
-                 {570:}
-                 IF (D<BC)OR(D>EC) THEN exit;
-                 WHILE D<K+BC-FMEMPTR DO BEGIN
+                 {570: <@Check for charlist cycle@>}
+
+{@ We want to make sure that there is no cycle of characters linked together
+by |list_tag| entries, since such a cycle would get \TeX\ into an endless
+loop. If such a cycle exists, the routine here detects it when processing
+the largest character code in the cycle.}
+
+                 if (D<BC) OR (D>EC) then exit;
+                 while D<K+BC-FMEMPTR do begin
                    QW := FONTINFO[CHARBASE[F]+D].QQQQ;
-                   IF ((QW.B2-0)MOD 4)<>2 THEN GOTO 45;
-                   D := QW.B3-0;
-                 END;
-                 IF D=K+BC-FMEMPTR THEN exit;
-             45:
+                   if (QW.B2 MOD 4)<>list_tag then break;
+                   D := QW.B3;
+                 end;
+                 if D=K+BC-FMEMPTR then exit;
                  {:570}
                END;
     END;
@@ -18089,7 +18000,6 @@ BEGIN
   ReadFontFile := 0; {successful, no error}
   {:576}
   {:562}
-11:
 END;
 
 FUNCTION READFONTINFO(U:HALFWORD;
@@ -18121,8 +18031,8 @@ BEGIN
   SPRINTCS(U);
   PRINTCHAR(61);
   print_str(RemoveFileExtension(FileName));
-  IF S>=0 THEN print_str(' at ' + ScaledStr(S) + 'pt')
-  ELSE IF S<>-1000 THEN print_str(' scaled ' + IntToStr(-S));
+  IF S>=0 THEN print_str(' at ' + print_scaled(S) + 'pt')
+  ELSE IF S<>-1000 THEN print_str(' scaled ' + print_int(-S));
 
   if ErrorCode = 1 then begin
     print_str(' not loaded: Not enough room left');
@@ -18234,7 +18144,7 @@ BEGIN
     SCANDIMEN(FALSE,FALSE,FALSE);
     S := CURVAL;
     IF (S<=0)OR(S>=134217728) THEN BEGIN
-      print_nl_str('! Improper `at'' size (' + ScaledStr(S) + 'pt), replaced by 10pt');
+      print_nl_str('! Improper `at'' size (' + print_scaled(S) + 'pt), replaced by 10pt');
       BEGIN
         HELPPTR := 2;
         help_line[1] := 'I can only handle fonts at positive sizes that are';
@@ -18322,8 +18232,7 @@ BEGIN
             print_nl_str('! ');
             print_str('You can''t use a prefix with `');
           END;
-          PRINTCMDCHR(CURCMD,CURCHR);
-          PRINTCHAR(39);
+          print_str(print_cmd_chr(CURCMD, CURCHR) + '''');
           BEGIN
             HELPPTR := 1;
             help_line[0] := 'I''ll pretend you didn''t say \long or \outer or \global.';
@@ -18341,12 +18250,8 @@ BEGIN
         print_nl_str('! ');
         print_str('You can''t use `');
       END;
-      print_esc_str('long');
-      print_str(''' or `');
-      print_esc_str('outer');
-      print_str(''' with `');
-      PRINTCMDCHR(CURCMD,CURCHR);
-      PRINTCHAR(39);
+      print_str(print_esc('long') + ''' or `' +  print_esc('outer') 
+        + ''' with `' + print_cmd_chr(CURCMD, CURCHR) + '''');
       BEGIN
         HELPPTR := 1;
         help_line[0] := 'I''ll pretend you didn''t say \long or \outer here.';
@@ -20401,9 +20306,9 @@ BEGIN
 
   s := ' (preloaded format=' 
     + job_name + ' '
-    + IntToStr(EQTB[int_base+year_code].INT) + '.'
-    + IntToStr(EQTB[int_base+month_code].INT) + '.'
-    + IntToStr(EQTB[int_base+day_code].INT) + chr(41);
+    + print_int(EQTB[int_base+year_code].INT) + '.'
+    + print_int(EQTB[int_base+month_code].INT) + '.'
+    + print_int(EQTB[int_base+day_code].INT) + chr(41);
   LocalFormatIdent := AddString(s); 
     {not necessary to set FORMATIDENT, because we are at the end of the program}
 
@@ -20617,13 +20522,13 @@ BEGIN
     PRINTCHAR(61);
     print_str(GetString(FONTAREA[K]) + GetString(FONTNAME[K]));
     IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
-      print_str(' at ' + ScaledStr(FONTSIZE[K]) + 'pt');
+      print_str(' at ' + print_scaled(FONTSIZE[K]) + 'pt');
     END;
     {:1322}
   END;
   PRINTLN;
-  print_str(IntToStr(FMEMPTR-7) + ' words of font info for ' 
-    + IntToStr(FONTPTR-0) + ' preloaded font');
+  print_str(print_int(FMEMPTR-7) + ' words of font info for ' 
+    + print_int(FONTPTR-0) + ' preloaded font');
   IF FONTPTR<>1 THEN PRINTCHAR(115);
   {:1320}
 
@@ -22425,7 +22330,7 @@ BEGIN;
             13:
                 BEGIN
                   READ(INPUT,L);
-                  PRINTCMDCHR(N,L);
+                  print_str(print_cmd_chr(N,L);
                 END;
             14: FOR K:=0 TO N DO
                   PRINT(BUFFER[K]);
@@ -22479,9 +22384,7 @@ BEGIN
     END;
   WHILE CONDPTR<>0 DO
     BEGIN
-      print_nl_str('(');
-      print_esc_str('end occurred when ');
-      PRINTCMDCHR(105,CURIF);
+      print_nl_str('(' + print_esc('end') + ' occurred when ' + print_cmd_chr(105,CURIF));
       IF IFLINE<>0 THEN
         BEGIN
           print_str(' on line ');
