@@ -704,7 +704,7 @@ VAR
   SETBOXALLOWE: BOOLEAN;
   HISTORY: 0..3;
   ERRORCOUNT: -1..100;{:76}{79:}
-  help_line: array[0..5] of string;
+  help_line: array[0..5] of shortstring;
   HELPPTR: 0..6;
   USEERRHELP: BOOLEAN;{:79}{96:}
   INTERRUPT: Int32;
@@ -722,12 +722,9 @@ VAR
   AVAIL: HALFWORD;
   MEMEND: HALFWORD;{:118}{124:}
   ROVER: HALFWORD;
-{:124}{165:}{$IFDEF DEBUGGING}
-  FREE: PACKED ARRAY[MEMMIN..MEMMAX] OF BOOLEAN;
-  WASFREE: PACKED ARRAY[MEMMIN..MEMMAX] OF BOOLEAN;
-  WASMEMEND,WASLOMAX,WASHIMIN: HALFWORD;
-  PANICKING: BOOLEAN;{$ENDIF}
-{:165}{173:}
+{:124}
+
+{173:}
   FONTINSHORTD: Int32;{:173}{181:}
   DEPTHTHRESHO: Int32;
   BREADTHMAX: Int32;{:181}{213:}
@@ -806,10 +803,10 @@ VAR
 {:493}
 {527:}
   NAMEINPROGRE: BOOLEAN;
-  job_name: string;
+  job_name: shortstring;
   LOGOPENED: BOOLEAN;{:527}{532:}
   DVIFILE: byte_file;
-  output_file_name: string;
+  output_file_name: shortstring;
   LOGNAME: STRNUMBER;{:532}{539:}
 {:539}{549:}
   FONTINFO: ARRAY[FONTINDEX] OF MEMORYWORD;
@@ -1029,7 +1026,7 @@ begin
               else ISORound := trunc(x-0.5);
 end;
 
-function IntToStr02(x: Int32) : string;
+function IntToStr02(x: Int32) : shortstring;
 var s: string[2];
 begin
   s := '00';
@@ -1038,8 +1035,8 @@ begin
   IntToStr02 := s;
 end;
 
-function print_int(x: Int32) : string;
-var s: string;
+function print_int(x: Int32) : shortstring;
+var s: shortstring;
 begin
   str(x, s);
   print_int := s;
@@ -1169,12 +1166,10 @@ BEGIN{21:}
   HELPPTR := 0;
   USEERRHELP := FALSE;{:80}{97:}
   INTERRUPT := 0;
-  OKTOINTERRUP := TRUE;{:97}{166:}{$IFDEF DEBUGGING}
-  WASMEMEND := MEMMIN;
-  WASLOMAX := MEMMIN;
-  WASHIMIN := MEMMAX;
-  PANICKING := FALSE;{$ENDIF}
-{:166}{215:}
+  OKTOINTERRUP := TRUE;{:97}
+
+
+{215:}
   NESTPTR := 0;
   MAXNESTSTACK := 0;
   CURLIST.MODEFIELD := 1;
@@ -1408,7 +1403,7 @@ END;
 {:58}
 
 {59:}
-procedure print_str(const s: string);
+procedure print_str(const s: shortstring);
 var i: integer;
 begin
   for i := 1 to length(s) do PRINTCHAR(ord(s[i]));
@@ -1452,7 +1447,7 @@ END;
 
 {60:}
 {If char is unprintable, translate to something readable}
-function PrintableChar(ch: byte) : string;
+function PrintableChar(ch: byte) : shortstring;
 const
   Hex: array [0..15] of char = '0123456789abcdef';
 var
@@ -1473,10 +1468,10 @@ begin
   PrintableChar := s;
 end;
 
-function PrintableStr(const s: string) : string;
+function PrintableStr(const s: shortstring) : shortstring;
 var
   i: sizeint;
-  t: string;
+  t: shortstring;
 begin
   t := '';
   for i := 1 to length(s) do t := t + PrintableChar(ord(s[i]));
@@ -1488,7 +1483,7 @@ begin
   print_str(PrintableChar(ch));
 end;
 
-procedure slow_print_str(s: string);
+procedure slow_print_str(s: shortstring);
 begin
   print_str(PrintableStr(s));
 end;
@@ -1509,7 +1504,7 @@ end;
 {:60}
 
 {62:}
-procedure print_nl_str(s: string);
+procedure print_nl_str(s: shortstring);
 begin
   IF ((TERMOFFSET>0)AND(ODD(SELECTOR))) OR
      ((FILEOFFSET>0)AND(SELECTOR>=18)) THEN PRINTLN;
@@ -1519,7 +1514,7 @@ end;
 
 {63:}
 {Precede string with escape character (which is usually a backslash)}
-function print_esc(Name: string) : string;
+function print_esc(Name: shortstring) : shortstring;
 var ch: int32;
 begin
   ch := EQTB[5308].INT; {current escape character}
@@ -1527,7 +1522,7 @@ begin
                           else print_esc := Name;
 end;
 
-procedure print_esc_str(s: string);
+procedure print_esc_str(s: shortstring);
 var ch: int32;
 begin
   ch := EQTB[5308].INT; {current escape character}
@@ -1588,44 +1583,10 @@ BEGIN
     K := K+1;
   UNTIL N=0;
   PRINTTHEDIGS(K);
-END;{:65}{262:}
-PROCEDURE PRINTCS(P:Int32);
-BEGIN
-  IF P<514 THEN
-    IF P>=257 THEN
-      IF P=513 THEN BEGIN
-        print_esc_str('csname');
-        print_esc_str('endcsname');
-        PRINTCHAR(32);
-      END ELSE BEGIN
-        PRINTESC(P-257);
-        IF EQTB[3983+P-257].HH.RH=11 THEN PRINTCHAR(32);
-      END
-    ELSE IF P<1 THEN print_esc_str('IMPOSSIBLE.')
-    ELSE slow_print_char(P-1)
-  ELSE IF P>=2881 THEN print_esc_str('IMPOSSIBLE.')
-  ELSE IF (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) THEN print_esc_str('NONEXISTENT.')
-  ELSE BEGIN
-    PRINTESC(HASH[P].RH);
-    PRINTCHAR(32);
-  END;
 END;
-{:262}{263:}
-PROCEDURE SPRINTCS(P:HALFWORD);
-BEGIN
-  IF P<514 THEN
-    IF P<257 THEN slow_print_char(P-1)
-    ELSE IF P<513 THEN PRINTESC(P-257)
-    ELSE BEGIN
-      print_esc_str('csname');
-      print_esc_str('endcsname');
-    END
-  ELSE PRINTESC(HASH[P].RH);
-END;
-{:263}
 
 {1355:}
-procedure print_write_whatsit_str(s: string; P: HALFWORD);
+procedure print_write_whatsit_str(s: shortstring; P: HALFWORD);
 BEGIN
   print_esc_str(s);
   IF MEM[P+1].HH.LH<16 THEN PRINTINT(MEM[P+1].HH.LH)
@@ -1729,12 +1690,13 @@ BEGIN
                                              END;
                                              SHOWCONTEXT;
                                              GOTO 22;
-                                           END{:88};{$IFDEF DEBUGGING}
-          68:
-              BEGIN
+                                           END{:88};
+{$IFDEF DEBUGGING}
+          68: BEGIN
                 DEBUGHELP;
                 GOTO 22;
-              END;{$ENDIF}
+              END;
+{$ENDIF}
           69:
               IF BASEPTR>0 THEN
                 IF INPUTSTACK[BASEPTR].NAMEFIELD>=256 THEN
@@ -1890,7 +1852,7 @@ END;
 
 
 {93:}
-procedure fatal_error(const s: string);
+procedure fatal_error(const s: shortstring);
 begin
   NORMALIZESEL;
   print_nl_str('! ');
@@ -1902,7 +1864,7 @@ END;
 {:93}
 
 {94:}
-procedure overflow(const s: string; n: Int32);
+procedure overflow(const s: shortstring; n: Int32);
 BEGIN
   NORMALIZESEL;
   print_nl_str('! ');
@@ -1919,7 +1881,7 @@ END;
 {:94}
 
 {95:}
-PROCEDURE confusion_str(s: string);
+PROCEDURE confusion_str(s: shortstring);
 BEGIN
   NORMALIZESEL;
   print_nl_str('! ');
@@ -2000,7 +1962,7 @@ END;
 
 
 
-procedure SetString(PoolIndex: STRNUMBER; Content: string);
+procedure SetString(PoolIndex: STRNUMBER; Content: shortstring);
 var i: int32;
 begin
   for i := 1 to length(Content) do begin
@@ -2010,12 +1972,12 @@ begin
   POOLPTR := POOLPTR + length(Content);
 end;
 
-function GetString(PoolIndex: STRNUMBER) : string;
+function GetString(PoolIndex: STRNUMBER) : shortstring;
 var
   Start: POOLPOINTER;
   Stop: POOLPOINTER;
   i: POOLPOINTER;
-  Content: string;
+  Content: shortstring;
 begin
   Start := STRSTART[PoolIndex];
   Stop  := STRSTART[PoolIndex+1];
@@ -2025,7 +1987,7 @@ begin
   GetString := Content;
 end;
 
-function AddString(s: string) : STRNUMBER;
+function AddString(s: shortstring) : STRNUMBER;
 begin
   if STRPTR>=max_strings then 
     overflow('number of strings', max_strings-INITSTRPTR);
@@ -2080,28 +2042,28 @@ END;
 
 {27:}
 {$I-}
-function a_open_in(var f: alpha_file; FileName: string): boolean;
+function a_open_in(var f: alpha_file; FileName: shortstring): boolean;
 begin
   assign(f, FileName);
   reset(f);
   a_open_in := (ioresult=0);
 END;
 
-function a_open_out(var f: alpha_file; FileName: string) : boolean;
+function a_open_out(var f: alpha_file; FileName: shortstring) : boolean;
 BEGIN
   assign(f, FileName);
   rewrite(f);
   a_open_out := (ioresult=0);
 END;
 
-function b_open_in(var f: byte_file; FileName: string): boolean;
+function b_open_in(var f: byte_file; FileName: shortstring): boolean;
 begin
   assign(f, FileName);
   reset(f);
   b_open_in := (ioresult=0);
 END;
 
-function b_open_out(var f: byte_file; FileName: string): boolean;
+function b_open_out(var f: byte_file; FileName: shortstring): boolean;
 begin
   assign(f, FileName);
   rewrite(f);
@@ -2196,7 +2158,7 @@ END;
 {37:}
 procedure InitTerminal;
 var
-  s: string;
+  s: shortstring;
   p, i: integer;
   len, j: sizeint;
 begin
@@ -2266,8 +2228,8 @@ end;
 {:37}
 
 {71:}
-function term_input: string;
-var s: string;
+function term_input: shortstring;
+var s: shortstring;
 begin
   readln(input, s);
 
@@ -2329,13 +2291,13 @@ END;
 
 
 {530:}
-function prompt_file_name(InvalidFileName: string;
-                          Prompt: string;
-                          Extension: string) : string;
+function prompt_file_name(InvalidFileName: shortstring;
+                          Prompt: shortstring;
+                          Extension: shortstring) : shortstring;
 var
   i : SizeInt;
   Start : SizeInt;
-  Line : string;
+  Line : shortstring;
 BEGIN
   IF Prompt='input file name' THEN BEGIN
     print_nl_str('! ');
@@ -2373,7 +2335,7 @@ VAR OLDSETTING: 0..21;
   K: 0..BUFSIZE;
   L: 0..BUFSIZE;
   MONTHS: PACKED ARRAY[1..36] OF CHAR;
-  s: string;
+  s: shortstring;
 const 
   MonthNames: array[1..12] of string[3] =
     ('JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN',
@@ -2422,7 +2384,7 @@ END;
 
 {526:}
 {Add .tex if no extension given}
-function scan_file_name : string;
+function scan_file_name : shortstring;
 var
   s: string[file_name_size];
   i: SizeInt;
@@ -2459,7 +2421,7 @@ END;
 {:526}
 
 
-function CharPosLast(Match: char; const s: string) : sizeint;
+function CharPosLast(Match: char; const s: shortstring) : sizeint;
 var i: sizeint;
 begin
   i := length(s);
@@ -2467,7 +2429,7 @@ begin
   CharPosLast := i;
 end;
 
-function BaseOfFileName(FileName: string) : string;
+function BaseOfFileName(FileName: shortstring) : shortstring;
 var
   Slash: sizeint;
   Dot: sizeint;
@@ -2479,7 +2441,7 @@ begin
 end;
 
 (*
-function PathOfFileName(FileName: string) : string;
+function PathOfFileName(FileName: shortstring) : shortstring;
 var
   Slash: sizeint;
 begin
@@ -2488,7 +2450,7 @@ begin
 end;
 *)
 
-function RemoveFileExtension(const FileName: string) : string;
+function RemoveFileExtension(const FileName: shortstring) : shortstring;
 var i: sizeint;
 begin
   i := pos('.', FileName);
@@ -2501,8 +2463,8 @@ end;
 {537:}
 PROCEDURE STARTINPUT;
 var
-  FileName: string;
-  BaseName: string;
+  FileName: shortstring;
+  BaseName: shortstring;
 begin
   FileName := scan_file_name;
   while true do begin
@@ -2553,10 +2515,50 @@ END;
 
 
 
+{@ Single-character control sequences do not need to be looked up in a hash
+table, since we can use the character code itself as a direct address.
+The procedure |print_cs| prints the name of a control sequence, given
+a pointer to its address in |eqtb|. A space is printed after the name
+unless it is a single nonletter or an active character. This procedure
+might be invoked with invalid data, so it is ``extra robust.'' The
+individual characters must be printed one at a time using |print|, since
+they may be unprintable.}
+
+function print_cs(P:Int32) : shortstring;
+begin
+  if (P<1) or (P>=2881) then begin
+    print_cs := print_esc('IMPOSSIBLE.');
+  end else if P<257 then begin
+    print_cs := PrintableChar(P-1);
+  end else if P<513 then begin
+    if EQTB[3983+P-257].HH.RH=11 then begin
+      print_cs := print_esc(chr(P-257)) + ' ';
+    end else begin
+      print_cs := print_esc(chr(P-257));
+    end;
+  end else if P=513 then begin
+    print_cs := print_esc('csname') + print_esc('endcsname') + ' ';
+  end else if (HASH[P].RH<0)OR(HASH[P].RH>=STRPTR) then begin
+    print_cs := print_esc('NONEXISTENT.');
+  end else begin
+    print_cs := print_esc(GetString(HASH[P].RH)) + ' ';
+  end;
+END;
+
+{@ Here is a similar procedure; it avoids the error checks, and it never
+prints a space after the control sequence.}
+
+function sprint_cs(P:HALFWORD) : string;
+begin
+  if      P<257 then sprint_cs := PrintableChar(P-1)
+  else if P<513 then sprint_cs := print_esc(chr(P-257))
+  else if P<514 then sprint_cs := print_esc('csname') + print_esc('endcsname')
+                else sprint_cs := print_esc(GetString(HASH[P].RH));
+end;
 
 {@ Hexadecimal printing of nonnegative integers is accomplished by |print_hex|.}
 
-function print_hex(n: int32): string;
+function print_hex(n: int32): shortstring;
 var 
   s: string[9];
   i: uint32;
@@ -2614,10 +2616,10 @@ END;
 
 {103:}
 {convert SCALED to string}
-function print_scaled(Scale: SCALED) : string;
+function print_scaled(Scale: SCALED) : shortstring;
 VAR
   Delta: SCALED;
-  st: string;
+  st: shortstring;
 BEGIN
   st := '';
   if Scale<0 then begin
@@ -2641,112 +2643,6 @@ BEGIN
   print_str(print_scaled(S));
 END;
 {:103}
-
-
-
-
-{100:}
-FUNCTION HALF(X:Int32): Int32;
-BEGIN
-  IF ODD(X)THEN HALF := (X+1)DIV 2
-  ELSE HALF := X DIV 2;
-END;
-{:100}{102:}
-FUNCTION ROUNDDECIMAL(K:SMALLNUMBER): SCALED;
-
-VAR A: Int32;
-BEGIN
-  A := 0;
-  WHILE K>0 DO
-    BEGIN
-      K := K-1;
-      A := (A+DIG[K]*131072)DIV 10;
-    END;
-  ROUNDDECIMAL := (A+1)DIV 2;
-END;
-{:102}
-
-{105:}
-FUNCTION MULTANDADD(N:Int32;X,Y,MAXANSWER:SCALED): SCALED;
-BEGIN
-  IF N<0 THEN
-    BEGIN
-      X := -X;
-      N := -N;
-    END;
-  IF N=0 THEN MULTANDADD := Y
-  ELSE
-    IF ((X<=(MAXANSWER-Y)DIV N)AND(-X<=(
-       MAXANSWER+Y)DIV N))THEN MULTANDADD := N*X+Y
-  ELSE
-    BEGIN
-      ARITHERROR := TRUE;
-      MULTANDADD := 0;
-    END;
-END;{:105}{106:}
-FUNCTION XOVERN(X:SCALED;
-                N:Int32): SCALED;
-
-VAR NEGATIVE: BOOLEAN;
-BEGIN
-  NEGATIVE := FALSE;
-  IF N=0 THEN
-    BEGIN
-      ARITHERROR := TRUE;
-      XOVERN := 0;
-      REMAINDER := X;
-    END
-  ELSE
-    BEGIN
-      IF N<0 THEN
-        BEGIN
-          X := -X;
-          N := -N;
-          NEGATIVE := TRUE;
-        END;
-      IF X>=0 THEN
-        BEGIN
-          XOVERN := X DIV N;
-          REMAINDER := X MOD N;
-        END
-      ELSE
-        BEGIN
-          XOVERN := -((-X)DIV N);
-          REMAINDER := -((-X)MOD N);
-        END;
-    END;
-  IF NEGATIVE THEN REMAINDER := -REMAINDER;
-END;
-{:106}{107:}
-FUNCTION XNOVERD(X:SCALED;N,D:Int32): SCALED;
-
-VAR POSITIVE: BOOLEAN;
-  T,U,V: NONNEGATIVEI;
-BEGIN
-  IF X>=0 THEN POSITIVE := TRUE
-  ELSE
-    BEGIN
-      X := -X;
-      POSITIVE := FALSE;
-    END;
-  T := (X MOD 32768)*N;
-  U := (X DIV 32768)*N+(T DIV 32768);
-  V := (U MOD D)*32768+(T MOD 32768);
-  IF U DIV D>=32768 THEN ARITHERROR := TRUE
-  ELSE U := 32768*(U DIV D)+(V DIV D
-            );
-  IF POSITIVE THEN
-    BEGIN
-      XNOVERD := U;
-      REMAINDER := V MOD D;
-    END
-  ELSE
-    BEGIN
-      XNOVERD := -U;
-      REMAINDER := -(V MOD D);
-    END;
-END;
-{:107}
 
 {119:}
 {292:}
@@ -2772,7 +2668,7 @@ BEGIN
       print_esc_str('CLOBBERED.');
       exit;
     END;
-    IF MEM[P].HH.LH>=4095 THEN PRINTCS(MEM[P].HH.LH-4095)
+    IF MEM[P].HH.LH>=4095 THEN print_str(print_cs(MEM[P].HH.LH-4095))
     ELSE BEGIN
       M := MEM[P].HH.LH DIV 256;
       C := MEM[P].HH.LH MOD 256;
@@ -2818,466 +2714,6 @@ BEGIN
   IF P<>0 THEN SHOWTOKENLIS(MEM[P].HH.RH,0,10000000);
 END;
 {:295}
-
-{306:}
-PROCEDURE RUNAWAY;
-
-VAR P: HALFWORD;
-BEGIN
-  IF SCANNERSTATU>1 THEN
-    BEGIN
-      print_nl_str('Runaway ');
-      CASE SCANNERSTATU OF 
-        2:
-           BEGIN
-             print_str('definition');
-             P := DEFREF;
-           END;
-        3:
-           BEGIN
-             print_str('argument');
-             P := 29997;
-           END;
-        4:
-           BEGIN
-             print_str('preamble');
-             P := 29996;
-           END;
-        5:
-           BEGIN
-             print_str('text');
-             P := DEFREF;
-           END;
-      END;
-      PRINTCHAR(63);
-      PRINTLN;
-      SHOWTOKENLIS(MEM[P].HH.RH,0,ERRORLINE-10);
-    END;
-END;
-{:306}{:119}{120:}
-FUNCTION GETAVAIL: HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := AVAIL;
-  IF P<>0 THEN AVAIL := MEM[AVAIL].HH.RH
-  ELSE
-    IF MEMEND<MEMMAX THEN
-      BEGIN
-        MEMEND := MEMEND+1;
-        P := MEMEND;
-      END
-  ELSE
-    BEGIN
-      HIMEMMIN := HIMEMMIN-1;
-      P := HIMEMMIN;
-      IF HIMEMMIN<=LOMEMMAX THEN
-        BEGIN   
-          RUNAWAY;
-          overflow('main memory size', MEMMAX+1-MEMMIN);
-        END;
-    END;
-  MEM[P].HH.RH := 0;{$IFDEF STATS}
-  DYNUSED := DYNUSED+1;{$ENDIF}
-  GETAVAIL := P;
-END;
-{:120}
-
-{125:}
-FUNCTION GETNODE(S:Int32): HALFWORD;
-
-LABEL 40,10,20;
-
-VAR P: HALFWORD;
-  Q: HALFWORD;
-  R: Int32;
-  T: Int32;
-BEGIN
-  20: P := ROVER;
-  REPEAT{127:}
-    Q := P+MEM[P].HH.LH;
-    WHILE (MEM[Q].HH.RH=65535) DO
-      BEGIN
-        T := MEM[Q+1].HH.RH;
-        IF Q=ROVER THEN ROVER := T;
-        MEM[T+1].HH.LH := MEM[Q+1].HH.LH;
-        MEM[MEM[Q+1].HH.LH+1].HH.RH := T;
-        Q := Q+MEM[Q].HH.LH;
-      END;
-    R := Q-S;
-    IF R>P+1 THEN{128:}
-      BEGIN
-        MEM[P].HH.LH := R-P;
-        ROVER := P;
-        GOTO 40;
-      END{:128};
-    IF R=P THEN
-      IF MEM[P+1].HH.RH<>P THEN{129:}
-        BEGIN
-          ROVER := MEM[P+1].HH.RH;
-          T := MEM[P+1].HH.LH;
-          MEM[ROVER+1].HH.LH := T;
-          MEM[T+1].HH.RH := ROVER;
-          GOTO 40;
-        END{:129};
-    MEM[P].HH.LH := Q-P{:127};
-    P := MEM[P+1].HH.RH;
-  UNTIL P=ROVER;
-  IF S=1073741824 THEN
-    BEGIN
-      GETNODE := 65535;
-      GOTO 10;
-    END;
-  IF LOMEMMAX+2<HIMEMMIN THEN
-    IF LOMEMMAX+2<=65535 THEN{126:}
-      BEGIN
-        IF 
-           HIMEMMIN-LOMEMMAX>=1998 THEN T := LOMEMMAX+1000
-        ELSE T := LOMEMMAX+1+(
-                  HIMEMMIN-LOMEMMAX)DIV 2;
-        P := MEM[ROVER+1].HH.LH;
-        Q := LOMEMMAX;
-        MEM[P+1].HH.RH := Q;
-        MEM[ROVER+1].HH.LH := Q;
-        IF T>65535 THEN T := 65535;
-        MEM[Q+1].HH.RH := ROVER;
-        MEM[Q+1].HH.LH := P;
-        MEM[Q].HH.RH := 65535;
-        MEM[Q].HH.LH := T-LOMEMMAX;
-        LOMEMMAX := T;
-        MEM[LOMEMMAX].HH.RH := 0;
-        MEM[LOMEMMAX].HH.LH := 0;
-        ROVER := Q;
-        GOTO 20;
-      END{:126};
-  overflow('main memory size', MEMMAX+1-MEMMIN);
-  40: MEM[R].HH.RH := 0;{$IFDEF STATS}
-  VARUSED := VARUSED+S;{$ENDIF}
-  GETNODE := R;
-  10:
-END;
-{:125}
-
-
-{136:}
-FUNCTION NEWNULLBOX: HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(7);
-  MEM[P].HH.B0 := 0;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].INT := 0;
-  MEM[P+2].INT := 0;
-  MEM[P+3].INT := 0;
-  MEM[P+4].INT := 0;
-  MEM[P+5].HH.RH := 0;
-  MEM[P+5].HH.B0 := 0;
-  MEM[P+5].HH.B1 := 0;
-  MEM[P+6].GR := 0.0;
-  NEWNULLBOX := P;
-END;
-{:136}{139:}
-FUNCTION NEWRULE: HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(4);
-  MEM[P].HH.B0 := 2;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].INT := -1073741824;
-  MEM[P+2].INT := -1073741824;
-  MEM[P+3].INT := -1073741824;
-  NEWRULE := P;
-END;
-{:139}{144:}
-FUNCTION NEWLIGATURE(F,C:QUARTERWORD;Q:HALFWORD): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 6;
-  MEM[P+1].HH.B0 := F;
-  MEM[P+1].HH.B1 := C;
-  MEM[P+1].HH.RH := Q;
-  MEM[P].HH.B1 := 0;
-  NEWLIGATURE := P;
-END;
-FUNCTION NEWLIGITEM(C:QUARTERWORD): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B1 := C;
-  MEM[P+1].HH.RH := 0;
-  NEWLIGITEM := P;
-END;
-{:144}{145:}
-FUNCTION NEWDISC: HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 7;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].HH.LH := 0;
-  MEM[P+1].HH.RH := 0;
-  NEWDISC := P;
-END;{:145}{147:}
-FUNCTION NEWMATH(W:SCALED;
-                 S:SMALLNUMBER): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 9;
-  MEM[P].HH.B1 := S;
-  MEM[P+1].INT := W;
-  NEWMATH := P;
-END;
-{:147}{151:}
-FUNCTION NEWSPEC(P:HALFWORD): HALFWORD;
-
-VAR Q: HALFWORD;
-BEGIN
-  Q := GETNODE(4);
-  MEM[Q] := MEM[P];
-  MEM[Q].HH.RH := 0;
-  MEM[Q+1].INT := MEM[P+1].INT;
-  MEM[Q+2].INT := MEM[P+2].INT;
-  MEM[Q+3].INT := MEM[P+3].INT;
-  NEWSPEC := Q;
-END;
-{:151}{152:}
-FUNCTION NEWPARAMGLUE(N:SMALLNUMBER): HALFWORD;
-
-VAR P: HALFWORD;
-  Q: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 10;
-  MEM[P].HH.B1 := N+1;
-  MEM[P+1].HH.RH := 0;
-  Q := {224:}EQTB[2882+N].HH.RH{:224};
-  MEM[P+1].HH.LH := Q;
-  MEM[Q].HH.RH := MEM[Q].HH.RH+1;
-  NEWPARAMGLUE := P;
-END;
-{:152}{153:}
-FUNCTION NEWGLUE(Q:HALFWORD): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 10;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].HH.RH := 0;
-  MEM[P+1].HH.LH := Q;
-  MEM[Q].HH.RH := MEM[Q].HH.RH+1;
-  NEWGLUE := P;
-END;
-{:153}{154:}
-FUNCTION NEWSKIPPARAM(N:SMALLNUMBER): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  TEMPPTR := NEWSPEC({224:}EQTB[2882+N].HH.RH{:224});
-  P := NEWGLUE(TEMPPTR);
-  MEM[TEMPPTR].HH.RH := 0;
-  MEM[P].HH.B1 := N+1;
-  NEWSKIPPARAM := P;
-END;{:154}{156:}
-FUNCTION NEWKERN(W:SCALED): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 11;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].INT := W;
-  NEWKERN := P;
-END;
-{:156}{158:}
-FUNCTION NEWPENALTY(M:Int32): HALFWORD;
-
-VAR P: HALFWORD;
-BEGIN
-  P := GETNODE(2);
-  MEM[P].HH.B0 := 12;
-  MEM[P].HH.B1 := 0;
-  MEM[P+1].INT := M;
-  NEWPENALTY := P;
-END;{:158}
-
-{$IFDEF DEBUGGING}
-PROCEDURE CHECKMEM(PRINTLOCS:BOOLEAN);
-LABEL 31,32;
-VAR P,Q: HALFWORD;
-  CLOBBERED: BOOLEAN;
-BEGIN
-  FOR P:=MEMMIN TO LOMEMMAX DO
-    FREE[P] := FALSE;
-  FOR P:=HIMEMMIN TO MEMEND DO
-    FREE[P] := FALSE;{168:}
-  P := AVAIL;
-  Q := 0;
-  CLOBBERED := FALSE;
-  WHILE P<>0 DO
-    BEGIN
-      IF (P>MEMEND)OR(P<HIMEMMIN)THEN CLOBBERED := TRUE
-      ELSE
-        IF FREE[P]THEN CLOBBERED := TRUE;
-      IF CLOBBERED THEN
-        BEGIN
-          print_nl_str('AVAIL list clobbered at ');
-          PRINTINT(Q);
-          GOTO 31;
-        END;
-      FREE[P] := TRUE;
-      Q := P;
-      P := MEM[Q].HH.RH;
-    END;
-  31:{:168};{169:}
-  P := ROVER;
-  Q := 0;
-  CLOBBERED := FALSE;
-  REPEAT
-    IF (P>=LOMEMMAX)OR(P<MEMMIN)THEN CLOBBERED := TRUE
-    ELSE
-      IF (MEM[P+1].
-         HH.RH>=LOMEMMAX)OR(MEM[P+1].HH.RH<MEMMIN)THEN CLOBBERED := TRUE
-    ELSE
-      IF 
-         NOT((MEM[P].HH.RH=65535))OR(MEM[P].HH.LH<2)OR(P+MEM[P].HH.LH>LOMEMMAX)OR
-         (MEM[MEM[P+1].HH.RH+1].HH.LH<>P)THEN CLOBBERED := TRUE;
-    IF CLOBBERED THEN
-      BEGIN
-        print_nl_str('Double-AVAIL list clobbered at ');
-        PRINTINT(Q);
-        GOTO 32;
-      END;
-    FOR Q:=P TO P+MEM[P].HH.LH-1 DO
-      BEGIN
-        IF FREE[Q]THEN
-          BEGIN
-            print_nl_str('Doubly free location at ');
-            PRINTINT(Q);
-            GOTO 32;
-          END;
-        FREE[Q] := TRUE;
-      END;
-    Q := P;
-    P := MEM[P+1].HH.RH;
-  UNTIL P=ROVER;
-  32:{:169};{170:}
-  P := MEMMIN;
-  WHILE P<=LOMEMMAX DO
-    BEGIN
-      IF (MEM[P].HH.RH=65535)THEN
-        BEGIN
-          print_nl_str('Bad flag at ')
-          ;
-          PRINTINT(P);
-        END;
-      WHILE (P<=LOMEMMAX)AND NOT FREE[P] DO
-        P := P+1;
-      WHILE (P<=LOMEMMAX)AND FREE[P] DO
-        P := P+1;
-    END{:170};
-  IF PRINTLOCS THEN{171:}
-    BEGIN
-      print_nl_str('New busy locs:');
-      FOR P:=MEMMIN TO LOMEMMAX DO
-        IF NOT FREE[P]AND((P>WASLOMAX)OR WASFREE[P]
-           )THEN
-          BEGIN
-            PRINTCHAR(32);
-            PRINTINT(P);
-          END;
-      FOR P:=HIMEMMIN TO MEMEND DO
-        IF NOT FREE[P]AND((P<WASHIMIN)OR(P>
-           WASMEMEND)OR WASFREE[P])THEN
-          BEGIN
-            PRINTCHAR(32);
-            PRINTINT(P);
-          END;
-    END{:171};
-  FOR P:=MEMMIN TO LOMEMMAX DO
-    WASFREE[P] := FREE[P];
-  FOR P:=HIMEMMIN TO MEMEND DO
-    WASFREE[P] := FREE[P];
-  WASMEMEND := MEMEND;
-  WASLOMAX := LOMEMMAX;
-  WASHIMIN := HIMEMMIN;
-END;
-
-PROCEDURE SEARCHMEM(P:HALFWORD);
-VAR Q: Int32;
-BEGIN
-  FOR Q:=MEMMIN TO LOMEMMAX DO
-    BEGIN
-      IF MEM[Q].HH.RH=P THEN
-        BEGIN
-          print_nl_str('LINK(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-      IF MEM[Q].HH.LH=P THEN
-        BEGIN
-          print_nl_str('INFO(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-    END;
-  FOR Q:=HIMEMMIN TO MEMEND DO
-    BEGIN
-      IF MEM[Q].HH.RH=P THEN
-        BEGIN
-          print_nl_str('LINK(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-      IF MEM[Q].HH.LH=P THEN
-        BEGIN
-          print_nl_str('INFO(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-    END;
-{255:}
-  FOR Q:=1 TO 3933 DO
-    BEGIN
-      IF EQTB[Q].HH.RH=P THEN
-        BEGIN
-          print_nl_str('EQUIV(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-    END{:255};
-{285:}
-  IF SAVEPTR>0 THEN FOR Q:=0 TO SAVEPTR-1 DO
-                      BEGIN
-                        IF SAVESTACK[Q].
-                           HH.RH=P THEN
-                          BEGIN
-                            print_nl_str('SAVE(');
-                            PRINTINT(Q);
-                            PRINTCHAR(41);
-                          END;
-                      END{:285};
-{933:}
-  FOR Q:=0 TO 307 DO
-    BEGIN
-      IF HYPHLIST[Q]=P THEN
-        BEGIN
-          print_nl_str('HYPH(');
-          PRINTINT(Q);
-          PRINTCHAR(41);
-        END;
-    END{:933};
-END;
-{$ENDIF}
-
 
 
 {174:}
@@ -3350,7 +2786,7 @@ BEGIN
   PRINTCHAR(125);
 END;
 
-function RuleDimStr(Dim: SCALED): string;
+function RuleDimStr(Dim: SCALED): shortstring;
 begin 
   if (Dim=-1073741824) then RuleDimStr := '*'
                        else RuleDimStr := print_scaled(Dim);
@@ -3359,8 +2795,8 @@ end;
 
 
 {glue stretch and shrink, possibly followed by the name of finite units}
-function print_glue(Scale: SCALED; Order: int32; Units: string) : string;
-var s: string;
+function print_glue(Scale: SCALED; Order: int32; Units: shortstring) : shortstring;
+var s: shortstring;
 begin
   s := print_scaled(Scale);
   case Order of
@@ -3374,8 +2810,8 @@ begin
 end;
 
 {whole glue specification}
-function print_spec(P: Int32; Units: string) : string;
-var s: string;
+function print_spec(P: Int32; Units: shortstring) : shortstring;
+var s: shortstring;
 begin
   if (P<mem_min) or (P>=LOMEMMAX) THEN s := '*'
   ELSE BEGIN
@@ -3451,7 +2887,7 @@ BEGIN
 END;
 {:692}
 
-function print_style(Code: int32) : string;
+function print_style(Code: int32) : shortstring;
 begin
   case Code div 2 of
     0: print_style := print_esc('displaystyle');
@@ -3466,7 +2902,7 @@ end;
 form. The |print_skip_param| routine gives the symbolic name of a glue
 parameter.}
 
-function print_skip_param(GlueParam: int32) : string;
+function print_skip_param(GlueParam: int32) : shortstring;
 begin
   case GlueParam of 
     0: print_skip_param := print_esc('lineskip');
@@ -3873,8 +3309,8 @@ END;
 {:211}
 
 {985:}
-function print_totals : string;
-var s: string;
+function print_totals : shortstring;
+var s: shortstring;
 BEGIN
   s := print_scaled(PAGESOFAR[1]);
   IF PAGESOFAR[2]<>0 THEN
@@ -3891,117 +3327,9 @@ BEGIN
 END;
 {:985}
 
-{218:}
-PROCEDURE SHOWACTIVITI;
-VAR P: 0..NESTSIZE;
-  M: -203..203;
-  A: MEMORYWORD;
-  Q,R: HALFWORD;
-  T: Int32;
-BEGIN
-  NEST[NESTPTR] := CURLIST;
-  print_nl_str('');
-  PRINTLN;
-  FOR P:=NESTPTR DOWNTO 0 DO
-    BEGIN
-      M := NEST[P].MODEFIELD;
-      A := NEST[P].AUXFIELD;
-      print_nl_str('### ');
-      PRINTMODE(M);
-      print_str(' entered at line ');
-      PRINTINT(ABS(NEST[P].MLFIELD));
-      IF M=102 THEN
-        IF NEST[P].PGFIELD<>8585216 THEN
-          BEGIN
-            print_str(' (language');
-            PRINTINT(NEST[P].PGFIELD MOD 65536);
-            print_str(':hyphenmin');
-            PRINTINT(NEST[P].PGFIELD DIV 4194304);
-            PRINTCHAR(44);
-            PRINTINT((NEST[P].PGFIELD DIV 65536)MOD 64);
-            PRINTCHAR(41);
-          END;
-      IF NEST[P].MLFIELD<0 THEN print_str(' (\output routine)');
-      IF P=0 THEN
-        BEGIN{986:}
-          IF 29998<>PAGETAIL THEN
-            BEGIN
-              print_nl_str('### current page:');
-              IF OUTPUTACTIVE THEN print_str(' (held over for next output)');
-              SHOWBOX(MEM[29998].HH.RH);
-              IF PAGECONTENTS>0 THEN
-                BEGIN
-                  print_nl_str('total height ' + print_totals);
-                  print_nl_str(' goal height ' + print_scaled(PAGESOFAR[0]));
-                  R := MEM[30000].HH.RH;
-                  WHILE R<>30000 DO
-                    BEGIN
-                      PRINTLN;
-                      print_esc_str('insert');
-                      T := MEM[R].HH.B1-0;
-                      PRINTINT(T);
-                      print_str(' adds ');
-                      IF EQTB[5318+T].INT=1000 THEN T := MEM[R+3].INT
-                      ELSE T := XOVERN(MEM[R+3].INT,1000)*EQTB[5318+T].INT;
-                      PRINTSCALED(T);
-                      IF MEM[R].HH.B0=1 THEN
-                        BEGIN
-                          Q := 29998;
-                          T := 0;
-                          REPEAT
-                            Q := MEM[Q].HH.RH;
-                            IF (MEM[Q].HH.B0=3)AND(MEM[Q].HH.B1=MEM[R].HH.B1)THEN T := T+1;
-                          UNTIL Q=MEM[R+1].HH.LH;
-                          print_str(', #');
-                          PRINTINT(T);
-                          print_str(' might split');
-                        END;
-                      R := MEM[R].HH.RH;
-                    END;
-                END;
-            END{:986};
-          IF MEM[29999].HH.RH<>0 THEN print_nl_str('### recent contributions:');
-        END;
-      SHOWBOX(MEM[NEST[P].HEADFIELD].HH.RH);
-{219:}
-      CASE ABS(M)DIV(101) OF 
-        0:
-           BEGIN
-             print_nl_str('prevdepth ');
-             IF A.INT<=-65536000 THEN print_str('ignored')
-             ELSE PRINTSCALED(A.INT);
-             IF NEST[P].PGFIELD<>0 THEN
-               BEGIN
-                 print_str(', prevgraf ');
-                 PRINTINT(NEST[P].PGFIELD);
-                 print_str(' line');
-                 IF NEST[P].PGFIELD<>1 THEN PRINTCHAR(115);
-               END;
-           END;
-        1:
-           BEGIN
-             print_nl_str('spacefactor ');
-             PRINTINT(A.HH.LH);
-             IF M>0 THEN
-               IF A.HH.RH>0 THEN
-                 BEGIN
-                   print_str(', current language ');
-                   PRINTINT(A.HH.RH);
-                 END;
-           END;
-        2:
-           IF A.INT<>0 THEN
-             BEGIN
-               print_str('this will begin denominator of:');
-               SHOWBOX(A.INT);
-             END;
-      END{:219};
-    END;
-END;
-{:218}
 
 {237:}
-function print_param(Code: int32) : string;
+function print_param(Code: int32) : shortstring;
 begin
   case Code-int_base of
     0: print_param := print_esc('pretolerance');
@@ -4064,7 +3392,7 @@ begin
 end;
 {:237}
 
-function print_length_param(Code: int32) : string;
+function print_length_param(Code: int32) : shortstring;
 begin
   case Code-dimen_base of
     0: print_length_param := print_esc('parindent');
@@ -4092,7 +3420,7 @@ begin
   end;
 end;
 
-function chr_cmd(Name: string; ChrCode: HALFWORD) : string;
+function chr_cmd(Name: shortstring; ChrCode: HALFWORD) : shortstring;
 begin
   chr_cmd := Name + GetString(ChrCode);
 end;
@@ -4108,8 +3436,8 @@ routine that enters a \TeX\ primitive into |eqtb|. Therefore much of
 this procedure appears elsewhere in the program,
 together with the corresponding |primitive| calls.}
 
-function print_cmd_chr(Cmd: QUARTERWORD; chr_code: HALFWORD) : string;
-var s: string;
+function print_cmd_chr(Cmd: QUARTERWORD; chr_code: HALFWORD) : shortstring;
+var s: shortstring;
 begin
   case Cmd of
     left_brace:  print_cmd_chr := chr_cmd('begin-group character ', chr_code);
@@ -4437,19 +3765,16 @@ END;{:298}
 {$IFDEF STATS}
 PROCEDURE SHOWEQTB(N:HALFWORD);
 BEGIN
-  IF N<1 THEN PRINTCHAR(63)
+  IF N<1 THEN print_str('?')
   ELSE IF N<2882 THEN BEGIN
-    SPRINTCS(N);
-    PRINTCHAR(61);
-    print_str(print_cmd_chr(EQTB[N].HH.B0,EQTB[N].HH.RH));
+    print_str(sprint_cs(N) + '=' + print_cmd_chr(EQTB[N].HH.B0,EQTB[N].HH.RH));
     IF EQTB[N].HH.B0>=111 THEN BEGIN
       PRINTCHAR(58);
       SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
     END;
   END ELSE IF N<3412 THEN begin
     IF N<2900 THEN BEGIN
-      print_str(print_skip_param(N-2882));
-      PRINTCHAR(61);
+      print_str(print_skip_param(N-2882) + '=');
       IF N<2897 THEN print_str(print_spec(EQTB[N].HH.RH, 'pt'))
                 ELSE print_str(print_spec(EQTB[N].HH.RH, 'mu'));
     END ELSE IF N<3156 THEN BEGIN
@@ -4459,13 +3784,11 @@ BEGIN
     END
   end ELSE IF N<5263 THEN begin
     IF N=3412 THEN BEGIN
-      print_esc_str('parshape');
-      PRINTCHAR(61);
+      print_esc_str('parshape=');
       IF EQTB[3412].HH.RH=0 THEN PRINTCHAR(48)
                             ELSE PRINTINT(MEM[EQTB[3412].HH.RH].HH.LH);
     END ELSE IF N<3422 THEN BEGIN
-      print_str(print_cmd_chr(72,N));
-      PRINTCHAR(61);
+      print_str(print_cmd_chr(72,N) + '=');
       IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
     END ELSE IF N<3678 THEN BEGIN
       print_esc_str('toks');
@@ -4659,10 +3982,9 @@ BEGIN
                        IF CURINPUT.LOCFIELD=0 THEN print_nl_str('<recently read> ')
                        ELSE print_nl_str('<to be read again> ');
                     4: print_nl_str('<inserted text> ');
-                    5:
-                       BEGIN
+                    5: BEGIN
                          PRINTLN;
-                         PRINTCS(CURINPUT.NAMEFIELD);
+                         print_str(print_cs(CURINPUT.NAMEFIELD));
                        END;
                     6: print_nl_str('<output> ');
                     7: print_nl_str('<everypar> ');
@@ -4762,6 +4084,301 @@ END;
   ---------------------------------------------------------------------- }
 
 
+
+
+
+{306:}
+PROCEDURE RUNAWAY;
+
+VAR P: HALFWORD;
+BEGIN
+  IF SCANNERSTATU>1 THEN
+    BEGIN
+      print_nl_str('Runaway ');
+      CASE SCANNERSTATU OF 
+        2:
+           BEGIN
+             print_str('definition');
+             P := DEFREF;
+           END;
+        3:
+           BEGIN
+             print_str('argument');
+             P := 29997;
+           END;
+        4:
+           BEGIN
+             print_str('preamble');
+             P := 29996;
+           END;
+        5:
+           BEGIN
+             print_str('text');
+             P := DEFREF;
+           END;
+      END;
+      PRINTCHAR(63);
+      PRINTLN;
+      SHOWTOKENLIS(MEM[P].HH.RH,0,ERRORLINE-10);
+    END;
+END;
+{:306}
+
+{:119}
+{120:}
+FUNCTION GETAVAIL: HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := AVAIL;
+  IF P<>0 THEN AVAIL := MEM[AVAIL].HH.RH
+  ELSE
+    IF MEMEND<MEMMAX THEN
+      BEGIN
+        MEMEND := MEMEND+1;
+        P := MEMEND;
+      END
+  ELSE
+    BEGIN
+      HIMEMMIN := HIMEMMIN-1;
+      P := HIMEMMIN;
+      IF HIMEMMIN<=LOMEMMAX THEN
+        BEGIN   
+          RUNAWAY;
+          overflow('main memory size', MEMMAX+1-MEMMIN);
+        END;
+    END;
+  MEM[P].HH.RH := 0;{$IFDEF STATS}
+  DYNUSED := DYNUSED+1;{$ENDIF}
+  GETAVAIL := P;
+END;
+{:120}
+
+{125:}
+FUNCTION GETNODE(S:Int32): HALFWORD;
+
+LABEL 40,10,20;
+
+VAR P: HALFWORD;
+  Q: HALFWORD;
+  R: Int32;
+  T: Int32;
+BEGIN
+  20: P := ROVER;
+  REPEAT{127:}
+    Q := P+MEM[P].HH.LH;
+    WHILE (MEM[Q].HH.RH=65535) DO
+      BEGIN
+        T := MEM[Q+1].HH.RH;
+        IF Q=ROVER THEN ROVER := T;
+        MEM[T+1].HH.LH := MEM[Q+1].HH.LH;
+        MEM[MEM[Q+1].HH.LH+1].HH.RH := T;
+        Q := Q+MEM[Q].HH.LH;
+      END;
+    R := Q-S;
+    IF R>P+1 THEN{128:}
+      BEGIN
+        MEM[P].HH.LH := R-P;
+        ROVER := P;
+        GOTO 40;
+      END{:128};
+    IF R=P THEN
+      IF MEM[P+1].HH.RH<>P THEN{129:}
+        BEGIN
+          ROVER := MEM[P+1].HH.RH;
+          T := MEM[P+1].HH.LH;
+          MEM[ROVER+1].HH.LH := T;
+          MEM[T+1].HH.RH := ROVER;
+          GOTO 40;
+        END{:129};
+    MEM[P].HH.LH := Q-P{:127};
+    P := MEM[P+1].HH.RH;
+  UNTIL P=ROVER;
+  IF S=1073741824 THEN
+    BEGIN
+      GETNODE := 65535;
+      GOTO 10;
+    END;
+  IF LOMEMMAX+2<HIMEMMIN THEN
+    IF LOMEMMAX+2<=65535 THEN{126:}
+      BEGIN
+        IF 
+           HIMEMMIN-LOMEMMAX>=1998 THEN T := LOMEMMAX+1000
+        ELSE T := LOMEMMAX+1+(
+                  HIMEMMIN-LOMEMMAX)DIV 2;
+        P := MEM[ROVER+1].HH.LH;
+        Q := LOMEMMAX;
+        MEM[P+1].HH.RH := Q;
+        MEM[ROVER+1].HH.LH := Q;
+        IF T>65535 THEN T := 65535;
+        MEM[Q+1].HH.RH := ROVER;
+        MEM[Q+1].HH.LH := P;
+        MEM[Q].HH.RH := 65535;
+        MEM[Q].HH.LH := T-LOMEMMAX;
+        LOMEMMAX := T;
+        MEM[LOMEMMAX].HH.RH := 0;
+        MEM[LOMEMMAX].HH.LH := 0;
+        ROVER := Q;
+        GOTO 20;
+      END{:126};
+  overflow('main memory size', MEMMAX+1-MEMMIN);
+  40: MEM[R].HH.RH := 0;{$IFDEF STATS}
+  VARUSED := VARUSED+S;{$ENDIF}
+  GETNODE := R;
+  10:
+END;
+{:125}
+
+
+{136:}
+FUNCTION NEWNULLBOX: HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(7);
+  MEM[P].HH.B0 := 0;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].INT := 0;
+  MEM[P+2].INT := 0;
+  MEM[P+3].INT := 0;
+  MEM[P+4].INT := 0;
+  MEM[P+5].HH.RH := 0;
+  MEM[P+5].HH.B0 := 0;
+  MEM[P+5].HH.B1 := 0;
+  MEM[P+6].GR := 0.0;
+  NEWNULLBOX := P;
+END;
+{:136}{139:}
+FUNCTION NEWRULE: HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(4);
+  MEM[P].HH.B0 := 2;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].INT := -1073741824;
+  MEM[P+2].INT := -1073741824;
+  MEM[P+3].INT := -1073741824;
+  NEWRULE := P;
+END;
+{:139}{144:}
+FUNCTION NEWLIGATURE(F,C:QUARTERWORD;Q:HALFWORD): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 6;
+  MEM[P+1].HH.B0 := F;
+  MEM[P+1].HH.B1 := C;
+  MEM[P+1].HH.RH := Q;
+  MEM[P].HH.B1 := 0;
+  NEWLIGATURE := P;
+END;
+FUNCTION NEWLIGITEM(C:QUARTERWORD): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B1 := C;
+  MEM[P+1].HH.RH := 0;
+  NEWLIGITEM := P;
+END;
+{:144}{145:}
+FUNCTION NEWDISC: HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 7;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].HH.LH := 0;
+  MEM[P+1].HH.RH := 0;
+  NEWDISC := P;
+END;{:145}{147:}
+FUNCTION NEWMATH(W:SCALED;
+                 S:SMALLNUMBER): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 9;
+  MEM[P].HH.B1 := S;
+  MEM[P+1].INT := W;
+  NEWMATH := P;
+END;
+{:147}{151:}
+FUNCTION NEWSPEC(P:HALFWORD): HALFWORD;
+
+VAR Q: HALFWORD;
+BEGIN
+  Q := GETNODE(4);
+  MEM[Q] := MEM[P];
+  MEM[Q].HH.RH := 0;
+  MEM[Q+1].INT := MEM[P+1].INT;
+  MEM[Q+2].INT := MEM[P+2].INT;
+  MEM[Q+3].INT := MEM[P+3].INT;
+  NEWSPEC := Q;
+END;
+{:151}{152:}
+FUNCTION NEWPARAMGLUE(N:SMALLNUMBER): HALFWORD;
+
+VAR P: HALFWORD;
+  Q: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 10;
+  MEM[P].HH.B1 := N+1;
+  MEM[P+1].HH.RH := 0;
+  Q := {224:}EQTB[2882+N].HH.RH{:224};
+  MEM[P+1].HH.LH := Q;
+  MEM[Q].HH.RH := MEM[Q].HH.RH+1;
+  NEWPARAMGLUE := P;
+END;
+{:152}{153:}
+FUNCTION NEWGLUE(Q:HALFWORD): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 10;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].HH.RH := 0;
+  MEM[P+1].HH.LH := Q;
+  MEM[Q].HH.RH := MEM[Q].HH.RH+1;
+  NEWGLUE := P;
+END;
+{:153}{154:}
+FUNCTION NEWSKIPPARAM(N:SMALLNUMBER): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  TEMPPTR := NEWSPEC({224:}EQTB[2882+N].HH.RH{:224});
+  P := NEWGLUE(TEMPPTR);
+  MEM[TEMPPTR].HH.RH := 0;
+  MEM[P].HH.B1 := N+1;
+  NEWSKIPPARAM := P;
+END;{:154}{156:}
+FUNCTION NEWKERN(W:SCALED): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 11;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].INT := W;
+  NEWKERN := P;
+END;
+{:156}{158:}
+FUNCTION NEWPENALTY(M:Int32): HALFWORD;
+
+VAR P: HALFWORD;
+BEGIN
+  P := GETNODE(2);
+  MEM[P].HH.B0 := 12;
+  MEM[P].HH.B1 := 0;
+  MEM[P+1].INT := M;
+  NEWPENALTY := P;
+END;{:158}
 
 
 
@@ -5024,7 +4641,10 @@ BEGIN
       P := Q;
     END;
 END;
-{:202}{204:}
+{:202}
+
+
+{204:}
 FUNCTION COPYNODELIST(P:HALFWORD): HALFWORD;
 
 VAR H: HALFWORD;
@@ -5234,7 +4854,7 @@ END;
 {281:}
 {284:}
 {$IFDEF STATS}
-PROCEDURE restore_trace_str(P:HALFWORD; s: string);
+PROCEDURE restore_trace_str(P:HALFWORD; s: shortstring);
 BEGIN
   BEGINDIAGNOS;
   PRINTCHAR(123);
@@ -5550,8 +5170,7 @@ BEGIN
                END;
           END;
           BEGINTOKENLI(P,4){:339};
-          print_str(' of ');
-          SPRINTCS(WARNINGINDEX);
+          print_str(' of ' + sprint_cs(WARNINGINDEX));
           BEGIN
             HELPPTR := 4;
             help_line[3] := 'I suspect you have forgotten a `}'', causing me';
@@ -5996,7 +5615,7 @@ BEGIN
     BEGIN
       BEGINDIAGNOS;
       PRINTLN;
-      PRINTCS(WARNINGINDEX);
+      print_str(print_cs(WARNINGINDEX));
       TOKENSHOW(REFCOUNT);
       ENDDIAGNOSTI(FALSE);
     END{:401};
@@ -6039,8 +5658,7 @@ BEGIN
                 print_nl_str('! ');
                 print_str('Use of ');
               END;
-              SPRINTCS(WARNINGINDEX);
-              print_str(' doesn''t match its definition');
+              print_str(sprint_cs(WARNINGINDEX) + ' doesn''t match its definition');
               BEGIN
                 HELPPTR := 4;
                 help_line[3] := 'If you say, e.g., `\def\a1{...}'', then you must always';
@@ -6093,8 +5711,7 @@ BEGIN
                     print_nl_str('! ');
                     print_str('Paragraph ended before ');
                   END;
-                  SPRINTCS(WARNINGINDEX);
-                  print_str(' was complete');
+                  print_str(sprint_cs(WARNINGINDEX) + ' was complete');
                   BEGIN
                     HELPPTR := 3;
                     help_line[2] := 'I suspect you''ve forgotten a `}'', causing me to apply this';
@@ -6144,8 +5761,7 @@ BEGIN
                               print_nl_str('! ');
                               print_str('Paragraph ended before ');
                             END;
-                            SPRINTCS(WARNINGINDEX);
-                            print_str(' was complete');
+                            print_str(sprint_cs(WARNINGINDEX) + ' was complete');
                             BEGIN
                               HELPPTR := 3;
                               help_line[2] := 'I suspect you''ve forgotten a `}'', causing me to apply this';
@@ -6184,8 +5800,7 @@ BEGIN
               print_nl_str('! ');
               print_str('Argument of ');
             END;
-            SPRINTCS(WARNINGINDEX);
-            print_str(' has an extra }');
+            print_str(sprint_cs(WARNINGINDEX) + ' has an extra }');
             BEGIN
               HELPPTR := 6;
               help_line[5] := 'I''ve run across a `}'' that doesn''t seem to match anything.';
@@ -6533,7 +6148,7 @@ BEGIN{406:}
   IF CURTOK<>3133 THEN BACKINPUT;
 END;
 {:405}{407:}
-function scan_keyword_str(const s: string): boolean;
+function scan_keyword_str(const s: shortstring): boolean;
 VAR
   P: HALFWORD;
   Q: HALFWORD;
@@ -7252,10 +6867,104 @@ BEGIN
   IF NEGATIVE THEN CURVAL := -CURVAL;
 END;
 {:440}{448:}
+
+FUNCTION HALF(X:Int32): Int32;
+BEGIN
+  IF ODD(X)THEN HALF := (X+1)DIV 2
+  ELSE HALF := X DIV 2;
+END;
+
+FUNCTION ROUNDDECIMAL(K:SMALLNUMBER): SCALED;
+VAR A: Int32;
+BEGIN
+  A := 0;
+  WHILE K>0 DO
+    BEGIN
+      K := K-1;
+      A := (A+DIG[K]*131072)DIV 10;
+    END;
+  ROUNDDECIMAL := (A+1)DIV 2;
+END;
+
+FUNCTION MULTANDADD(N:Int32;X,Y,MAXANSWER:SCALED): SCALED;
+BEGIN
+  IF N<0 THEN
+    BEGIN
+      X := -X;
+      N := -N;
+    END;
+  IF N=0 THEN MULTANDADD := Y
+  ELSE
+    IF ((X<=(MAXANSWER-Y)DIV N)AND(-X<=(
+       MAXANSWER+Y)DIV N))THEN MULTANDADD := N*X+Y
+  ELSE
+    BEGIN
+      ARITHERROR := TRUE;
+      MULTANDADD := 0;
+    END;
+END;
+
+FUNCTION XOVERN(X:SCALED; N:Int32): SCALED;
+VAR NEGATIVE: BOOLEAN;
+BEGIN
+  NEGATIVE := FALSE;
+  IF N=0 THEN
+    BEGIN
+      ARITHERROR := TRUE;
+      XOVERN := 0;
+      REMAINDER := X;
+    END
+  ELSE
+    BEGIN
+      IF N<0 THEN
+        BEGIN
+          X := -X;
+          N := -N;
+          NEGATIVE := TRUE;
+        END;
+      IF X>=0 THEN
+        BEGIN
+          XOVERN := X DIV N;
+          REMAINDER := X MOD N;
+        END
+      ELSE
+        BEGIN
+          XOVERN := -((-X)DIV N);
+          REMAINDER := -((-X)MOD N);
+        END;
+    END;
+  IF NEGATIVE THEN REMAINDER := -REMAINDER;
+END;
+
+FUNCTION XNOVERD(X:SCALED;N,D:Int32): SCALED;
+VAR POSITIVE: BOOLEAN;
+  T,U,V: NONNEGATIVEI;
+BEGIN
+  IF X>=0 THEN POSITIVE := TRUE
+  ELSE
+    BEGIN
+      X := -X;
+      POSITIVE := FALSE;
+    END;
+  T := (X MOD 32768)*N;
+  U := (X DIV 32768)*N+(T DIV 32768);
+  V := (U MOD D)*32768+(T MOD 32768);
+  IF U DIV D>=32768 THEN ARITHERROR := TRUE
+  ELSE U := 32768*(U DIV D)+(V DIV D);
+  IF POSITIVE THEN
+    BEGIN
+      XNOVERD := U;
+      REMAINDER := V MOD D;
+    END
+  ELSE
+    BEGIN
+      XNOVERD := -U;
+      REMAINDER := -(V MOD D);
+    END;
+END;
+
 PROCEDURE SCANDIMEN(MU,INF,SHORTCUT:BOOLEAN);
-
 LABEL 30,31,32,40,45,88,89;
-
 VAR NEGATIVE: BOOLEAN;
   F: Int32;
 {450:}
@@ -7684,6 +7393,35 @@ BEGIN
 END;
 
 
+
+{@ There's also a |fast_get_avail| routine, which saves the procedure-call
+overhead at the expense of extra programming. This routine is used in
+the places that would otherwise account for the most calls of |get_avail|.}
+
+function fast_get_avail : HALFWORD; inline;
+var Node: HALFWORD;
+begin
+  Node := AVAIL;
+  if Node=0 then Node := GETAVAIL
+  else begin
+    AVAIL := MEM[Node].HH.RH;   { avail := link(Node); }
+    MEM[Node].HH.RH := 0;       { link(Node) := null; }
+{$IFDEF STATS}
+    DYNUSED := DYNUSED+1;
+{$ENDIF}
+  end;
+  fast_get_avail := Node;
+end;
+
+function fast_store_new_token(Node: HALFWORD; Token: HALFWORD) : HALFWORD; inline;
+var q: HALFWORD;
+begin
+  q := fast_get_avail;
+  MEM[Node].HH.RH := q;         { link(Node) := q; }
+  MEM[q].HH.LH := Token;        { info(q) := Token; }
+  fast_store_new_token := q;
+end;
+
 {@Before we get into the details of |scan_toks|, let's consider a much
 simpler task, that of converting the current string into a token list.
 The |str_toks| function does this; it classifies spaces as type |spacer|
@@ -7692,42 +7430,28 @@ and everything else as type |other_char|.
 The token list created by |str_toks| begins at |link(temp_head)| and ends
 at the value |p| that is returned. (If |p=temp_head|, the list is empty.)}
 
-function str_toks(const s: string): HALFWORD;
-VAR 
-  P: HALFWORD;
-  Q: HALFWORD;
-  T: HALFWORD;
+function str_toks(const s: shortstring): HALFWORD;
+var
+  Node: HALFWORD;
+  Token: HALFWORD;
   i: uint32;
 BEGIN
-  P := 29997;
-  MEM[P].HH.RH := 0;
-
+  Node := 29997;
+  MEM[Node].HH.RH := 0;
   for i := 1 to length(s) do begin
-    T := ord(s[i]);
-    IF T=32 THEN T := 2592
-            ELSE T := 3072+T;
-    Q := AVAIL;
-    IF Q=0 THEN Q := GETAVAIL
-    ELSE BEGIN
-      AVAIL := MEM[Q].HH.RH;
-      MEM[Q].HH.RH := 0;
-{$IFDEF STATS}
-      DYNUSED := DYNUSED+1;
-{$ENDIF}
-    END;
-    MEM[P].HH.RH := Q;
-    MEM[Q].HH.LH := T;
-    P := Q;
+    Token := ord(s[i]);
+    IF Token=32 THEN Token := 2592
+                ELSE Token := 3072+Token;
+    Node := fast_store_new_token(Node, Token);
   end;
-  str_toks := P;
+  str_toks := Node;
 END;
-{:464}
 
 {465:}
 FUNCTION THETOKS: HALFWORD;
 VAR
   P,Q,R: HALFWORD;
-  s: string;
+  s: shortstring;
 BEGIN
   GETXTOKEN;
   SCANSOMETHIN(5,FALSE);
@@ -7825,8 +7549,7 @@ BEGIN
   CASE C OF
     0: PRINTINT(CURVAL);
     1: PRINTROMANIN(CURVAL);
-    2:
-       IF CURCS<>0 THEN SPRINTCS(CURCS)
+    2: IF CURCS<>0 THEN print_str(sprint_cs(CURCS))
        ELSE PRINTCHAR(CURCHR);
     3: PRINTMEANING;
     4: BEGIN
@@ -8000,12 +7723,10 @@ BEGIN
                 IF (CURTOK<=3120)OR(CURTOK>T)THEN
                   BEGIN
                     BEGIN
-                      IF 
-                         INTERACTION=3 THEN;
                       print_nl_str('! ');
                       print_str('Illegal parameter number in definition of ');
                     END;
-                    SPRINTCS(WARNINGINDEX);
+                    print_str(sprint_cs(WARNINGINDEX));
                     BEGIN
                       HELPPTR := 3;
                       help_line[2] := 'You meant to type ## instead of #, right?';
@@ -8072,7 +7793,7 @@ BEGIN
     ELSE
       BEGIN;
         PRINTLN;
-        SPRINTCS(R);
+        print_str(sprint_cs(R));
         BEGIN;
           PRINTCHAR(61);
           TERMINPUT;
@@ -8916,7 +8637,7 @@ END;
 PROCEDURE OUTWHAT(P:HALFWORD);
 VAR 
   J: SMALLNUMBER;
-  FileName: string;
+  FileName: shortstring;
 BEGIN
   CASE MEM[P].HH.B1 OF 
     0,1,2:{1374:}
@@ -9437,7 +9158,7 @@ LABEL 30;
 VAR
   PAGELOC: Int32;
   J,K: 0..9;
-  s: string;
+  s: shortstring;
   i: uint32;
 BEGIN
   IF EQTB[5297].INT>0 THEN
@@ -18003,7 +17724,7 @@ the largest character code in the cycle.}
 END;
 
 FUNCTION READFONTINFO(U:HALFWORD;
-                      FileName: string;
+                      FileName: shortstring;
                       S:SCALED): INTERNALFONT;
 VAR
   TFMFile: byte_file;
@@ -18027,10 +17748,7 @@ BEGIN
   end;
 
   {Report an error according to ErrorCode}
-  print_nl_str('! Font ');
-  SPRINTCS(U);
-  PRINTCHAR(61);
-  print_str(RemoveFileExtension(FileName));
+  print_nl_str('! Font ' + sprint_cs(U) + '=' + RemoveFileExtension(FileName));
   IF S>=0 THEN print_str(' at ' + print_scaled(S) + 'pt')
   ELSE IF S<>-1000 THEN print_str(' scaled ' + print_int(-S));
 
@@ -18061,13 +17779,13 @@ BEGIN
 END;
 
 function FindFont(UserFontId: HALFWORD;
-                  const FileNameArea: string;
+                  const FileNameArea: shortstring;
                   ScaleFactor: SCALED) : INTERNALFONT;
 var
   FontNo: INTERNALFONT;
   Slash: SizeInt;
-  Area: string;
-  Name: string;
+  Area: shortstring;
+  Name: shortstring;
   AreaIndex: STRNUMBER;
   NameIndex: STRNUMBER;
 begin
@@ -18118,7 +17836,7 @@ VAR
   OLDSETTING: 0..21;
 
   i: sizeint;
-  FileNameArea: string;
+  FileNameArea: shortstring;
 
 BEGIN
   IF job_name='' THEN OPENLOGFILE;
@@ -18185,6 +17903,274 @@ END;
 
 
 
+{ ----------------------------------------------------------------------
+  Debugging
+  ---------------------------------------------------------------------- }
+
+
+{$IFDEF DEBUGGING}
+
+VAR
+  FREE: PACKED ARRAY[MEMMIN..MEMMAX] OF BOOLEAN;
+  WASFREE: PACKED ARRAY[MEMMIN..MEMMAX] OF BOOLEAN;
+  WASMEMEND,WASLOMAX,WASHIMIN: HALFWORD;
+  PANICKING: BOOLEAN;
+
+
+
+
+PROCEDURE CHECKMEM(PRINTLOCS:BOOLEAN);
+LABEL 31,32;
+VAR P,Q: HALFWORD;
+  CLOBBERED: BOOLEAN;
+BEGIN
+  FOR P:=MEMMIN TO LOMEMMAX DO
+    FREE[P] := FALSE;
+  FOR P:=HIMEMMIN TO MEMEND DO
+    FREE[P] := FALSE;{168:}
+  P := AVAIL;
+  Q := 0;
+  CLOBBERED := FALSE;
+  WHILE P<>0 DO
+    BEGIN
+      IF (P>MEMEND)OR(P<HIMEMMIN)THEN CLOBBERED := TRUE
+      ELSE
+        IF FREE[P]THEN CLOBBERED := TRUE;
+      IF CLOBBERED THEN
+        BEGIN
+          print_nl_str('AVAIL list clobbered at ');
+          PRINTINT(Q);
+          GOTO 31;
+        END;
+      FREE[P] := TRUE;
+      Q := P;
+      P := MEM[Q].HH.RH;
+    END;
+  31:{:168};{169:}
+  P := ROVER;
+  Q := 0;
+  CLOBBERED := FALSE;
+  REPEAT
+    IF (P>=LOMEMMAX)OR(P<MEMMIN)THEN CLOBBERED := TRUE
+    ELSE
+      IF (MEM[P+1].
+         HH.RH>=LOMEMMAX)OR(MEM[P+1].HH.RH<MEMMIN)THEN CLOBBERED := TRUE
+    ELSE
+      IF 
+         NOT((MEM[P].HH.RH=65535))OR(MEM[P].HH.LH<2)OR(P+MEM[P].HH.LH>LOMEMMAX)OR
+         (MEM[MEM[P+1].HH.RH+1].HH.LH<>P)THEN CLOBBERED := TRUE;
+    IF CLOBBERED THEN
+      BEGIN
+        print_nl_str('Double-AVAIL list clobbered at ');
+        PRINTINT(Q);
+        GOTO 32;
+      END;
+    FOR Q:=P TO P+MEM[P].HH.LH-1 DO
+      BEGIN
+        IF FREE[Q]THEN
+          BEGIN
+            print_nl_str('Doubly free location at ');
+            PRINTINT(Q);
+            GOTO 32;
+          END;
+        FREE[Q] := TRUE;
+      END;
+    Q := P;
+    P := MEM[P+1].HH.RH;
+  UNTIL P=ROVER;
+  32:{:169};{170:}
+  P := MEMMIN;
+  WHILE P<=LOMEMMAX DO
+    BEGIN
+      IF (MEM[P].HH.RH=65535)THEN
+        BEGIN
+          print_nl_str('Bad flag at ')
+          ;
+          PRINTINT(P);
+        END;
+      WHILE (P<=LOMEMMAX)AND NOT FREE[P] DO
+        P := P+1;
+      WHILE (P<=LOMEMMAX)AND FREE[P] DO
+        P := P+1;
+    END{:170};
+  IF PRINTLOCS THEN{171:}
+    BEGIN
+      print_nl_str('New busy locs:');
+      FOR P:=MEMMIN TO LOMEMMAX DO
+        IF NOT FREE[P]AND((P>WASLOMAX)OR WASFREE[P]
+           )THEN
+          BEGIN
+            PRINTCHAR(32);
+            PRINTINT(P);
+          END;
+      FOR P:=HIMEMMIN TO MEMEND DO
+        IF NOT FREE[P]AND((P<WASHIMIN)OR(P>
+           WASMEMEND)OR WASFREE[P])THEN
+          BEGIN
+            PRINTCHAR(32);
+            PRINTINT(P);
+          END;
+    END{:171};
+  FOR P:=MEMMIN TO LOMEMMAX DO
+    WASFREE[P] := FREE[P];
+  FOR P:=HIMEMMIN TO MEMEND DO
+    WASFREE[P] := FREE[P];
+  WASMEMEND := MEMEND;
+  WASLOMAX := LOMEMMAX;
+  WASHIMIN := HIMEMMIN;
+END;
+
+PROCEDURE SEARCHMEM(P:HALFWORD);
+VAR Q: Int32;
+BEGIN
+  FOR Q:=MEMMIN TO LOMEMMAX DO
+    BEGIN
+      IF MEM[Q].HH.RH=P THEN
+        BEGIN
+          print_nl_str('LINK(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+      IF MEM[Q].HH.LH=P THEN
+        BEGIN
+          print_nl_str('INFO(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+    END;
+  FOR Q:=HIMEMMIN TO MEMEND DO
+    BEGIN
+      IF MEM[Q].HH.RH=P THEN
+        BEGIN
+          print_nl_str('LINK(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+      IF MEM[Q].HH.LH=P THEN
+        BEGIN
+          print_nl_str('INFO(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+    END;
+{255:}
+  FOR Q:=1 TO 3933 DO
+    BEGIN
+      IF EQTB[Q].HH.RH=P THEN
+        BEGIN
+          print_nl_str('EQUIV(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+    END{:255};
+{285:}
+  IF SAVEPTR>0 THEN FOR Q:=0 TO SAVEPTR-1 DO
+                      BEGIN
+                        IF SAVESTACK[Q].
+                           HH.RH=P THEN
+                          BEGIN
+                            print_nl_str('SAVE(');
+                            PRINTINT(Q);
+                            PRINTCHAR(41);
+                          END;
+                      END{:285};
+{933:}
+  FOR Q:=0 TO 307 DO
+    BEGIN
+      IF HYPHLIST[Q]=P THEN
+        BEGIN
+          print_nl_str('HYPH(');
+          PRINTINT(Q);
+          PRINTCHAR(41);
+        END;
+    END{:933};
+END;
+
+PROCEDURE PRINTWORD(W:MEMORYWORD);
+BEGIN
+  PRINTINT(W.INT);
+  PRINTCHAR(32);
+  PRINTSCALED(W.INT);
+  PRINTCHAR(32);
+  PRINTSCALED(ISORound(65536*W.GR));
+  PRINTLN;
+  PRINTINT(W.HH.LH);
+  PRINTCHAR(61);
+  PRINTINT(W.HH.B0);
+  PRINTCHAR(58);
+  PRINTINT(W.HH.B1);
+  PRINTCHAR(59);
+  PRINTINT(W.HH.RH);
+  PRINTCHAR(32);
+  PRINTINT(W.QQQQ.B0);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B1);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B2);
+  PRINTCHAR(58);
+  PRINTINT(W.QQQQ.B3);
+END;
+
+PROCEDURE DEBUGHELP;
+LABEL 888,10;
+VAR K,L,M,N: Int32;
+BEGIN;
+  WHILE TRUE DO BEGIN
+      print_nl_str('debug # (-1 to exit):');
+      FLUSH(OUTPUT);
+      READ(INPUT,M);
+      IF M<0 THEN GOTO 10
+      ELSE
+        IF M=0 THEN
+          BEGIN
+            GOTO 888;
+            888: M := 0;
+{'BREAKPOINT'}
+          END
+      ELSE
+        BEGIN
+          READ(INPUT,N);
+          CASE M OF {1339:}
+            1: PRINTWORD(MEM[N]);
+            2: PRINTINT(MEM[N].HH.LH);
+            3: PRINTINT(MEM[N].HH.RH);
+            4: PRINTWORD(EQTB[N]);
+            5: PRINTWORD(FONTINFO[N]);
+            6: PRINTWORD(SAVESTACK[N]);
+            7: SHOWBOX(N);
+            8:
+               BEGIN
+                 BREADTHMAX := 10000;
+                 DEPTHTHRESHO := POOLSIZE-POOLPTR-10;
+                 SHOWNODELIST(N);
+               END;
+            9: SHOWTOKENLIS(N,0,1000);
+            10: SLOWPRINT(N);
+            11: CHECKMEM(N>0);
+            12: SEARCHMEM(N);
+            13:
+                BEGIN
+                  READ(INPUT,L);
+                  print_str(print_cmd_chr(N,L));
+                END;
+            14: FOR K:=0 TO N DO
+                  PRINT(BUFFER[K]);
+            15:
+                BEGIN
+                  FONTINSHORTD := 0;
+                  SHORTDISPLAY(N);
+                END;
+            16: PANICKING := NOT PANICKING;
+            ELSE PRINTCHAR(63)
+          END;
+        END;
+    END;
+  10:
+END;
+{$ENDIF}
+
+
+
 
 
 
@@ -18192,6 +18178,7 @@ END;
 { ----------------------------------------------------------------------
   Main loop
   ---------------------------------------------------------------------- }
+
 
 
 {1265:}
@@ -18675,7 +18662,7 @@ PROCEDURE OPENORCLOSEI;
 VAR
   C: 0..1;
   N: 0..15;
-  FileName: string;
+  FileName: shortstring;
 BEGIN
   C := CURCHR;
   SCANFOURBITI;
@@ -18782,10 +18769,116 @@ BEGIN
     DYNUSED := DYNUSED-1;{$ENDIF}
   END;
 END;{:1288}{1293:}
+
+PROCEDURE SHOWACTIVITI;
+VAR P: 0..NESTSIZE;
+  M: -203..203;
+  A: MEMORYWORD;
+  Q,R: HALFWORD;
+  T: Int32;
+BEGIN
+  NEST[NESTPTR] := CURLIST;
+  print_nl_str('');
+  PRINTLN;
+  FOR P:=NESTPTR DOWNTO 0 DO
+    BEGIN
+      M := NEST[P].MODEFIELD;
+      A := NEST[P].AUXFIELD;
+      print_nl_str('### ');
+      PRINTMODE(M);
+      print_str(' entered at line ');
+      PRINTINT(ABS(NEST[P].MLFIELD));
+      IF M=102 THEN
+        IF NEST[P].PGFIELD<>8585216 THEN
+          BEGIN
+            print_str(' (language');
+            PRINTINT(NEST[P].PGFIELD MOD 65536);
+            print_str(':hyphenmin');
+            PRINTINT(NEST[P].PGFIELD DIV 4194304);
+            PRINTCHAR(44);
+            PRINTINT((NEST[P].PGFIELD DIV 65536)MOD 64);
+            PRINTCHAR(41);
+          END;
+      IF NEST[P].MLFIELD<0 THEN print_str(' (\output routine)');
+      IF P=0 THEN
+        BEGIN{986:}
+          IF 29998<>PAGETAIL THEN
+            BEGIN
+              print_nl_str('### current page:');
+              IF OUTPUTACTIVE THEN print_str(' (held over for next output)');
+              SHOWBOX(MEM[29998].HH.RH);
+              IF PAGECONTENTS>0 THEN
+                BEGIN
+                  print_nl_str('total height ' + print_totals);
+                  print_nl_str(' goal height ' + print_scaled(PAGESOFAR[0]));
+                  R := MEM[30000].HH.RH;
+                  WHILE R<>30000 DO
+                    BEGIN
+                      PRINTLN;
+                      print_esc_str('insert');
+                      T := MEM[R].HH.B1-0;
+                      PRINTINT(T);
+                      print_str(' adds ');
+                      IF EQTB[5318+T].INT=1000 THEN T := MEM[R+3].INT
+                      ELSE T := XOVERN(MEM[R+3].INT,1000)*EQTB[5318+T].INT;
+                      PRINTSCALED(T);
+                      IF MEM[R].HH.B0=1 THEN
+                        BEGIN
+                          Q := 29998;
+                          T := 0;
+                          REPEAT
+                            Q := MEM[Q].HH.RH;
+                            IF (MEM[Q].HH.B0=3)AND(MEM[Q].HH.B1=MEM[R].HH.B1)THEN T := T+1;
+                          UNTIL Q=MEM[R+1].HH.LH;
+                          print_str(', #');
+                          PRINTINT(T);
+                          print_str(' might split');
+                        END;
+                      R := MEM[R].HH.RH;
+                    END;
+                END;
+            END{:986};
+          IF MEM[29999].HH.RH<>0 THEN print_nl_str('### recent contributions:');
+        END;
+      SHOWBOX(MEM[NEST[P].HEADFIELD].HH.RH);
+{219:}
+      CASE ABS(M)DIV(101) OF 
+        0:
+           BEGIN
+             print_nl_str('prevdepth ');
+             IF A.INT<=-65536000 THEN print_str('ignored')
+             ELSE PRINTSCALED(A.INT);
+             IF NEST[P].PGFIELD<>0 THEN
+               BEGIN
+                 print_str(', prevgraf ');
+                 PRINTINT(NEST[P].PGFIELD);
+                 print_str(' line');
+                 IF NEST[P].PGFIELD<>1 THEN PRINTCHAR(115);
+               END;
+           END;
+        1:
+           BEGIN
+             print_nl_str('spacefactor ');
+             PRINTINT(A.HH.LH);
+             IF M>0 THEN
+               IF A.HH.RH>0 THEN
+                 BEGIN
+                   print_str(', current language ');
+                   PRINTINT(A.HH.RH);
+                 END;
+           END;
+        2:
+           IF A.INT<>0 THEN
+             BEGIN
+               print_str('this will begin denominator of:');
+               SHOWBOX(A.INT);
+             END;
+      END{:219};
+    END;
+END;
+
 PROCEDURE SHOWWHATEVER;
-
 LABEL 50;
-
 VAR P: HALFWORD;
 BEGIN
   CASE CURCHR OF 
@@ -18808,13 +18901,8 @@ BEGIN
     0:{1294:}
        BEGIN
          GETTOKEN;
-         IF INTERACTION=3 THEN;
          print_nl_str('> ');
-         IF CURCS<>0 THEN
-           BEGIN
-             SPRINTCS(CURCS);
-             PRINTCHAR(61);
-           END;
+         IF CURCS<>0 THEN print_str(sprint_cs(CURCS) + '=');
          PRINTMEANING;
          GOTO 50;
        END{:1294};
@@ -19233,7 +19321,8 @@ BEGIN
             GOTO 60;
           END;
 {$IFDEF DEBUGGING}
-  IF PANICKING THEN CHECKMEM(FALSE);{$ENDIF}
+  IF PANICKING THEN CHECKMEM(FALSE);
+{$ENDIF}
   IF EQTB[5299].INT>0 THEN SHOWCURCMDCH{:1031};
   CASE ABS(CURLIST.MODEFIELD)+CURCMD OF 
     113,114,170: GOTO 70;
@@ -20142,7 +20231,7 @@ const
 function FindFormatFile(var f: byte_file) : boolean;
 var
   i, j: 0..BUFSIZE;
-  s: string;
+  s: shortstring;
 begin
   FindFormatFile := true;
   if BUFFER[CURINPUT.LOCFIELD]=ord('&') then begin
@@ -20272,8 +20361,8 @@ VAR J,K,L: Int32;
 
   f: byte_file;
   Buf: array[0..91] of byte;
-  FileName: string;
-  s: string;
+  FileName: shortstring;
+  s: shortstring;
   LocalFormatIdent: STRNUMBER;
 BEGIN
   {1304:}
@@ -22264,94 +22353,6 @@ END;{$ENDIF}
 
 
 
-{$IFDEF DEBUGGING}
-PROCEDURE PRINTWORD(W:MEMORYWORD);
-BEGIN
-  PRINTINT(W.INT);
-  PRINTCHAR(32);
-  PRINTSCALED(W.INT);
-  PRINTCHAR(32);
-  PRINTSCALED(ISORound(65536*W.GR));
-  PRINTLN;
-  PRINTINT(W.HH.LH);
-  PRINTCHAR(61);
-  PRINTINT(W.HH.B0);
-  PRINTCHAR(58);
-  PRINTINT(W.HH.B1);
-  PRINTCHAR(59);
-  PRINTINT(W.HH.RH);
-  PRINTCHAR(32);
-  PRINTINT(W.QQQQ.B0);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B1);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B2);
-  PRINTCHAR(58);
-  PRINTINT(W.QQQQ.B3);
-END;
-
-PROCEDURE DEBUGHELP;
-LABEL 888,10;
-VAR K,L,M,N: Int32;
-BEGIN;
-  WHILE TRUE DO BEGIN
-      print_nl_str('debug # (-1 to exit):');
-      FLUSH(OUTPUT);
-      READ(INPUT,M);
-      IF M<0 THEN GOTO 10
-      ELSE
-        IF M=0 THEN
-          BEGIN
-            GOTO 888;
-            888: M := 0;
-{'BREAKPOINT'}
-          END
-      ELSE
-        BEGIN
-          READ(INPUT,N);
-          CASE M OF {1339:}
-            1: PRINTWORD(MEM[N]);
-            2: PRINTINT(MEM[N].HH.LH);
-            3: PRINTINT(MEM[N].HH.RH);
-            4: PRINTWORD(EQTB[N]);
-            5: PRINTWORD(FONTINFO[N]);
-            6: PRINTWORD(SAVESTACK[N]);
-            7: SHOWBOX(N);
-            8:
-               BEGIN
-                 BREADTHMAX := 10000;
-                 DEPTHTHRESHO := POOLSIZE-POOLPTR-10;
-                 SHOWNODELIST(N);
-               END;
-            9: SHOWTOKENLIS(N,0,1000);
-            10: SLOWPRINT(N);
-            11: CHECKMEM(N>0);
-            12: SEARCHMEM(N);
-            13:
-                BEGIN
-                  READ(INPUT,L);
-                  print_str(print_cmd_chr(N,L);
-                END;
-            14: FOR K:=0 TO N DO
-                  PRINT(BUFFER[K]);
-            15:
-                BEGIN
-                  FONTINSHORTD := 0;
-                  SHORTDISPLAY(N);
-                END;
-            16: PANICKING := NOT PANICKING;
-            ELSE PRINTCHAR(63)
-          END;
-        END;
-    END;
-  10:
-END;
-{$ENDIF}
-
-
-
-
-
 
 
 
@@ -22576,7 +22577,6 @@ END;
 {1332:}
 BEGIN
   HISTORY := 3;
-  REWRITE(OUTPUT);
 
   assert((half_error_line>=30) and (half_error_line<=error_line-15));
   assert(max_print_line>=60);
@@ -22585,10 +22585,6 @@ BEGIN
   assert(hash_prime <= hash_size);
   assert(max_in_open < 128);
   assert(mem_top >= 256+11);
-
-{$IFDEF INITEX}
-  assert((mem_min = mem_bot) and (mem_max = mem_top));
-{$ENDIF}
 
   assert((mem_min<=mem_bot) and (mem_max>=mem_top));
   assert((min_quarterword <= 0) and (max_quarterword>=127));
@@ -22606,35 +22602,40 @@ BEGIN
 
   InitGeneral;
 
+{$IFDEF DEBUGGING}
+  WASMEMEND := MEMMIN;
+  WASLOMAX := MEMMIN;
+  WASHIMIN := MEMMAX;
+  PANICKING := FALSE;
+{$ENDIF}
+
+  TALLY := 0;
+  TERMOFFSET := 0;
+  FILEOFFSET := 0;
+
+  write(output,'This is TeX, Version 3.141592653 Free Pascal');
+
 {$IFDEF INITEX}
+  assert((mem_min = mem_bot) and (mem_max = mem_top));
+
   InitInitex;
   GetStringsStarted;
   INITPRIM;
   INITSTRPTR := STRPTR;
   INITPOOLPTR := POOLPTR;
-{$ENDIF}
-  fix_date_and_time;
-{55:}
-  TALLY := 0;
-  TERMOFFSET := 0;
-  FILEOFFSET := 0;
-{:55}
-{61:}
-  WRITE(OUTPUT,'This is TeX, Version 3.141592653 Free Pascal');
 
-  {At this point, FORMATIDENT is either 1257 for /INITEX/ or 0 for /VIRTEX/.
-   Therefore the format can be hardcoded.}
-{$IFDEF INITEX}
   writeln(output, ' (INITEX)');
 {$ELSE}
   writeln(output, ' (no format preloaded)');
 {$ENDIF}
 
-
+  fix_date_and_time;
   InitTerminal;
-
   TryToLoadFormatFile;
 
+  {FIXME: What is this for?
+  if end_line_char_inactive then decr(limit)
+  else  buffer[limit]:=end_line_char;}
   IF (EQTB[5311].INT<0) OR (EQTB[5311].INT>255) 
     THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
     ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
