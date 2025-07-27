@@ -11,9 +11,9 @@ CONST
   term_only     = 17; {printing is destined for the terminal only}
   log_only      = 18; {printing is destined for the transcript file only}
   term_and_log  = 19; {normal |selector| setting}
-  pseudo        = 20; {special |selector| setting for |show_context|}
-  new_string    = 21; {printing is deflected to the string pool}
-  max_selector  = 21; {highest selector setting}
+  {pseudo        = 20; special |selector| setting for |show_context|}
+  {new_string    = 21; printing is deflected to the string pool}
+  max_selector  = 19; {highest selector setting}
 
 
 {11:}
@@ -702,7 +702,7 @@ VAR
 {:39}
 {54:}
   LOGFILE: alpha_file;
-  SELECTOR: 0..21;
+  SELECTOR: 0..max_selector;
   DIG: ARRAY[0..22] OF 0..15;
   TALLY: Int32;
   TERMOFFSET: 0..MAXPRINTLINE;
@@ -1351,25 +1351,23 @@ BEGIN
           WRITELN(OUTPUT);
           TERMOFFSET := 0;
         END;
-    16,20,21:;
+    16:;
     ELSE WRITELN(WRITEFILE[SELECTOR])
   END;
 END;
 {:57}
 
 {58:}
+
 PROCEDURE PRINTCHAR(S:ASCIICODE);
 BEGIN
   {if @<Character |s| is the current new-line character@> then}
-  IF {244:}S=EQTB[5312].INT{:244}THEN
-    IF SELECTOR<20 THEN
-      BEGIN
-        PRINTLN;
-        exit;
-      END;
+  IF {244:}S=EQTB[5312].INT{:244}THEN BEGIN
+    PRINTLN;
+    exit;
+  END;
   CASE SELECTOR OF 
-    19:
-        BEGIN
+    19: BEGIN
           WRITE(OUTPUT,XCHR[S]);
           WRITE(LOGFILE,XCHR[S]);
           TERMOFFSET := TERMOFFSET+1;
@@ -1385,29 +1383,17 @@ BEGIN
               FILEOFFSET := 0;
             END;
         END;
-    18:
-        BEGIN
+    18: BEGIN
           WRITE(LOGFILE,XCHR[S]);
           FILEOFFSET := FILEOFFSET+1;
           IF FILEOFFSET=MAXPRINTLINE THEN PRINTLN;
         END;
-    17:
-        BEGIN
+    17: BEGIN
           WRITE(OUTPUT,XCHR[S]);
           TERMOFFSET := TERMOFFSET+1;
           IF TERMOFFSET=MAXPRINTLINE THEN PRINTLN;
         END;
     16:;
-    20:
-        IF TALLY<TRICKCOUNT THEN TRICKBUF[TALLY MOD ERRORLINE] := S;
-    21: {write to string pool}
-        BEGIN
-          IF POOLPTR<POOLSIZE THEN
-            BEGIN
-              STRPOOL[POOLPTR] := S;
-              POOLPTR := POOLPTR+1;
-            END;
-        END;
     ELSE WRITE(WRITEFILE[SELECTOR],XCHR[S])
   END;
   TALLY := TALLY+1;
@@ -1436,15 +1422,10 @@ BEGIN
   ELSE IF S<256 THEN
     IF S<0 THEN S := 259
     ELSE BEGIN
-      IF SELECTOR>20 THEN BEGIN
-        PRINTCHAR(S);
+      IF ({244:}S=EQTB[5312].INT{:244})THEN BEGIN
+        PRINTLN;
         exit;
       END;
-      IF ({244:}S=EQTB[5312].INT{:244})THEN
-        IF SELECTOR<20 THEN BEGIN
-          PRINTLN;
-          exit;
-        END;
       NL := EQTB[5312].INT;
       EQTB[5312].INT := -1;
       J := STRSTART[S];
@@ -2039,7 +2020,6 @@ END;
 FUNCTION STREQBUF(S:STRNUMBER;K:Int32): BOOLEAN;
 VAR
   J: POOLPOINTER;
-  RESULT: BOOLEAN;
 BEGIN
   J := STRSTART[S];
   WHILE J<STRSTART[S+1] DO BEGIN
@@ -2357,11 +2337,10 @@ end;
 
 {534:}
 PROCEDURE OPENLOGFILE;
-
-VAR OLDSETTING: 0..21;
+VAR
+  OLDSETTING: 0..max_selector;
   K: 0..BUFSIZE;
   L: 0..BUFSIZE;
-  MONTHS: PACKED ARRAY[1..36] OF CHAR;
   s: shortstring;
 const 
   MonthNames: array[1..12] of string[3] =
@@ -2742,18 +2721,40 @@ begin
   show_token_list_simple := LongStr;
 end;
 
-{The new version of `show_token_list_simple` does not support selector=pseudo.
- For that case, only used in `show_context`, the old version is preserved.}
-PROCEDURE show_token_list_pseudo(P,Q:Int32;L:Int32);
-VAR M,C: Int32;
+
+{Instead of `print_char` with selector=pseudo, this procedure is called}
+procedure print_char_pseudo(S: ASCIICODE);
+begin
+  if TALLY<TRICKCOUNT then TRICKBUF[TALLY MOD ERRORLINE] := S;
+  TALLY := TALLY+1;
+END;
+
+procedure print_str_pseudo(const s: shortstring);
+var i: sizeuint;
+begin
+  for i := 1 to length(s) do print_char_pseudo(ord(s[i]));
+end;
+
+{select=pseudo is only used in `show_context`. This special version of
+`show_token_list` is only called there and behaves as if select=pseudo
+was set, independent of the actual value of select.}
+PROCEDURE show_token_list_pseudo(P, Q: int32; L: int32);
+VAR
+  M,C: int32;
   MATCHCHR: ASCIICODE;
   N: ASCIICODE;
   s: shortstring;
+  i: sizeuint;
 BEGIN
   MATCHCHR := 35;
   N := 48;
   TALLY := 0;
-  WHILE (P<>0)AND(TALLY<L) DO BEGIN
+  WHILE P<>0 DO BEGIN
+    if TALLY>=L then begin
+      print_str_pseudo(print_esc('ETC.'));
+      exit;
+    end;
+
     IF P=Q THEN BEGIN
       {320:}
       FIRSTCOUNT := TALLY;
@@ -2764,7 +2765,7 @@ BEGIN
 
     {293:}
     IF (P<HIMEMMIN)OR(P>MEMEND) THEN BEGIN
-      print_str(print_esc('CLOBBERED.'));
+      print_str_pseudo(print_esc('CLOBBERED.'));
       exit;
     END;
     IF MEM[P].HH.LH>=4095 THEN s := print_cs(MEM[P].HH.LH-4095)
@@ -2778,7 +2779,7 @@ BEGIN
           1,2,3,4,7,8,10,11,12: s := PrintableChar(C);
           6:  s := PrintableChar(C) + PrintableChar(C);
           5:  if C>9 then begin
-                print_str(chr(MATCHCHR) + '!');
+                print_str_pseudo(chr(MATCHCHR) + '!');
                 exit;
               end else s := chr(MATCHCHR) + chr(C+48);
           13: begin
@@ -2794,13 +2795,10 @@ BEGIN
           ELSE s := print_esc('BAD.');
         END;
     END;
-    print_str(s);
+    print_str_pseudo(s);
     P := MEM[P].HH.RH;
   END;
-  IF P<>0 THEN print_str(print_esc('ETC.'));
 END;
-
-
 {:292}
 
 {295:}
@@ -3937,7 +3935,7 @@ BEGIN
       PRINTINT(EQTB[N].HH.RH-0);
     END
   end ELSE IF N<5830 THEN BEGIN
-    IF N<5318 THEN
+    IF N<5318 THEN begin
       print_str(print_param(N))
     end ELSE IF N<5574 THEN BEGIN
       print_esc_str('count');
@@ -3950,7 +3948,7 @@ BEGIN
     PRINTINT(EQTB[N].INT);
   END ELSE IF N<=6106 THEN BEGIN
     IF N<5851 THEN print_str(print_length_param(N))
-    ELSE print_esc_str('dimen' + IntToSStr(N-5851));
+    ELSE print_str(print_esc('dimen') + print_int(N-5851));
     print_str('=' + print_scaled(EQTB[N].INT) + 'pt');
   END ELSE PRINTCHAR(63);
 END;
@@ -3993,10 +3991,8 @@ END;
 
 {311:}
 PROCEDURE SHOWCONTEXT;
-
 LABEL 30;
-
-VAR OLDSETTING: 0..21;
+VAR
   NN: Int32;
   BOTTOMLINE: BOOLEAN;{315:}
   I: 0..BUFSIZE;
@@ -4024,7 +4020,6 @@ BEGIN
              OR(CURINPUT.LOCFIELD<>0)THEN
             BEGIN
               TALLY := 0;
-              OLDSETTING := SELECTOR;
               IF CURINPUT.STATEFIELD<>0 THEN
                 BEGIN{313:}
                   IF CURINPUT.NAMEFIELD<=17 THEN
@@ -4043,27 +4038,28 @@ BEGIN
                       print_nl_str('l.');
                       PRINTINT(LINE);
                     END;
-                  PRINTCHAR(32){:313};{318:}
+                  PRINTCHAR(32){:313};
+
+                  {318:}
                   BEGIN
                     L := TALLY;
                     TALLY := 0;
-                    SELECTOR := pseudo;
                     TRICKCOUNT := 1000000;
                   END;
-                  IF BUFFER[CURINPUT.LIMITFIELD]=EQTB[5311].INT THEN J := CURINPUT.
-                                                                          LIMITFIELD
-                  ELSE J := CURINPUT.LIMITFIELD+1;
-                  IF J>0 THEN FOR I:=CURINPUT.STARTFIELD TO J-1 DO
-                                BEGIN
-                                  IF I=CURINPUT.
-                                     LOCFIELD THEN
-                                    BEGIN
-                                      FIRSTCOUNT := TALLY;
-                                      TRICKCOUNT := TALLY+1+ERRORLINE-HALFERRORLIN;
-                                      IF TRICKCOUNT<ERRORLINE THEN TRICKCOUNT := ERRORLINE;
-                                    END;
-                                  PRINT(BUFFER[I]);
-                                END{:318};
+                  IF BUFFER[CURINPUT.LIMITFIELD]=EQTB[5311].INT
+                    THEN J := CURINPUT.LIMITFIELD
+                    ELSE J := CURINPUT.LIMITFIELD+1;
+                  IF J>0 THEN begin
+                    FOR I:=CURINPUT.STARTFIELD TO J-1 DO BEGIN
+                      IF I=CURINPUT.LOCFIELD THEN BEGIN
+                        FIRSTCOUNT := TALLY;
+                        TRICKCOUNT := TALLY+1+ERRORLINE-HALFERRORLIN;
+                        IF TRICKCOUNT<ERRORLINE THEN TRICKCOUNT := ERRORLINE;
+                      END;
+                      print_char_pseudo(BUFFER[I]);
+                    END;
+                  end;
+                  {:318}
                 END
               ELSE
                 BEGIN{314:}
@@ -4094,20 +4090,17 @@ BEGIN
                   BEGIN
                     L := TALLY;
                     TALLY := 0;
-                    SELECTOR := pseudo;
                     TRICKCOUNT := 1000000;
                   END;
-                  IF CURINPUT.INDEXFIELD<5 THEN
-                    show_token_list_pseudo(CURINPUT.STARTFIELD,
-                                           CURINPUT.LOCFIELD,
-                                           100000)
-                  ELSE 
-                    show_token_list_pseudo(MEM[CURINPUT.STARTFIELD].HH.RH,
-                                           CURINPUT.LOCFIELD,
-                                           100000);
+                  if CURINPUT.INDEXFIELD<5
+                    then show_token_list_pseudo(CURINPUT.STARTFIELD,
+                                                CURINPUT.LOCFIELD,
+                                                100000)
+                    else show_token_list_pseudo(MEM[CURINPUT.STARTFIELD].HH.RH,
+                                                CURINPUT.LOCFIELD,
+                                                100000);
 {:319}
                 END;
-              SELECTOR := OLDSETTING;
 {317:}
               IF TRICKCOUNT=1000000 THEN
                 BEGIN
@@ -7576,15 +7569,13 @@ END;
 
 {470:}
 PROCEDURE CONVTOKS;
-
-VAR OLDSETTING: 0..21;
+VAR
   C: 0..5;
   SAVESCANNERS: SMALLNUMBER;
-  B: POOLPOINTER;
   s: utf8string;
   Token: HALFWORD;
 BEGIN
-  C := CURCHR;{471:}
+  C := CURCHR;
   CASE C OF 
     0,1: SCANINT;
     2,3: BEGIN
@@ -7595,7 +7586,7 @@ BEGIN
          END;
     4: SCANFONTIDEN;
     5: IF job_name='' THEN OPENLOGFILE;
-  END{:471};
+  END;
 
   case C of
     0:  s := print_int(CURVAL);
@@ -8264,9 +8255,7 @@ END;
 {:582}
 
 {597:}
-PROCEDURE WRITEDVI(A,B:DVIINDEX);
-
-VAR K: DVIINDEX;
+PROCEDURE WRITEDVI(A,B: DVIINDEX);
 BEGIN
   blockwrite(DVIFILE, DVIBUF[A], B-A+1);
 END;
@@ -8669,12 +8658,10 @@ BEGIN{1371:}
   OLDSETTING := SELECTOR;
   J := MEM[P+1].HH.LH;
   IF WRITEOPEN[J]THEN SELECTOR := J
-  ELSE
-    BEGIN
-      IF (J=17)AND(SELECTOR=19)THEN
-        SELECTOR := 18;
-      print_nl_str('');
-    END;
+  ELSE BEGIN
+    IF (J=17) AND (SELECTOR=19) THEN SELECTOR := 18;
+    print_nl_str('');
+  END;
   TOKENSHOW(DEFREF);
   PRINTLN;
   FLUSHLIST(DEFREF);
@@ -12362,8 +12349,7 @@ BEGIN{831:}
                 IF CURP=0 THEN SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH)
                 ELSE
                   BEGIN
-                    SAVELINK := 
-                                MEM[CURP].HH.RH;
+                    SAVELINK := MEM[CURP].HH.RH;
                     MEM[CURP].HH.RH := 0;
                     print_nl_str('');
                     SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH);
@@ -17877,9 +17863,6 @@ VAR
   S: SCALED;
   F: INTERNALFONT;
   T: STRNUMBER;
-  OLDSETTING: 0..21;
-
-  i: sizeint;
   FileNameArea: shortstring;
 
 BEGIN
@@ -18725,7 +18708,7 @@ END;
 
 {1279:}
 PROCEDURE ISSUEMESSAGE;
-VAR OLDSETTING: 0..21;
+VAR
   C: 0..1;
   s: utf8string;
 BEGIN
@@ -18904,7 +18887,7 @@ BEGIN
 END;
 
 PROCEDURE SHOWWHATEVER;
-VAR P: HALFWORD;
+VAR Discard: HALFWORD;
 BEGIN
   if (CURCHR=3) or (CURCHR=1) then begin
     if CURCHR=3 then begin
@@ -18951,7 +18934,7 @@ BEGIN
     end else begin
 
       {1297:}
-      P := THETOKS;
+      Discard := THETOKS;
       print_nl_str('> ');
       TOKENSHOW(29997);
       FLUSHLIST(MEM[29997].HH.RH);
@@ -19010,11 +18993,13 @@ BEGIN
         IF CURVAL>15 THEN CURVAL := 16;
     END;
   MEM[CURLIST.TAILFIELD+1].HH.LH := CURVAL;
-END;{:1350}
-PROCEDURE DOEXTENSION;
+END;
+{:1350}
 
-VAR I,J,K: Int32;
-  P,Q,R: HALFWORD;
+PROCEDURE DOEXTENSION;
+VAR
+  K: Int32;
+  P: HALFWORD;
 BEGIN
   CASE CURCHR OF 
     0:{1351:}
@@ -19081,7 +19066,10 @@ BEGIN
          END{:1377};
     ELSE confusion_str('ext1')
   END;
-END;{:1348}{1376:}
+END;
+{:1348}
+
+{1376:}
 PROCEDURE FIXLANGUAGE;
 
 VAR L: ASCIICODE;
