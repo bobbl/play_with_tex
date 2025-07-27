@@ -3,7 +3,21 @@
 { $DEFINE STATS}
 PROGRAM TEX;
 
-CONST {11:}MEMMAX = 30000;
+CONST
+
+{constants for selector}
+
+  no_print      = 16; {|selector| setting that makes data disappear}
+  term_only     = 17; {printing is destined for the terminal only}
+  log_only      = 18; {printing is destined for the transcript file only}
+  term_and_log  = 19; {normal |selector| setting}
+  pseudo        = 20; {special |selector| setting for |show_context|}
+  new_string    = 21; {printing is deflected to the string pool}
+  max_selector  = 21; {highest selector setting}
+
+
+{11:}
+  MEMMAX = 30000;
   MEMMIN = 0;
   BUFSIZE = 500;
   ERRORLINE = 72;
@@ -23,8 +37,6 @@ CONST {11:}MEMMAX = 30000;
   TRIEOPSIZE = 500;
   DVIBUFSIZE = 800;
 {:11}
-
-
 
 
 {@ The following parameters can be changed at compile time to extend or
@@ -1403,6 +1415,12 @@ END;
 {:58}
 
 {59:}
+procedure print_utf8str(const s: utf8string);
+var i: integer;
+begin
+  for i := 1 to length(s) do PRINTCHAR(ord(s[i]));
+end;
+
 procedure print_str(const s: shortstring);
 var i: integer;
 begin
@@ -1486,6 +1504,13 @@ end;
 procedure slow_print_str(s: shortstring);
 begin
   print_str(PrintableStr(s));
+end;
+
+procedure slow_print_utf8str(const s: utf8string);
+var
+  i: sizeint;
+begin
+  for i := 1 to length(s) do print_str(PrintableChar(ord(s[i])));
 end;
 
 PROCEDURE SLOWPRINT(S:Int32);
@@ -1991,6 +2016,8 @@ function AddString(s: shortstring) : STRNUMBER;
 begin
   if STRPTR>=max_strings then 
     overflow('number of strings', max_strings-INITSTRPTR);
+  if POOLPTR+length(s) >= POOLSIZE then
+    overflow('pool size', POOLSIZE-INITPOOLPTR);
   SetString(STRPTR, s);
   STRPTR := STRPTR + 1;
   STRSTART[STRPTR] := POOLPTR;
@@ -2577,44 +2604,68 @@ begin
   print_hex := copy(s, i, 10-i);
 end;
 
-PROCEDURE PRINTROMANIN(N:Int32);
-LABEL 10;
-VAR J,K: POOLPOINTER;
-  U,V: NONNEGATIVEI;
-BEGIN
-  J := STRSTART[260];
-  V := 1000;
-  WHILE TRUE DO
-    BEGIN
-      WHILE N>=V DO
-        BEGIN
-          PRINTCHAR(STRPOOL[J]);
-          N := N-V;
-        END;
-      IF N<=0 THEN GOTO 10;
-      K := J+2;
-      U := V DIV(STRPOOL[K-1]-48);
-      IF STRPOOL[K-1]=50 THEN
-        BEGIN
-          K := K+2;
-          U := U DIV(STRPOOL[K-1]-48);
-        END;
-      IF N+U>=V THEN
-        BEGIN
-          PRINTCHAR(STRPOOL[K]);
-          N := N+U;
-        END
-      ELSE
-        BEGIN
-          J := J+2;
-          V := V DIV(STRPOOL[J-1]-48);
-        END;
-    END;
-  10:
-END;
-{:69}
+{@ Roman numerals are produced by the |print_roman_int| routine.  Readers
+who like puzzles might enjoy trying to figure out how this tricky code
+works; therefore no explanation will be given. Notice that 1990 yields
+"mcmxc", not "mxm".}
 
-{103:}
+function print_roman_int(N: uint32) : shortstring;
+const
+  Letters = 'mdclxvi';
+VAR
+  U, V: uint32;
+  i: sizeuint;
+  s: shortstring;
+BEGIN
+  i := 1;
+  s := '';
+
+  V := 1000;
+  while true do begin
+    while N>=V do begin
+      s := s + Letters[i];
+      N := N - V;
+    end;
+    if N<=0 then begin
+      print_roman_int := s;
+      exit;
+    end;
+
+    if odd(i) then begin
+      U := V div 10;
+      if N+U >= V then begin
+        s := s + Letters[i+2] + Letters[i];
+        N := N + U - V;
+      end;
+      V := V div 2;
+    end else begin
+      U := V div 5;
+      if N+U >= V then begin
+        s := s + Letters[i+1] + Letters[i];
+        N := N + U - V;
+      end;
+      V := V div 5;
+    end;
+    i := i + 1;
+(*
+    U := V div 10;
+    if N+U >= V then begin
+      s := s + Letters[i+2] + Letters[i];       {>900 CM XC IX}
+      N := N + U - V;
+    end else if N >= 5*U then begin
+      s := s + Letters[i+1];                    {>500 D  L  V}
+      N := N - 5*U;
+    end else if N >= 4*U then begin
+      s := s + Letters[i+2] + Letters[i+1];     {>400 CD XL IV}
+      N := N - 4*U;
+    end;
+    V := U;
+    i := i + 2;
+*)
+
+  end;
+end;
+
 {convert SCALED to string}
 function print_scaled(Scale: SCALED) : shortstring;
 VAR
@@ -2638,18 +2689,66 @@ BEGIN
   print_scaled := st;
 END;
 
-PROCEDURE PRINTSCALED(S:SCALED);
-BEGIN
-  print_str(print_scaled(S));
-END;
-{:103}
-
 {119:}
 {292:}
-PROCEDURE SHOWTOKENLIS(P,Q:Int32;L:Int32);
+function show_token_list_simple(P: int32; MaxStrLen: int32) : utf8string;
+var
+  M, C: Int32;
+  MATCHCHR: ASCIICODE;
+  N: ASCIICODE;
+  s: shortstring;
+  LongStr: utf8string;
+begin
+  MATCHCHR := 35;
+  N := 48; {'0'}
+  TALLY := 0; {no longer required?}
+  LongStr := '';
+  while (P<>0) and (length(LongStr)<MaxStrLen) do begin
+    IF (P<HIMEMMIN)OR(P>MEMEND) THEN BEGIN
+      show_token_list_simple := LongStr + print_esc('CLOBBERED.');
+      exit;
+    END;
+    IF MEM[P].HH.LH>=4095 THEN s := print_cs(MEM[P].HH.LH-4095)
+    ELSE BEGIN
+      M := MEM[P].HH.LH DIV 256;
+      C := MEM[P].HH.LH MOD 256;
+      if MEM[P].HH.LH<0 then s := print_esc('BAD.')
+      else begin
+        case M of
+          1,2,3,4,7,8,10,11,12: s := PrintableChar(C);
+          6:  s := PrintableChar(C) + PrintableChar(C);
+          5:  if C>9 then begin
+                show_token_list_simple := LongStr + chr(MATCHCHR) + '!';
+                exit;
+              end else s := chr(MATCHCHR) + chr(C+48);
+          13: begin
+                MATCHCHR := C;
+                N := N+1;
+                s := PrintableChar(C) + chr(N);
+                if N>57 then begin
+                  show_token_list_simple := LongStr + s;
+                  exit;
+                end;
+              end;
+          14: s := '->';
+          else s := print_esc('BAD.')
+        end;
+      end;
+    end;
+    P := MEM[P].HH.RH;
+    LongStr := LongStr + s;
+  end;
+  if P<>0 then LongStr := LongStr + print_esc('ETC.');
+  show_token_list_simple := LongStr;
+end;
+
+{The new version of `show_token_list_simple` does not support selector=pseudo.
+ For that case, only used in `show_context`, the old version is preserved.}
+PROCEDURE show_token_list_pseudo(P,Q:Int32;L:Int32);
 VAR M,C: Int32;
   MATCHCHR: ASCIICODE;
   N: ASCIICODE;
+  s: shortstring;
 BEGIN
   MATCHCHR := 35;
   N := 48;
@@ -2665,53 +2764,49 @@ BEGIN
 
     {293:}
     IF (P<HIMEMMIN)OR(P>MEMEND) THEN BEGIN
-      print_esc_str('CLOBBERED.');
+      print_str(print_esc('CLOBBERED.'));
       exit;
     END;
-    IF MEM[P].HH.LH>=4095 THEN print_str(print_cs(MEM[P].HH.LH-4095))
+    IF MEM[P].HH.LH>=4095 THEN s := print_cs(MEM[P].HH.LH-4095)
     ELSE BEGIN
       M := MEM[P].HH.LH DIV 256;
       C := MEM[P].HH.LH MOD 256;
-      IF MEM[P].HH.LH<0 THEN print_esc_str('BAD.')
+      IF MEM[P].HH.LH<0 THEN s := print_esc('BAD.')
       ELSE
         {294:}
         CASE M OF 
-          1,2,3,4,7,8,10,11,12: slow_print_char(C);
-          6: BEGIN
-               slow_print_char(C);
-               slow_print_char(C);
-             END;
-          5: BEGIN
-               PRINT(MATCHCHR);
-               IF C<=9 THEN PRINTCHAR(C+48)
-               ELSE BEGIN
-                 PRINTCHAR(33);
-                 exit;
-               END;
-             END;
-          13: BEGIN
+          1,2,3,4,7,8,10,11,12: s := PrintableChar(C);
+          6:  s := PrintableChar(C) + PrintableChar(C);
+          5:  if C>9 then begin
+                print_str(chr(MATCHCHR) + '!');
+                exit;
+              end else s := chr(MATCHCHR) + chr(C+48);
+          13: begin
                 MATCHCHR := C;
-                slow_print_char(C);
                 N := N+1;
-                PRINTCHAR(N);
-                IF N>57 THEN exit;
-              END;
-          14: print_str('->');
-          ELSE print_esc_str('BAD.')
-        END
-        {:294};
-    END
-    {:293};
+                s := PrintableChar(C) + chr(N);
+                if N>57 then begin
+                  print_str(s);
+                  exit;
+                end;
+              end;
+          14: s := '->';
+          ELSE s := print_esc('BAD.');
+        END;
+    END;
+    print_str(s);
     P := MEM[P].HH.RH;
   END;
-  IF P<>0 THEN print_esc_str('ETC.');
+  IF P<>0 THEN print_str(print_esc('ETC.'));
 END;
+
+
 {:292}
 
 {295:}
 PROCEDURE TOKENSHOW(P:HALFWORD);
 BEGIN
-  IF P<>0 THEN SHOWTOKENLIS(MEM[P].HH.RH,0,10000000);
+  IF P<>0 THEN print_utf8str(show_token_list_simple(MEM[P].HH.RH,10000000));
 END;
 {:295}
 
@@ -2782,7 +2877,7 @@ PROCEDURE PRINTMARK(P:Int32);
 BEGIN
   PRINTCHAR(123);
   IF (P<HIMEMMIN)OR(P>MEMEND)THEN print_esc_str('CLOBBERED.')
-  ELSE SHOWTOKENLIS(MEM[P].HH.RH,0,MAXPRINTLINE-10);
+  ELSE print_utf8str(show_token_list_simple(MEM[P].HH.RH,MAXPRINTLINE-10));
   PRINTCHAR(125);
 END;
 
@@ -3104,7 +3199,7 @@ BEGIN
                 BEGIN
                   print_esc_str('kern');
                   IF MEM[P].HH.B1<>0 THEN PRINTCHAR(32);
-                  PRINTSCALED(MEM[P+1].INT);
+                  print_str(print_scaled(MEM[P+1].INT));
                   IF MEM[P].HH.B1=2 THEN print_str(' (for accent)');
                 END
               ELSE print_esc_str('mkern' + print_scaled(MEM[P+1].INT) + 'mu');
@@ -3249,7 +3344,7 @@ BEGIN
               BEGIN
                 print_esc_str('fraction, thickness ');
                 IF MEM[P+1].INT=1073741824 THEN print_str('= default')
-                ELSE PRINTSCALED(MEM[P+1].INT);
+                ELSE print_str(print_scaled(MEM[P+1].INT));
                 IF (MEM[P+4].QQQQ.B0<>0)OR(MEM[P+4].QQQQ.B1<>0)OR(MEM[P+4].QQQQ.B2<>0)OR(
                    MEM[P+4].QQQQ.B3<>0)THEN
                   BEGIN
@@ -3770,7 +3865,7 @@ BEGIN
     print_str(sprint_cs(N) + '=' + print_cmd_chr(EQTB[N].HH.B0,EQTB[N].HH.RH));
     IF EQTB[N].HH.B0>=111 THEN BEGIN
       PRINTCHAR(58);
-      SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+      print_utf8str(show_token_list_simple(MEM[EQTB[N].HH.RH].HH.RH,32));
     END;
   END ELSE IF N<3412 THEN begin
     IF N<2900 THEN BEGIN
@@ -3789,12 +3884,12 @@ BEGIN
                             ELSE PRINTINT(MEM[EQTB[3412].HH.RH].HH.LH);
     END ELSE IF N<3422 THEN BEGIN
       print_str(print_cmd_chr(72,N) + '=');
-      IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+      IF EQTB[N].HH.RH<>0 THEN print_utf8str(show_token_list_simple(MEM[EQTB[N].HH.RH].HH.RH,32));
     END ELSE IF N<3678 THEN BEGIN
       print_esc_str('toks');
       PRINTINT(N-3422);
       PRINTCHAR(61);
-      IF EQTB[N].HH.RH<>0 THEN SHOWTOKENLIS(MEM[EQTB[N].HH.RH].HH.RH,0,32);
+      IF EQTB[N].HH.RH<>0 THEN print_utf8str(show_token_list_simple(MEM[EQTB[N].HH.RH].HH.RH,32));
     END ELSE IF N<3934 THEN BEGIN
       print_esc_str('box');
       PRINTINT(N-3678);
@@ -3864,21 +3959,18 @@ END;
 
 {296:}
 PROCEDURE PRINTMEANING;
+var s: utf8string;
 BEGIN
   print_str(print_cmd_chr(CURCMD,CURCHR));
-  IF CURCMD>=111 THEN
-    BEGIN
-      PRINTCHAR(58);
-      PRINTLN;
-      TOKENSHOW(CURCHR);
-    END
-  ELSE
-    IF CURCMD=110 THEN
-      BEGIN
-        PRINTCHAR(58);
-        PRINTLN;
-        TOKENSHOW(CURMARK[CURCHR]);
-      END;
+  IF CURCMD>=111 THEN BEGIN
+    PRINTCHAR(58);
+    PRINTLN;
+    IF CURCHR<>0 THEN print_utf8str(show_token_list_simple(MEM[CURCHR].HH.RH,10000000));
+  END ELSE IF CURCMD=110 THEN BEGIN
+    PRINTCHAR(58);
+    PRINTLN;
+    IF CURMARK[CURCHR]<>0 THEN print_utf8str(show_token_list_simple(MEM[CURMARK[CURCHR]].HH.RH,10000000));
+  END;
 END;
 {:296}
 
@@ -3955,7 +4047,7 @@ BEGIN
                   BEGIN
                     L := TALLY;
                     TALLY := 0;
-                    SELECTOR := 20;
+                    SELECTOR := pseudo;
                     TRICKCOUNT := 1000000;
                   END;
                   IF BUFFER[CURINPUT.LIMITFIELD]=EQTB[5311].INT THEN J := CURINPUT.
@@ -4002,13 +4094,18 @@ BEGIN
                   BEGIN
                     L := TALLY;
                     TALLY := 0;
-                    SELECTOR := 20;
+                    SELECTOR := pseudo;
                     TRICKCOUNT := 1000000;
                   END;
-                  IF CURINPUT.INDEXFIELD<5 THEN SHOWTOKENLIS(CURINPUT.STARTFIELD,CURINPUT.
-                                                             LOCFIELD,100000)
-                  ELSE SHOWTOKENLIS(MEM[CURINPUT.STARTFIELD].HH.RH,
-                                    CURINPUT.LOCFIELD,100000){:319};
+                  IF CURINPUT.INDEXFIELD<5 THEN
+                    show_token_list_pseudo(CURINPUT.STARTFIELD,
+                                           CURINPUT.LOCFIELD,
+                                           100000)
+                  ELSE 
+                    show_token_list_pseudo(MEM[CURINPUT.STARTFIELD].HH.RH,
+                                           CURINPUT.LOCFIELD,
+                                           100000);
+{:319}
                 END;
               SELECTOR := OLDSETTING;
 {317:}
@@ -4119,7 +4216,7 @@ BEGIN
       END;
       PRINTCHAR(63);
       PRINTLN;
-      SHOWTOKENLIS(MEM[P].HH.RH,0,ERRORLINE-10);
+      print_utf8str(show_token_list_simple(MEM[P].HH.RH,ERRORLINE-10));
     END;
 END;
 {:306}
@@ -5858,7 +5955,7 @@ BEGIN
                   BEGIN
                     BEGINDIAGNOS;
                     print_nl_str(GetString(MATCHCHR) + print_int(N) + '<-');
-                    SHOWTOKENLIS(PSTACK[N-1],0,1000);
+                    print_utf8str(show_token_list_simple(PSTACK[N-1],1000));
                     ENDDIAGNOSTI(FALSE);
                   END;
               END{:400}{:392};
@@ -7349,50 +7446,7 @@ BEGIN
     END;
   SCANRULESPEC := Q;
 END;
-{:463}{464:}
-
-FUNCTION STRTOKS(B:POOLPOINTER): HALFWORD;
-
-VAR P: HALFWORD;
-  Q: HALFWORD;
-  T: HALFWORD;
-  K: POOLPOINTER;
-BEGIN
-  BEGIN
-    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR
-      );
-  END;
-  P := 29997;
-  MEM[P].HH.RH := 0;
-  K := B;
-  WHILE K<POOLPTR DO
-    BEGIN
-      T := STRPOOL[K];
-      IF T=32 THEN T := 2592
-      ELSE T := 3072+T;
-      BEGIN
-        BEGIN
-          Q := AVAIL;
-          IF Q=0 THEN Q := GETAVAIL
-          ELSE
-            BEGIN
-              AVAIL := MEM[Q].HH.RH;
-              MEM[Q].HH.RH := 0;
-{$IFDEF STATS}
-              DYNUSED := DYNUSED+1;{$ENDIF}
-            END;
-        END;
-        MEM[P].HH.RH := Q;
-        MEM[Q].HH.LH := T;
-        P := Q;
-      END;
-      K := K+1;
-    END;
-  POOLPTR := B;
-  STRTOKS := P;
-END;
-
-
+{:463}
 
 {@ There's also a |fast_get_avail| routine, which saves the procedure-call
 overhead at the expense of extra programming. This routine is used in
@@ -7430,7 +7484,7 @@ and everything else as type |other_char|.
 The token list created by |str_toks| begins at |link(temp_head)| and ends
 at the value |p| that is returned. (If |p=temp_head|, the list is empty.)}
 
-function str_toks(const s: shortstring): HALFWORD;
+function str_toks(const s: utf8string): HALFWORD;
 var
   Node: HALFWORD;
   Token: HALFWORD;
@@ -7527,40 +7581,45 @@ VAR OLDSETTING: 0..21;
   C: 0..5;
   SAVESCANNERS: SMALLNUMBER;
   B: POOLPOINTER;
+  s: utf8string;
+  Token: HALFWORD;
 BEGIN
   C := CURCHR;{471:}
   CASE C OF 
     0,1: SCANINT;
-    2,3:
-         BEGIN
+    2,3: BEGIN
            SAVESCANNERS := SCANNERSTATU;
            SCANNERSTATU := 0;
            GETTOKEN;
            SCANNERSTATU := SAVESCANNERS;
          END;
     4: SCANFONTIDEN;
-    5:
-       IF job_name='' THEN OPENLOGFILE;
+    5: IF job_name='' THEN OPENLOGFILE;
   END{:471};
 
-  OLDSETTING := SELECTOR;
-  SELECTOR := 21;
-  B := POOLPTR;{472:}
-  CASE C OF
-    0: PRINTINT(CURVAL);
-    1: PRINTROMANIN(CURVAL);
-    2: IF CURCS<>0 THEN print_str(sprint_cs(CURCS))
-       ELSE PRINTCHAR(CURCHR);
-    3: PRINTMEANING;
-    4: BEGIN
-         PRINT(FONTNAME[CURVAL]);
-         IF FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL] THEN
-           print_str(' at ' + print_scaled(FONTSIZE[CURVAL]) + 'pt');
-       END;
-    5: print_str(job_name);
-  END{:472};
-  SELECTOR := OLDSETTING;
-  MEM[29988].HH.RH := STRTOKS(B);
+  case C of
+    0:  s := print_int(CURVAL);
+    1:  s := print_roman_int(CURVAL);
+    2:  if CURCS<>0 then s := sprint_cs(CURCS)
+                    else s := chr(CURCHR);
+    3:  begin
+          s := print_cmd_chr(CURCMD,CURCHR);
+          if CURCMD>=110 then begin
+            s := s + ':';
+            Token := CURCHR;
+            if CURCMD=110 then Token := CURMARK[CURCHR];
+            if Token<>0 then
+              s := s + show_token_list_simple(MEM[Token].HH.RH, 10000000);
+          end;
+        end;
+    4:  begin
+          s := GetString(FONTNAME[CURVAL]);
+          if FONTSIZE[CURVAL]<>FONTDSIZE[CURVAL] then
+            s := s +' at ' + print_scaled(FONTSIZE[CURVAL]) + 'pt';
+        end;
+    5:  s := job_name;
+  end;
+  MEM[29988].HH.RH := str_toks(s);
 
   BEGINTOKENLI(MEM[29997].HH.RH,4);
 END;
@@ -8229,7 +8288,17 @@ BEGIN
       DVILIMIT := DVIBUFSIZE;
     END;
   DVIGONE := DVIGONE+HALFBUF;
-END;{:598}{600:}
+END;
+{:598}
+
+procedure dvi_out(b: byte); inline;
+begin
+  DVIBUF[DVIPTR] := b;
+  DVIPTR := DVIPTR+1;
+  IF DVIPTR=DVILIMIT THEN DVISWAP;
+end;
+
+{600:}
 PROCEDURE DVIFOUR(X:Int32);
 BEGIN
   IF X>=0 THEN
@@ -8522,62 +8591,40 @@ BEGIN
   10:
 END;
 {:615}{618:}
-PROCEDURE VLISTOUT;
-FORWARD;
-{:618}{619:}{1368:}
-PROCEDURE SPECIALOUT(P:HALFWORD);
+PROCEDURE VLISTOUT; FORWARD;
+{:618}{619:}
 
-VAR OLDSETTING: 0..21;
-  K: POOLPOINTER;
+{1368:}
+PROCEDURE SPECIALOUT(P:HALFWORD);
+var
+  s: utf8string;
+  i: sizeuint;
 BEGIN
-  IF CURH<>DVIH THEN
-    BEGIN
-      MOVEMENT(CURH-DVIH,143);
-      DVIH := CURH;
-    END;
-  IF CURV<>DVIV THEN
-    BEGIN
-      MOVEMENT(CURV-DVIV,157);
-      DVIV := CURV;
-    END;
-  OLDSETTING := SELECTOR;
-  SELECTOR := 21;
-  SHOWTOKENLIS(MEM[MEM[P+1].HH.RH].HH.RH,0,POOLSIZE-POOLPTR);
-  SELECTOR := OLDSETTING;
-  BEGIN
-    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
+  IF CURH<>DVIH THEN BEGIN
+    MOVEMENT(CURH-DVIH,143);
+    DVIH := CURH;
   END;
-  IF (POOLPTR-STRSTART[STRPTR])<256 THEN
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := 239;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := (POOLPTR-STRSTART[STRPTR]);
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-    END
-  ELSE
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := 242;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      DVIFOUR((POOLPTR-STRSTART[STRPTR]));
-    END;
-  FOR K:=STRSTART[STRPTR]TO POOLPTR-1 DO
-    BEGIN
-      DVIBUF[DVIPTR] := STRPOOL[K];
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
-  POOLPTR := STRSTART[STRPTR];
+  IF CURV<>DVIV THEN BEGIN
+    MOVEMENT(CURV-DVIV,157);
+    DVIV := CURV;
+  END;
+
+  {FIXME: maximum length not POOLSIZE}
+  s := show_token_list_simple(MEM[MEM[P+1].HH.RH].HH.RH, POOLSIZE);
+  if length(s)<256 then begin
+    dvi_out(239);
+    dvi_out(length(s));
+  end else begin
+    dvi_out(242);
+    DVIFOUR(length(s));
+  end;
+
+  {FIXME: blockwise memory copy}
+  for i := 1 to length(s) do dvi_out(ord(s[i]));
 END;
-{:1368}{1370:}
+{:1368}
+
+{1370:}
 PROCEDURE WRITEOUT(P:HALFWORD);
 
 VAR OLDSETTING: 0..21;
@@ -15887,13 +15934,10 @@ BEGIN
     BEGIN
       IF NOT(P>=HIMEMMIN)THEN
         IF MEM[P].HH.B0>2 THEN
-          IF 
-             MEM[P].HH.B0<>11 THEN
+          IF MEM[P].HH.B0<>11 THEN
             IF MEM[P].HH.B0<>6 THEN
               BEGIN
                 BEGIN
-                  IF INTERACTION
-                     =3 THEN;
                   print_nl_str('! ');
                   print_str('Improper discretionary list');
                 END;
@@ -18090,9 +18134,9 @@ PROCEDURE PRINTWORD(W:MEMORYWORD);
 BEGIN
   PRINTINT(W.INT);
   PRINTCHAR(32);
-  PRINTSCALED(W.INT);
+  print_str(print_scaled(W.INT));
   PRINTCHAR(32);
-  PRINTSCALED(ISORound(65536*W.GR));
+  print_str(print_scaled(ISORound(65536*W.GR)));
   PRINTLN;
   PRINTINT(W.HH.LH);
   PRINTCHAR(61);
@@ -18138,13 +18182,12 @@ BEGIN;
             5: PRINTWORD(FONTINFO[N]);
             6: PRINTWORD(SAVESTACK[N]);
             7: SHOWBOX(N);
-            8:
-               BEGIN
+            8: BEGIN
                  BREADTHMAX := 10000;
                  DEPTHTHRESHO := POOLSIZE-POOLPTR-10;
                  SHOWNODELIST(N);
                END;
-            9: SHOWTOKENLIS(N,0,1000);
+            9: print_utf8str(show_token_list_simple(N,1000));
             10: SLOWPRINT(N);
             11: CHECKMEM(N>0);
             12: SEARCHMEM(N);
@@ -18188,7 +18231,8 @@ BEGIN
   INTERACTION := CURCHR;
 {75:}
   IF INTERACTION=0 THEN SELECTOR := 16
-  ELSE SELECTOR := 17{:75};
+  ELSE SELECTOR := 17;
+{:75}
   IF LOGOPENED THEN SELECTOR := SELECTOR+2;
 END;
 {:1265}
@@ -18681,67 +18725,49 @@ END;
 
 {1279:}
 PROCEDURE ISSUEMESSAGE;
-
 VAR OLDSETTING: 0..21;
   C: 0..1;
-  S: STRNUMBER;
+  s: utf8string;
 BEGIN
   C := CURCHR;
   MEM[29988].HH.RH := SCANTOKS(FALSE,TRUE);
-  OLDSETTING := SELECTOR;
-  SELECTOR := 21;
-  TOKENSHOW(DEFREF);
-  SELECTOR := OLDSETTING;
+
+  IF DEFREF<>0 THEN s := show_token_list_simple(MEM[DEFREF].HH.RH,10000000);
   FLUSHLIST(DEFREF);
-  BEGIN
-    IF POOLPTR+1>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-  END;
-  S := MAKESTRING;
-  IF C=0 THEN{1280:}
-    BEGIN
-      IF TERMOFFSET+(STRSTART[S+1]-STRSTART[S])>
-         MAXPRINTLINE-2 THEN PRINTLN
-      ELSE
-        IF (TERMOFFSET>0)OR(FILEOFFSET>0)THEN
-          PRINTCHAR(32);
-      SLOWPRINT(S);
-      FLUSH(OUTPUT);
-    END{:1280}
-  ELSE{1283:}
-    BEGIN
+
+  IF C=0 THEN BEGIN
+    {1280:}
+    IF TERMOFFSET+length(s) > MAXPRINTLINE-2 THEN PRINTLN
+    ELSE IF (TERMOFFSET>0) OR (FILEOFFSET>0) THEN PRINTCHAR(32);
+    slow_print_utf8str(s);
+    FLUSH(OUTPUT);
+    {:1280}
+  END ELSE BEGIN
+    {1283:}
+    print_nl_str('! ');
+    slow_print_utf8str(s);
+    IF EQTB[3421].HH.RH<>0 THEN USEERRHELP := TRUE
+    ELSE IF LONGHELPSEEN THEN BEGIN
+      HELPPTR := 1;
+      help_line[0] := '(That was another \errmessage.)';
+    END ELSE BEGIN
+      IF INTERACTION<3 THEN LONGHELPSEEN := TRUE;
       BEGIN
-        IF INTERACTION=3 THEN;
-        print_nl_str('! ');
-        print_str('');
+        HELPPTR := 4;
+        help_line[3] := 'This error message was generated by an \errmessage';
+        help_line[2] := 'command, so I can''t give any explicit help.';
+        help_line[1] := 'Pretend that you''re Hercule Poirot: Examine all clues,';
+        help_line[0] := 'and deduce the truth by order and method.';
       END;
-      SLOWPRINT(S);
-      IF EQTB[3421].HH.RH<>0 THEN USEERRHELP := TRUE
-      ELSE
-        IF LONGHELPSEEN THEN
-          BEGIN
-            HELPPTR := 1;
-            help_line[0] := '(That was another \errmessage.)';
-          END
-      ELSE
-        BEGIN
-          IF INTERACTION<3 THEN LONGHELPSEEN := TRUE;
-          BEGIN
-            HELPPTR := 4;
-            help_line[3] := 'This error message was generated by an \errmessage';
-            help_line[2] := 'command, so I can''t give any explicit help.';
-            help_line[1] := 'Pretend that you''re Hercule Poirot: Examine all clues,';
-            help_line[0] := 'and deduce the truth by order and method.';
-          END;
-        END;
-      ERROR;
-      USEERRHELP := FALSE;
-    END{:1283};
-  BEGIN
-    STRPTR := STRPTR-1;
-    POOLPTR := STRSTART[STRPTR];
+    END;
+    ERROR;
+    USEERRHELP := FALSE;
+    {:1283}
   END;
 END;
-{:1279}{1288:}
+{:1279}
+
+{1288:}
 PROCEDURE SHIFTCASE;
 
 VAR B: HALFWORD;
@@ -18821,7 +18847,7 @@ BEGIN
                       print_str(' adds ');
                       IF EQTB[5318+T].INT=1000 THEN T := MEM[R+3].INT
                       ELSE T := XOVERN(MEM[R+3].INT,1000)*EQTB[5318+T].INT;
-                      PRINTSCALED(T);
+                      print_str(print_scaled(T));
                       IF MEM[R].HH.B0=1 THEN
                         BEGIN
                           Q := 29998;
@@ -18847,7 +18873,7 @@ BEGIN
            BEGIN
              print_nl_str('prevdepth ');
              IF A.INT<=-65536000 THEN print_str('ignored')
-             ELSE PRINTSCALED(A.INT);
+             ELSE print_str(print_scaled(A.INT));
              IF NEST[P].PGFIELD<>0 THEN
                BEGIN
                  print_str(', prevgraf ');
@@ -18878,85 +18904,82 @@ BEGIN
 END;
 
 PROCEDURE SHOWWHATEVER;
-LABEL 50;
 VAR P: HALFWORD;
 BEGIN
-  CASE CURCHR OF 
-    3:
-       BEGIN
-         BEGINDIAGNOS;
-         SHOWACTIVITI;
-       END;
-    1:{1296:}
-       BEGIN
-         SCANEIGHTBIT;
-         BEGINDIAGNOS;
-         print_nl_str('> \box');
-         PRINTINT(CURVAL);
-         PRINTCHAR(61);
-         IF EQTB[3678+CURVAL].HH.RH=0 THEN print_str('void')
-         ELSE SHOWBOX(EQTB[3678+
-                      CURVAL].HH.RH);
-       END{:1296};
-    0:{1294:}
-       BEGIN
-         GETTOKEN;
-         print_nl_str('> ');
-         IF CURCS<>0 THEN print_str(sprint_cs(CURCS) + '=');
-         PRINTMEANING;
-         GOTO 50;
-       END{:1294};
-    ELSE{1297:}
-      BEGIN
-        P := THETOKS;
-        IF INTERACTION=3 THEN;
-        print_nl_str('> ');
-        TOKENSHOW(29997);
-        FLUSHLIST(MEM[29997].HH.RH);
-        GOTO 50;
-      END{:1297}
+  if (CURCHR=3) or (CURCHR=1) then begin
+    if CURCHR=3 then begin
+      BEGINDIAGNOS;
+      SHOWACTIVITI;
+    end else begin
+
+      {1296:}
+      SCANEIGHTBIT;
+      BEGINDIAGNOS;
+      print_nl_str('> \box');
+      PRINTINT(CURVAL);
+      PRINTCHAR(61);
+      IF EQTB[3678+CURVAL].HH.RH=0 THEN print_str('void')
+      ELSE SHOWBOX(EQTB[3678+CURVAL].HH.RH);
+      {:1296}
+
+    end;
+
+    {1298:}
+    ENDDIAGNOSTI(TRUE);
+    BEGIN
+      IF INTERACTION=3 THEN;
+      print_nl_str('! ');
+      print_str('OK');
+    END;
+    IF (SELECTOR=19) and (EQTB[5292].INT<=0) THEN BEGIN
+      SELECTOR := 17;
+      print_str(' (see the transcript file)');
+      SELECTOR := 19;
+    END;
+    {:1298}
+
+  end else begin
+    if CURCHR=0 then begin
+
+      {1294:}
+      GETTOKEN;
+      print_nl_str('> ');
+      IF CURCS<>0 THEN print_str(sprint_cs(CURCS) + '=');
+      PRINTMEANING;
+      {:1294}
+
+    end else begin
+
+      {1297:}
+      P := THETOKS;
+      print_nl_str('> ');
+      TOKENSHOW(29997);
+      FLUSHLIST(MEM[29997].HH.RH);
+      {:1297}
+
+    end;
+  end;
+
+  IF INTERACTION<3 THEN BEGIN
+    HELPPTR := 0;
+    ERRORCOUNT := ERRORCOUNT-1;
+  END ELSE IF EQTB[5292].INT>0 THEN BEGIN
+    BEGIN
+      HELPPTR := 3;
+      help_line[2] := 'This isn''t an error message; I''m just \showing something.';
+      help_line[1] := 'Type `I\show...'' to show more (e.g., \show\cs,';
+      help_line[0] := '\showthe\count10, \showbox255, \showlists).';
+    END;
+  END ELSE BEGIN
+    BEGIN
+      HELPPTR := 5;
+      help_line[4] := 'This isn''t an error message; I''m just \showing something.';
+      help_line[3] := 'Type `I\show...'' to show more (e.g., \show\cs,';
+      help_line[2] := '\showthe\count10, \showbox255, \showlists).';
+      help_line[1] := 'And type `I\tracingonline=1\show...'' to show boxes and';
+      help_line[0] := 'lists on your terminal as well as in the transcript file.';
+    END;
   END;
-{1298:}
-  ENDDIAGNOSTI(TRUE);
-  BEGIN
-    IF INTERACTION=3 THEN;
-    print_nl_str('! ');
-    print_str('OK');
-  END;
-  IF SELECTOR=19 THEN
-    IF EQTB[5292].INT<=0 THEN
-      BEGIN
-        SELECTOR := 17;
-        print_str(' (see the transcript file)');
-        SELECTOR := 19;
-      END{:1298};
-  50:
-      IF INTERACTION<3 THEN
-        BEGIN
-          HELPPTR := 0;
-          ERRORCOUNT := ERRORCOUNT-1;
-        END
-      ELSE
-        IF EQTB[5292].INT>0 THEN
-          BEGIN
-            BEGIN
-              HELPPTR := 3;
-              help_line[2] := 'This isn''t an error message; I''m just \showing something.';
-              help_line[1] := 'Type `I\show...'' to show more (e.g., \show\cs,';
-              help_line[0] := '\showthe\count10, \showbox255, \showlists).';
-            END;
-          END
-      ELSE
-        BEGIN
-          BEGIN
-            HELPPTR := 5;
-            help_line[4] := 'This isn''t an error message; I''m just \showing something.';
-            help_line[3] := 'Type `I\show...'' to show more (e.g., \show\cs,';
-            help_line[2] := '\showthe\count10, \showbox255, \showlists).';
-            help_line[1] := 'And type `I\tracingonline=1\show...'' to show boxes and';
-            help_line[0] := 'lists on your terminal as well as in the transcript file.';
-          END;
-        END;
   ERROR;
 END;
 {:1293}
