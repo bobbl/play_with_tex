@@ -702,7 +702,7 @@ VAR
 {:39}
 {54:}
   LOGFILE: alpha_file;
-  SELECTOR: 0..max_selector;
+  SELECTOR: 16..19;
   DIG: ARRAY[0..22] OF 0..15;
   TALLY: Int32;
   TERMOFFSET: 0..MAXPRINTLINE;
@@ -1352,7 +1352,6 @@ BEGIN
           TERMOFFSET := 0;
         END;
     16:;
-    ELSE WRITELN(WRITEFILE[SELECTOR])
   END;
 END;
 {:57}
@@ -1394,7 +1393,6 @@ BEGIN
           IF TERMOFFSET=MAXPRINTLINE THEN PRINTLN;
         END;
     16:;
-    ELSE WRITE(WRITEFILE[SELECTOR],XCHR[S])
   END;
   TALLY := TALLY+1;
 END;
@@ -8613,10 +8611,22 @@ BEGIN
 END;
 {:1368}
 
+procedure TokenShowToFile(FileNo: byte);
+var
+  s: utf8string;
+begin
+  s := show_token_list_simple(MEM[DEFREF].HH.RH, 10000000);
+  writeln(WRITEFILE[FileNo], s);
+  { with WRITEFILE = byte_file:
+  s := show_token_list_simple(MEM[DEFREF].HH.RH, 10000000) + lineending;
+  blockwrite(WRITEFILE[FileNo], s[1], length(s));
+  }
+end;
+
 {1370:}
 PROCEDURE WRITEOUT(P:HALFWORD);
-
-VAR OLDSETTING: 0..21;
+VAR
+  OLDSETTING: 16..19;
   OLDMODE: Int32;
   J: SMALLNUMBER;
   Q,R: HALFWORD;
@@ -8655,17 +8665,20 @@ BEGIN{1371:}
     END{:1372};
   CURLIST.MODEFIELD := OLDMODE;
   ENDTOKENLIST{:1371};
-  OLDSETTING := SELECTOR;
   J := MEM[P+1].HH.LH;
-  IF WRITEOPEN[J]THEN SELECTOR := J
-  ELSE BEGIN
+
+  IF WRITEOPEN[J] THEN begin
+    IF DEFREF<>0 THEN TokenShowToFile(J);
+  end ELSE BEGIN 
+    {Is this case really neccessary?}
+    OLDSETTING := SELECTOR;
     IF (J=17) AND (SELECTOR=19) THEN SELECTOR := 18;
     print_nl_str('');
+    IF DEFREF<>0 THEN print_utf8str(show_token_list_simple(MEM[DEFREF].HH.RH, 10000000));
+    PRINTLN;
+    SELECTOR := OLDSETTING;
   END;
-  TOKENSHOW(DEFREF);
-  PRINTLN;
   FLUSHLIST(DEFREF);
-  SELECTOR := OLDSETTING;
 END;
 {:1370}{1373:}
 PROCEDURE OUTWHAT(P:HALFWORD);
