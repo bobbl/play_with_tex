@@ -1639,33 +1639,27 @@ PROCEDURE DEBUGHELP; FORWARD;
 {:78}
 {82:}
 PROCEDURE ERROR;
-
-LABEL 22,10;
-
-VAR C: ASCIICODE;
+VAR
+  C: ASCIICODE;
   S1,S2,S3,S4: Int32;
 BEGIN
   IF HISTORY<2 THEN HISTORY := 2;
   PRINTCHAR(46);
   SHOWCONTEXT;
-  IF INTERACTION=3 THEN{83:}
-    WHILE TRUE DO
-      BEGIN
-        22:
-            IF INTERACTION<>3 THEN
-              GOTO 10;
-        CLEARFORERRO;
-        BEGIN;
-          print_str('? ');
-          TERMINPUT;
-        END;
-        IF LAST=FIRST THEN GOTO 10;
-        C := BUFFER[FIRST];
-        IF C>=97 THEN C := C-32;
+  IF INTERACTION=3 THEN begin
+    WHILE TRUE DO BEGIN
+      IF INTERACTION<>3 THEN exit;
+      CLEARFORERRO;
+      print_str('? ');
+      TERMINPUT;
+      IF LAST=FIRST THEN exit;
+      C := BUFFER[FIRST];
+      IF C>=97 THEN C := C-32;
+
 {84:}
-        CASE C OF 
-          48,49,50,51,52,53,54,55,56,57:
-                                         IF DELETIONSALL THEN{88:}
+      CASE C OF 
+        48,49,50,51,52,53,54,55,56,57:
+          IF DELETIONSALL THEN{88:}
                                            BEGIN
                                              S1 := CURTOK;
                                              S2 := CURCMD;
@@ -1693,55 +1687,52 @@ BEGIN
                                                help_line[0] := 'You can now delete more, or insert, or whatever.';
                                              END;
                                              SHOWCONTEXT;
-                                             GOTO 22;
+                                             continue;
                                            END{:88};
 {$IFDEF DEBUGGING}
-          68: BEGIN
-                DEBUGHELP;
-                GOTO 22;
-              END;
+        68:
+          BEGIN
+            DEBUGHELP;
+            continue;
+          END;
 {$ENDIF}
-          69:
-              IF BASEPTR>0 THEN
-                IF INPUTSTACK[BASEPTR].NAMEFIELD>=256 THEN
-                  BEGIN
-                    print_nl_str('You want to edit file ');
-                    SLOWPRINT(INPUTSTACK[BASEPTR].NAMEFIELD);
-                    print_str(' at line ');
-                    PRINTINT(LINE);
-                    INTERACTION := 2;
-                    close_files_and_terminate;
-                  END;
-          72:{89:}
-              BEGIN
-                IF USEERRHELP THEN
-                  BEGIN
-                    GIVEERRHELP;
-                    USEERRHELP := FALSE;
-                  END
-                ELSE
-                  BEGIN
-                    IF HELPPTR=0 THEN
-                      BEGIN
-                        HELPPTR := 2;
-                        help_line[1] := 'Sorry, I don''t know how to help in this situation.';
-                        help_line[0] := 'Maybe you should try asking a human?';
-                      END;
-                    REPEAT
-                      HELPPTR := HELPPTR-1;
-                      print_str(help_line[HELPPTR]);
-                      PRINTLN;
-                    UNTIL HELPPTR=0;
-                  END;
-                BEGIN
-                  HELPPTR := 4;
-                  help_line[3] := 'Sorry, I already gave what help I could...';
-                  help_line[2] := 'Maybe you should try asking a human?';
-                  help_line[1] := 'An error might have occurred before I noticed any problems.';
-                  help_line[0] := '``If all else fails, read the instructions.''''';
-                END;
-                GOTO 22;
-              END{:89};
+        69:
+          IF (BASEPTR>0) and (INPUTSTACK[BASEPTR].NAMEFIELD>=256) THEN BEGIN
+            print_nl_str('You want to edit file ');
+            SLOWPRINT(INPUTSTACK[BASEPTR].NAMEFIELD);
+            print_str(' at line ');
+            PRINTINT(LINE);
+            INTERACTION := 2;
+            close_files_and_terminate;
+          END;
+
+        72:{89:}
+          BEGIN
+            IF USEERRHELP THEN BEGIN
+              GIVEERRHELP;
+              USEERRHELP := FALSE;
+            END ELSE BEGIN
+              IF HELPPTR=0 THEN BEGIN
+                HELPPTR := 2;
+                help_line[1] := 'Sorry, I don''t know how to help in this situation.';
+                help_line[0] := 'Maybe you should try asking a human?';
+              END;
+              REPEAT
+                HELPPTR := HELPPTR-1;
+                print_str(help_line[HELPPTR]);
+                PRINTLN;
+              UNTIL HELPPTR=0;
+            END;
+            BEGIN
+              HELPPTR := 4;
+              help_line[3] := 'Sorry, I already gave what help I could...';
+              help_line[2] := 'Maybe you should try asking a human?';
+              help_line[1] := 'An error might have occurred before I noticed any problems.';
+              help_line[0] := '``If all else fails, read the instructions.''''';
+            END;
+            continue;
+          END;{:89}
+
           73:{87:}
               BEGIN
                 BEGINFILEREA;
@@ -1760,7 +1751,7 @@ BEGIN
                   END;
                 FIRST := LAST;
                 CURINPUT.LIMITFIELD := LAST-1;
-                GOTO 10;
+                exit;
               END{:87};
           81,82,83:{86:}
                     BEGIN
@@ -1779,7 +1770,7 @@ BEGIN
                       print_str('...');
                       PRINTLN;
                       FLUSH(OUTPUT);
-                      GOTO 10;
+                      exit;
                     END{:86};
           88:
               BEGIN
@@ -1798,7 +1789,8 @@ BEGIN
           IF DELETIONSALL THEN print_nl_str('1 or ... or 9 to ignore the next 1 to 9 tokens of input,');
           print_nl_str('H for help, X to quit.');
         END{:85}{:84};
-      END{:83};
+    END;
+  end;
   ERRORCOUNT := ERRORCOUNT+1;
   IF ERRORCOUNT=100 THEN
     BEGIN
@@ -1821,7 +1813,6 @@ BEGIN
   PRINTLN;
   IF INTERACTION>0 THEN SELECTOR := SELECTOR+1;
   PRINTLN{:90};
-  10:
 END;
 {:82}
 
@@ -3021,9 +3012,6 @@ END;
 
 {182:}
 PROCEDURE SHOWNODELIST(P:Int32);
-
-LABEL 10;
-
 VAR N: Int32;
   G: Double;
 BEGIN
@@ -3031,7 +3019,7 @@ BEGIN
     BEGIN
       IF P>0 THEN
         print_str(' []');
-      GOTO 10;
+      exit;
     END;
   N := 0;
   WHILE P>MEMMIN DO
@@ -3041,13 +3029,13 @@ BEGIN
       IF P>MEMEND THEN
         BEGIN
           print_str('Bad link, display aborted.');
-          GOTO 10;
+          exit;
         END;
       N := N+1;
       IF N>BREADTHMAX THEN
         BEGIN
           print_str('etc.');
-          GOTO 10;
+          exit;
         END;
 {183:}
       IF (P>=HIMEMMIN)THEN PRINTFONTAND(P)
@@ -3361,7 +3349,6 @@ BEGIN
         END{:183};
       P := MEM[P].HH.RH;
     END;
-  10:
 END;
 {:182}
 
@@ -3989,7 +3976,6 @@ END;
 
 {311:}
 PROCEDURE SHOWCONTEXT;
-LABEL 30;
 VAR
   NN: Int32;
   BOTTOMLINE: BOOLEAN;{315:}
@@ -4139,10 +4125,10 @@ BEGIN
             print_nl_str('...');
             NN := NN+1;
           END;
-      IF BOTTOMLINE THEN GOTO 30;
+      IF BOTTOMLINE THEN break;
       BASEPTR := BASEPTR-1;
     END;
-  30: CURINPUT := INPUTSTACK[INPUTPTR];
+  CURINPUT := INPUTSTACK[INPUTPTR];
 END;
 {:311}
 
@@ -4244,76 +4230,76 @@ END;
 
 {125:}
 FUNCTION GETNODE(S:Int32): HALFWORD;
-
-LABEL 40,10,20;
-
-VAR P: HALFWORD;
+VAR
+  P: HALFWORD;
   Q: HALFWORD;
   R: Int32;
   T: Int32;
 BEGIN
-  20: P := ROVER;
-  REPEAT{127:}
-    Q := P+MEM[P].HH.LH;
-    WHILE (MEM[Q].HH.RH=65535) DO
-      BEGIN
+  while true do begin
+    P := ROVER;
+    REPEAT
+      Q := P+MEM[P].HH.LH;
+      WHILE (MEM[Q].HH.RH=65535) DO BEGIN
         T := MEM[Q+1].HH.RH;
         IF Q=ROVER THEN ROVER := T;
         MEM[T+1].HH.LH := MEM[Q+1].HH.LH;
         MEM[MEM[Q+1].HH.LH+1].HH.RH := T;
         Q := Q+MEM[Q].HH.LH;
       END;
-    R := Q-S;
-    IF R>P+1 THEN{128:}
-      BEGIN
+      R := Q-S;
+      IF R>P+1 THEN BEGIN
         MEM[P].HH.LH := R-P;
         ROVER := P;
-        GOTO 40;
-      END{:128};
-    IF R=P THEN
-      IF MEM[P+1].HH.RH<>P THEN{129:}
-        BEGIN
+        MEM[R].HH.RH := 0;
+{$IFDEF STATS}
+        VARUSED := VARUSED+S;
+{$ENDIF}
+        GETNODE := R;
+        exit;
+      END;
+      IF R=P THEN
+        IF MEM[P+1].HH.RH<>P THEN BEGIN
           ROVER := MEM[P+1].HH.RH;
           T := MEM[P+1].HH.LH;
           MEM[ROVER+1].HH.LH := T;
           MEM[T+1].HH.RH := ROVER;
-          GOTO 40;
+          MEM[R].HH.RH := 0;
+{$IFDEF STATS}
+          VARUSED := VARUSED+S;
+{$ENDIF}
+          GETNODE := R;
+          exit;
         END{:129};
-    MEM[P].HH.LH := Q-P{:127};
-    P := MEM[P+1].HH.RH;
-  UNTIL P=ROVER;
-  IF S=1073741824 THEN
-    BEGIN
+      MEM[P].HH.LH := Q-P;
+      P := MEM[P+1].HH.RH;
+    UNTIL P=ROVER;
+
+    IF S=1073741824 THEN BEGIN
       GETNODE := 65535;
-      GOTO 10;
+      exit;
     END;
-  IF LOMEMMAX+2<HIMEMMIN THEN
-    IF LOMEMMAX+2<=65535 THEN{126:}
-      BEGIN
-        IF 
-           HIMEMMIN-LOMEMMAX>=1998 THEN T := LOMEMMAX+1000
-        ELSE T := LOMEMMAX+1+(
-                  HIMEMMIN-LOMEMMAX)DIV 2;
-        P := MEM[ROVER+1].HH.LH;
-        Q := LOMEMMAX;
-        MEM[P+1].HH.RH := Q;
-        MEM[ROVER+1].HH.LH := Q;
-        IF T>65535 THEN T := 65535;
-        MEM[Q+1].HH.RH := ROVER;
-        MEM[Q+1].HH.LH := P;
-        MEM[Q].HH.RH := 65535;
-        MEM[Q].HH.LH := T-LOMEMMAX;
-        LOMEMMAX := T;
-        MEM[LOMEMMAX].HH.RH := 0;
-        MEM[LOMEMMAX].HH.LH := 0;
-        ROVER := Q;
-        GOTO 20;
-      END{:126};
-  overflow('main memory size', MEMMAX+1-MEMMIN);
-  40: MEM[R].HH.RH := 0;{$IFDEF STATS}
-  VARUSED := VARUSED+S;{$ENDIF}
-  GETNODE := R;
-  10:
+
+    IF (LOMEMMAX+2>=HIMEMMIN) or (LOMEMMAX+2>65535) THEN
+      overflow('main memory size', MEMMAX+1-MEMMIN);
+
+    IF HIMEMMIN-LOMEMMAX>=1998
+      THEN T := LOMEMMAX+1000
+      ELSE T := LOMEMMAX+1+(HIMEMMIN-LOMEMMAX)DIV 2;
+    P := MEM[ROVER+1].HH.LH;
+    Q := LOMEMMAX;
+    MEM[P+1].HH.RH := Q;
+    MEM[ROVER+1].HH.LH := Q;
+    IF T>65535 THEN T := 65535;
+    MEM[Q+1].HH.RH := ROVER;
+    MEM[Q+1].HH.LH := P;
+    MEM[Q].HH.RH := 65535;
+    MEM[Q].HH.LH := T-LOMEMMAX;
+    LOMEMMAX := T;
+    MEM[LOMEMMAX].HH.RH := 0;
+    MEM[LOMEMMAX].HH.LH := 0;
+    ROVER := Q;
+  end;
 END;
 {:125}
 
@@ -4473,9 +4459,6 @@ END;{:158}
 
 {259:}
 FUNCTION IDLOOKUP(J,L:Int32): HALFWORD;
-
-LABEL 40;
-
 VAR H: Int32;
   D: Int32;
   P: HALFWORD;
@@ -4489,12 +4472,11 @@ BEGIN{261:}
         H := H-1777;
     END{:261};
   P := H+514;
-  WHILE TRUE DO
-    BEGIN
+  WHILE TRUE DO BEGIN
       IF HASH[P].RH>0 THEN
         IF (STRSTART[HASH[P].RH+1]-
            STRSTART[HASH[P].RH])=L THEN
-          IF STREQBUF(HASH[P].RH,J)THEN GOTO 40;
+          IF STREQBUF(HASH[P].RH,J) THEN break;
       IF HASH[P].LH=0 THEN
         BEGIN
           IF NONEWCONTROL THEN P := 2881
@@ -4529,11 +4511,11 @@ BEGIN{261:}
               CSCOUNT := CSCOUNT+1;
 {$ENDIF}
             END{:260};
-          GOTO 40;
+          break;
         END;
       P := HASH[P].LH;
     END;
-  40: IDLOOKUP := P;
+  IDLOOKUP := P;
 END;
 {:259}
 
@@ -4610,132 +4592,109 @@ END;
 
 {202:}
 PROCEDURE FLUSHNODELIS(P:HALFWORD);
-LABEL 30;
 VAR Q: HALFWORD;
 BEGIN
-  WHILE P<>0 DO
-    BEGIN
-      Q := MEM[P].HH.RH;
-      IF (P>=HIMEMMIN)THEN
-        BEGIN
-          MEM[P].HH.RH := AVAIL;
-          AVAIL := P;{$IFDEF STATS}
-          DYNUSED := DYNUSED-1;{$ENDIF}
-        END
-      ELSE
-        BEGIN
-          CASE MEM[P].HH.B0 OF 
-            0,1,13:
-                    BEGIN
-                      FLUSHNODELIS(MEM[P+5].
-                                   HH.RH);
-                      FREENODE(P,7);
-                      GOTO 30;
+  WHILE P<>0 DO BEGIN
+    Q := MEM[P].HH.RH;
+    IF (P>=HIMEMMIN) THEN BEGIN
+      MEM[P].HH.RH := AVAIL;
+      AVAIL := P;
+{$IFDEF STATS}
+      DYNUSED := DYNUSED-1;
+{$ENDIF}
+    END ELSE BEGIN
+      CASE MEM[P].HH.B0 OF
+        0,1,13: BEGIN
+              FLUSHNODELIS(MEM[P+5].HH.RH);
+              FREENODE(P,7);
+            END;
+        2:  BEGIN
+              FREENODE(P,4);
+            END;
+        3:  BEGIN
+              FLUSHNODELIS(MEM[P+4].HH.LH);
+              DELETEGLUERE(MEM[P+4].HH.RH);
+              FREENODE(P,5);
+            END;
+        8:  BEGIN
+              CASE MEM[P].HH.B1 OF
+                0: FREENODE(P,3);
+                1,3: BEGIN
+                      DELETETOKENR(MEM[P+1].HH.RH);
+                      FREENODE(P,2);
                     END;
-            2:
-               BEGIN
-                 FREENODE(P,4);
-                 GOTO 30;
-               END;
-            3:
-               BEGIN
-                 FLUSHNODELIS(MEM[P+4].HH.LH);
-                 DELETEGLUERE(MEM[P+4].HH.RH);
-                 FREENODE(P,5);
-                 GOTO 30;
-               END;
-            8:{1358:}
-               BEGIN
-                 CASE MEM[P].HH.B1 OF 
-                   0: FREENODE(P,3);
-                   1,3:
-                        BEGIN
-                          DELETETOKENR(MEM[P+1].HH.RH);
-                          FREENODE(P,2);
-                          GOTO 30;
-                        END;
-                   2,4: FREENODE(P,2);
-                   ELSE confusion_str('ext3')
-                 END;
-                 GOTO 30;
-               END{:1358};
-            10:
-                BEGIN
-                  BEGIN
-                    IF MEM[MEM[P+1].HH.LH].HH.RH=0 THEN FREENODE(MEM[P+1].HH.
-                                                                 LH,4)
-                    ELSE MEM[MEM[P+1].HH.LH].HH.RH := MEM[MEM[P+1].HH.LH].HH.RH-1;
-                  END;
-                  IF MEM[P+1].HH.RH<>0 THEN FLUSHNODELIS(MEM[P+1].HH.RH);
-                END;
-            11,9,12:;
-            6: FLUSHNODELIS(MEM[P+1].HH.RH);
-            4: DELETETOKENR(MEM[P+1].INT);
-            7:
-               BEGIN
-                 FLUSHNODELIS(MEM[P+1].HH.LH);
-                 FLUSHNODELIS(MEM[P+1].HH.RH);
-               END;
-            5: FLUSHNODELIS(MEM[P+1].INT);{698:}
-            14:
-                BEGIN
-                  FREENODE(P,3);
-                  GOTO 30;
-                END;
-            15:
-                BEGIN
-                  FLUSHNODELIS(MEM[P+1].HH.LH);
-                  FLUSHNODELIS(MEM[P+1].HH.RH);
-                  FLUSHNODELIS(MEM[P+2].HH.LH);
-                  FLUSHNODELIS(MEM[P+2].HH.RH);
-                  FREENODE(P,3);
-                  GOTO 30;
-                END;
-            16,17,18,19,20,21,22,23,24,27,26,29,28:
-                                                    BEGIN
-                                                      IF MEM[P+1].HH.RH>=2 THEN
-                                                        FLUSHNODELIS(MEM[P+1].HH.LH);
-                                                      IF MEM[P+2].HH.RH>=2 THEN FLUSHNODELIS(MEM[P+2
-                                                                                             ].HH.LH
-                                                        );
-                                                      IF MEM[P+3].HH.RH>=2 THEN FLUSHNODELIS(MEM[P+3
-                                                                                             ].HH.LH
-                                                        );
-                                                      IF MEM[P].HH.B0=24 THEN FREENODE(P,5)
-                                                      ELSE
-                                                        IF MEM[P].HH.B0=28 THEN
-                                                          FREENODE(P,5)
-                                                      ELSE FREENODE(P,4);
-                                                      GOTO 30;
-                                                    END;
-            30,31:
-                   BEGIN
-                     FREENODE(P,4);
-                     GOTO 30;
-                   END;
-            25:
-                BEGIN
-                  FLUSHNODELIS(MEM[P+2].HH.LH);
-                  FLUSHNODELIS(MEM[P+3].HH.LH);
-                  FREENODE(P,6);
-                  GOTO 30;
-                END;
-{:698}
-            ELSE confusion_str('flushing')
-          END;
-          FREENODE(P,2);
-          30:
-        END;
-      P := Q;
+                2,4: FREENODE(P,2);
+                ELSE confusion_str('ext3')
+              END;
+            END;
+        10: BEGIN
+              IF MEM[MEM[P+1].HH.LH].HH.RH=0
+                THEN FREENODE(MEM[P+1].HH.LH,4)
+                ELSE MEM[MEM[P+1].HH.LH].HH.RH := MEM[MEM[P+1].HH.LH].HH.RH-1;
+              IF MEM[P+1].HH.RH<>0 THEN FLUSHNODELIS(MEM[P+1].HH.RH);
+              FREENODE(P,2);
+            END;
+        11,9,12: begin
+              FREENODE(P,2);
+            end;
+        6:  begin
+              FLUSHNODELIS(MEM[P+1].HH.RH);
+              FREENODE(P,2);
+            end;
+        4:  begin
+              DELETETOKENR(MEM[P+1].INT);
+              FREENODE(P,2);
+            end;
+        7:  BEGIN
+              FLUSHNODELIS(MEM[P+1].HH.LH);
+              FLUSHNODELIS(MEM[P+1].HH.RH);
+              FREENODE(P,2);
+            END;
+        5:  begin
+              FLUSHNODELIS(MEM[P+1].INT);{698:}
+              FREENODE(P,2);
+            end;
+        14: BEGIN
+              FREENODE(P,3);
+            END;
+        15: BEGIN
+              FLUSHNODELIS(MEM[P+1].HH.LH);
+              FLUSHNODELIS(MEM[P+1].HH.RH);
+              FLUSHNODELIS(MEM[P+2].HH.LH);
+              FLUSHNODELIS(MEM[P+2].HH.RH);
+              FREENODE(P,3);
+            END;
+        16,17,18,19,20,21,22,23,24,27,26,29,28:
+            BEGIN
+              IF MEM[P+1].HH.RH>=2 THEN
+                FLUSHNODELIS(MEM[P+1].HH.LH);
+              IF MEM[P+2].HH.RH>=2 THEN FLUSHNODELIS(MEM[P+2].HH.LH);
+              IF MEM[P+3].HH.RH>=2 THEN FLUSHNODELIS(MEM[P+3].HH.LH);
+              IF MEM[P].HH.B0=24 THEN FREENODE(P,5)
+              ELSE IF MEM[P].HH.B0=28 THEN FREENODE(P,5)
+              ELSE FREENODE(P,4);
+            END;
+        30,31: BEGIN
+              FREENODE(P,4);
+            END;
+        25: BEGIN
+              FLUSHNODELIS(MEM[P+2].HH.LH);
+              FLUSHNODELIS(MEM[P+3].HH.LH);
+              FREENODE(P,6);
+            END;
+        ELSE confusion_str('flushing');
+      END;
     END;
+    P := Q;
+  END;
 END;
 {:202}
 
 
 {204:}
 FUNCTION COPYNODELIST(P:HALFWORD): HALFWORD;
-
-VAR H: HALFWORD;
+VAR
+  H: HALFWORD;
   Q: HALFWORD;
   R: HALFWORD;
   WORDS: 0..5;
@@ -4957,7 +4916,6 @@ END;
 
 
 PROCEDURE UNSAVE;
-LABEL 30;
 VAR P: HALFWORD;
   L: QUARTERWORD;
   T: HALFWORD;
@@ -4969,7 +4927,7 @@ BEGIN
       WHILE TRUE DO
         BEGIN
           SAVEPTR := SAVEPTR-1;
-          IF SAVESTACK[SAVEPTR].HH.B0=3 THEN GOTO 30;
+          IF SAVESTACK[SAVEPTR].HH.B0=3 THEN break;
           P := SAVESTACK[SAVEPTR].HH.RH;
           IF SAVESTACK[SAVEPTR].HH.B0=2 THEN{326:}
             BEGIN
@@ -5024,7 +4982,7 @@ BEGIN
 
             END;
         END;
-      30: CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
+      CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
       CURBOUNDARY := SAVESTACK[SAVEPTR].HH.RH{:282};
     END
   ELSE confusion_str('curlevel');
@@ -5560,7 +5518,7 @@ BEGIN
         IF NOT(CURINPUT.NAMEFIELD=0) THEN BEGIN
                       CURCMD := 0;
                       CURCHR := 0;
-                      GOTO 10;
+                      exit;
                     END;
                   IF INPUTPTR>0 THEN
                     BEGIN
@@ -5660,7 +5618,6 @@ BEGIN
           ALIGNSTATE := 1000000;
           GOTO 20;
         END{:789}{:342};
-  10:
 END;
 {:341}
 
@@ -5676,7 +5633,7 @@ END;
 {:365}{366:}{389:}
 PROCEDURE MACROCALL;
 
-LABEL 10,22,30,31,40;
+LABEL 22,30,31,40;
 
 VAR R: HALFWORD;
   P: HALFWORD;
@@ -5755,7 +5712,9 @@ BEGIN
                 help_line[0] := 'followed by the required stuff, so I''m ignoring it.';
               END;
               ERROR;
-              GOTO 10;
+              SCANNERSTATU := SAVESCANNERS;
+              WARNINGINDEX := SAVEWARNINGI;
+              exit;
             END{:398}
         ELSE
           BEGIN
@@ -5812,7 +5771,9 @@ BEGIN
               ALIGNSTATE := ALIGNSTATE-UNBALANCE;
               FOR M:=0 TO N DO
                 FLUSHLIST(PSTACK[M]);
-              GOTO 10;
+              SCANNERSTATU := SAVESCANNERS;
+              WARNINGINDEX := SAVEWARNINGI;
+              exit;
             END{:396};
         IF CURTOK<768 THEN
           IF CURTOK<512 THEN{399:}
@@ -5862,7 +5823,9 @@ BEGIN
                         ALIGNSTATE := ALIGNSTATE-UNBALANCE;
                         FOR M:=0 TO N DO
                           FLUSHLIST(PSTACK[M]);
-                        GOTO 10;
+                        SCANNERSTATU := SAVESCANNERS;
+                        WARNINGINDEX := SAVEWARNINGI;
+                        exit;
                       END{:396};
                   IF CURTOK<768 THEN
                     IF CURTOK<512 THEN UNBALANCE := UNBALANCE+1
@@ -5971,7 +5934,7 @@ BEGIN
         PARAMSTACK[PARAMPTR+M] := PSTACK[M];
       PARAMPTR := PARAMPTR+N;
     END{:390};
-  10: SCANNERSTATU := SAVESCANNERS;
+  SCANNERSTATU := SAVESCANNERS;
   WARNINGINDEX := SAVEWARNINGI;
 END;{:389}{379:}
 PROCEDURE INSERTRELAX;
@@ -6169,27 +6132,29 @@ BEGIN
   RADIX := RADIXBACKUP;
   CURORDER := COBACKUP;
   MEM[29987].HH.RH := BACKUPBACKUP;
-END;{:366}{380:}
-PROCEDURE GETXTOKEN;
+END;
+{:366}
 
-LABEL 20,30;
+{380:}
+PROCEDURE GETXTOKEN;
 BEGIN
-  20: GETNEXT;
-  IF CURCMD<=100 THEN GOTO 30;
-  IF CURCMD>=111 THEN
-    IF CURCMD<115 THEN MACROCALL
-  ELSE
-    BEGIN
+  while true do begin
+    GETNEXT;
+    if CURCMD<=100 then break;
+    if CURCMD<111 then EXPAND
+    else if CURCMD<115 then MACROCALL
+    else begin
       CURCS := 2620;
       CURCMD := 9;
-      GOTO 30;
-    END
-  ELSE EXPAND;
-  GOTO 20;
-  30:
-      IF CURCS=0 THEN CURTOK := (CURCMD*256)+CURCHR
-      ELSE CURTOK := 4095+CURCS;
-END;{:380}{381:}
+      break;
+    end;
+  end;
+  IF CURCS=0 then CURTOK := (CURCMD*256)+CURCHR
+             else CURTOK := 4095+CURCS;
+END;
+{:380}
+
+{381:}
 PROCEDURE XTOKEN;
 BEGIN
   WHILE CURCMD>100 DO
@@ -6267,9 +6232,6 @@ BEGIN
 END;
 
 FUNCTION SCANKEYWORD(S:STRNUMBER): BOOLEAN;
-
-LABEL 10;
-
 VAR P: HALFWORD;
   Q: HALFWORD;
   K: POOLPOINTER;
@@ -6296,12 +6258,11 @@ BEGIN
             BACKINPUT;
             IF P<>29987 THEN BEGINTOKENLI(MEM[29987].HH.RH,3);
             SCANKEYWORD := FALSE;
-            GOTO 10;
+            exit;
           END;
     END;
   FLUSHLIST(MEM[29987].HH.RH);
   SCANKEYWORD := TRUE;
-  10:
 END;
 
 {:407}{408:}
@@ -6816,9 +6777,6 @@ BEGIN
 END;
 {:413}{440:}
 PROCEDURE SCANINT;
-
-LABEL 30;
-
 VAR NEGATIVE: BOOLEAN;
   M: Int32;
   D: SMALLNUMBER;
@@ -6896,44 +6854,34 @@ BEGIN
       VACUOUS := TRUE;
       CURVAL := 0;
 {445:}
-      WHILE TRUE DO
-        BEGIN
-          IF (CURTOK<3120+RADIX)AND(CURTOK>=3120)AND(
-             CURTOK<=3129)THEN D := CURTOK-3120
-          ELSE
-            IF RADIX=16 THEN
-              IF (CURTOK<=2886)
-                 AND(CURTOK>=2881)THEN D := CURTOK-2871
-          ELSE
-            IF (CURTOK<=3142)AND(CURTOK>=
-               3137)THEN D := CURTOK-3127
-          ELSE GOTO 30
-          ELSE GOTO 30;
+      WHILE TRUE DO BEGIN
+          IF (CURTOK<3120+RADIX)AND(CURTOK>=3120)AND(CURTOK<=3129) THEN D := CURTOK-3120
+          ELSE IF RADIX=16 THEN
+            IF (CURTOK<=2886) AND (CURTOK>=2881) THEN D := CURTOK-2871
+            ELSE IF (CURTOK<=3142)AND(CURTOK>=3137) THEN D := CURTOK-3127
+            ELSE break
+          ELSE break;
           VACUOUS := FALSE;
-          IF (CURVAL>=M)AND((CURVAL>M)OR(D>7)OR(RADIX<>10))THEN
-            BEGIN
-              IF OKSOFAR
-                THEN
-                BEGIN
-                  BEGIN
-                    IF INTERACTION=3 THEN;
-                    print_nl_str('! ');
-                    print_str('Number too big');
-                  END;
-                  BEGIN
-                    HELPPTR := 2;
-                    help_line[1] := 'I can only go up to 2147483647=''17777777777="7FFFFFFF,';
-                    help_line[0] := 'so I''m using that number instead of yours.';
-                  END;
-                  ERROR;
-                  CURVAL := 2147483647;
-                  OKSOFAR := FALSE;
-                END;
-            END
-          ELSE CURVAL := CURVAL*RADIX+D;
+          IF (CURVAL>=M)AND((CURVAL>M)OR(D>7)OR(RADIX<>10))THEN BEGIN
+            IF OKSOFAR THEN BEGIN
+              BEGIN
+                IF INTERACTION=3 THEN;
+                print_nl_str('! ');
+                print_str('Number too big');
+              END;
+              BEGIN
+                HELPPTR := 2;
+                help_line[1] := 'I can only go up to 2147483647=''17777777777="7FFFFFFF,';
+                help_line[0] := 'so I''m using that number instead of yours.';
+              END;
+              ERROR;
+              CURVAL := 2147483647;
+              OKSOFAR := FALSE;
+            END;
+          END ELSE CURVAL := CURVAL*RADIX+D;
           GETXTOKEN;
         END;
-      30:{:445};
+      {:445};
       IF VACUOUS THEN{446:}
         BEGIN
           BEGIN
@@ -7346,9 +7294,6 @@ BEGIN
 END;
 {:448}{461:}
 PROCEDURE SCANGLUE(LEVEL:SMALLNUMBER);
-
-LABEL 10;
-
 VAR NEGATIVE: BOOLEAN;
   Q: HALFWORD;
   MU: BOOLEAN;
@@ -7372,7 +7317,7 @@ BEGIN
       IF CURVALLEVEL>=2 THEN
         BEGIN
           IF CURVALLEVEL<>LEVEL THEN MUERROR;
-          GOTO 10;
+          exit;
         END;
       IF CURVALLEVEL=0 THEN SCANDIMEN(MU,FALSE,TRUE)
       ELSE
@@ -7400,41 +7345,32 @@ BEGIN
       MEM[Q].HH.B1 := CURORDER;
     END;
   CURVAL := Q{:462};
-  10:
 END;
-{:461}{463:}
+{:461}
+
+{463:}
 FUNCTION SCANRULESPEC: HALFWORD;
-
-LABEL 21;
-
 VAR Q: HALFWORD;
 BEGIN
   Q := NEWRULE;
   IF CURCMD=35 THEN MEM[Q+1].INT := 26214
-  ELSE
-    BEGIN
-      MEM[Q+3].INT := 26214;
-      MEM[Q+2].INT := 0;
-    END;
-  21:
-      IF scan_keyword_str('width')THEN
-        BEGIN
-          SCANDIMEN(FALSE,FALSE,FALSE);
-          MEM[Q+1].INT := CURVAL;
-          GOTO 21;
-        END;
-  IF scan_keyword_str('height')THEN
-    BEGIN
+  ELSE BEGIN
+    MEM[Q+3].INT := 26214;
+    MEM[Q+2].INT := 0;
+  END;
+
+  while true do begin
+    IF scan_keyword_str('width') THEN BEGIN
+      SCANDIMEN(FALSE,FALSE,FALSE);
+      MEM[Q+1].INT := CURVAL;
+    end else if scan_keyword_str('height') THEN BEGIN
       SCANDIMEN(FALSE,FALSE,FALSE);
       MEM[Q+3].INT := CURVAL;
-      GOTO 21;
-    END;
-  IF scan_keyword_str('depth')THEN
-    BEGIN
+    end else if scan_keyword_str('depth') THEN BEGIN
       SCANDIMEN(FALSE,FALSE,FALSE);
       MEM[Q+2].INT := CURVAL;
-      GOTO 21;
-    END;
+    end else break;
+  end;
   SCANRULESPEC := Q;
 END;
 {:463}
@@ -7805,9 +7741,6 @@ BEGIN
 END;
 {:473}{482:}
 PROCEDURE READTOKS(N:Int32;R:HALFWORD);
-
-LABEL 30;
-
 VAR P: HALFWORD;
   Q: HALFWORD;
   S: Int32;
@@ -7884,41 +7817,37 @@ BEGIN
           END;
       END{:486};
     CURINPUT.LIMITFIELD := LAST;
-    IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)THEN CURINPUT.LIMITFIELD := 
-                                                                           CURINPUT.LIMITFIELD-1
-    ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
+    IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
+      THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
+      ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
     FIRST := CURINPUT.LIMITFIELD+1;
     CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
     CURINPUT.STATEFIELD := 33;
-    WHILE TRUE DO
-      BEGIN
-        GETTOKEN;
-        IF CURTOK=0 THEN GOTO 30;
-        IF ALIGNSTATE<1000000 THEN
-          BEGIN
-            REPEAT
-              GETTOKEN;
-            UNTIL CURTOK=0;
-            ALIGNSTATE := 1000000;
-            GOTO 30;
-          END;
-        BEGIN
-          Q := GETAVAIL;
-          MEM[P].HH.RH := Q;
-          MEM[Q].HH.LH := CURTOK;
-          P := Q;
-        END;
+    WHILE TRUE DO BEGIN
+      GETTOKEN;
+      IF CURTOK=0 THEN break;
+      IF ALIGNSTATE<1000000 THEN BEGIN
+        REPEAT
+          GETTOKEN;
+        UNTIL CURTOK=0;
+        ALIGNSTATE := 1000000;
+        break;
       END;
-    30: ENDFILEREADI{:483};
+      Q := GETAVAIL;
+      MEM[P].HH.RH := Q;
+      MEM[Q].HH.LH := CURTOK;
+      P := Q;
+    END;
+    ENDFILEREADI{:483};
   UNTIL ALIGNSTATE=1000000;
   CURVAL := DEFREF;
   SCANNERSTATU := 0;
   ALIGNSTATE := S;
-END;{:482}{494:}
+END;
+{:482}
+
+{494:}
 PROCEDURE PASSTEXT;
-
-LABEL 30;
-
 VAR L: Int32;
   SAVESCANNERS: SMALLNUMBER;
 BEGIN
@@ -7926,23 +7855,19 @@ BEGIN
   SCANNERSTATU := 1;
   L := 0;
   SKIPLINE := LINE;
-  WHILE TRUE DO
-    BEGIN
-      GETNEXT;
-      IF CURCMD=106 THEN
-        BEGIN
-          IF L=0 THEN GOTO 30;
-          IF CURCHR=2 THEN L := L-1;
-        END
-      ELSE
-        IF CURCMD=105 THEN L := L+1;
-    END;
-  30: SCANNERSTATU := SAVESCANNERS;
-END;{:494}{497:}
+  WHILE TRUE DO BEGIN
+    GETNEXT;
+    IF CURCMD=106 THEN BEGIN
+      IF L=0 THEN break;
+      IF CURCHR=2 THEN L := L-1;
+    END ELSE IF CURCMD=105 THEN L := L+1;
+  END;
+  SCANNERSTATU := SAVESCANNERS;
+END;
+{:494}
+
+{497:}
 PROCEDURE CHANGEIFLIMI(L:SMALLNUMBER;P:HALFWORD);
-
-LABEL 10;
-
 VAR Q: HALFWORD;
 BEGIN
   IF P=CONDPTR THEN IFLIMIT := L
@@ -7955,17 +7880,14 @@ BEGIN
           IF MEM[Q].HH.RH=P THEN
             BEGIN
               MEM[Q].HH.B0 := L;
-              GOTO 10;
+              exit;
             END;
           Q := MEM[Q].HH.RH;
         END;
     END;
-  10:
 END;{:497}{498:}
 PROCEDURE CONDITIONAL;
-
-LABEL 10,50;
-
+LABEL 50;
 VAR B: BOOLEAN;
   R: 60..62;
   M,N: Int32;
@@ -8153,7 +8075,7 @@ BEGIN{495:}
                   END{:496};
             END;
           CHANGEIFLIMI(4,SAVECONDPTR);
-          GOTO 10;
+          exit;
         END{:509};
   END{:501};
   IF EQTB[5299].INT>1 THEN{502:}
@@ -8166,39 +8088,33 @@ BEGIN{495:}
   IF B THEN
     BEGIN
       CHANGEIFLIMI(3,SAVECONDPTR);
-      GOTO 10;
+      exit;
     END;
 {500:}
-  WHILE TRUE DO
-    BEGIN
-      PASSTEXT;
-      IF CONDPTR=SAVECONDPTR THEN
-        BEGIN
-          IF CURCHR<>4 THEN GOTO 50;
-          BEGIN
-            IF INTERACTION=3 THEN;
-            print_nl_str('! ');
-            print_str('Extra ');
-          END;
-          print_esc_str('or');
-          BEGIN
-            HELPPTR := 1;
-            help_line[0] := 'I''m ignoring this; it doesn''t match any \if.';
-          END;
-          ERROR;
-        END
-      ELSE
-        IF CURCHR=2 THEN{496:}
-          BEGIN
-            P := CONDPTR;
-            IFLINE := MEM[P+1].INT;
-            CURIF := MEM[P].HH.B1;
-            IFLIMIT := MEM[P].HH.B0;
-            CONDPTR := MEM[P].HH.RH;
-            FREENODE(P,2);
-          END{:496};
-    END{:500};
-  50:
+  WHILE TRUE DO BEGIN
+    PASSTEXT;
+    IF CONDPTR=SAVECONDPTR THEN BEGIN
+      IF CURCHR<>4 THEN break;
+      BEGIN
+        print_nl_str('! ');
+        print_str('Extra ');
+      END;
+      print_esc_str('or');
+      BEGIN
+        HELPPTR := 1;
+        help_line[0] := 'I''m ignoring this; it doesn''t match any \if.';
+      END;
+      ERROR;
+    END ELSE IF CURCHR=2 THEN BEGIN
+      P := CONDPTR;
+      IFLINE := MEM[P+1].INT;
+      CURIF := MEM[P].HH.B1;
+      IFLIMIT := MEM[P].HH.B0;
+      CONDPTR := MEM[P].HH.RH;
+      FREENODE(P,2);
+    END;
+  END;
+50:
       IF CURCHR=2 THEN{496:}
         BEGIN
           P := CONDPTR;
@@ -8209,7 +8125,6 @@ BEGIN{495:}
           FREENODE(P,2);
         END{:496}
       ELSE IFLIMIT := 2;
-  10:
 END;
 {:498}
 
@@ -8230,9 +8145,6 @@ BEGIN
 END;
 {:581}{582:}
 FUNCTION NEWCHARACTER(F:INTERNALFONT;C:EIGHTBITS): HALFWORD;
-
-LABEL 10;
-
 VAR P: HALFWORD;
 BEGIN
   IF FONTBC[F]<=C THEN
@@ -8244,11 +8156,10 @@ BEGIN
           MEM[P].HH.B0 := F;
           MEM[P].HH.B1 := C+0;
           NEWCHARACTER := P;
-          GOTO 10;
+          exit;
         END;
   CHARWARNING(F,C);
   NEWCHARACTER := 0;
-  10:
 END;
 {:582}
 
@@ -8397,7 +8308,7 @@ BEGIN
 END;{:602}{607:}
 PROCEDURE MOVEMENT(W:SCALED;O:EIGHTBITS);
 
-LABEL 10,40,45,2,1;
+LABEL 40,45,2,1;
 
 VAR MSTATE: SMALLNUMBER;
   P,Q: HALFWORD;
@@ -8469,7 +8380,7 @@ BEGIN
         IF DVIPTR=DVILIMIT THEN DVISWAP;
       END;
       DVIFOUR(W);
-      GOTO 10;
+      exit;
     END;
   IF ABS(W)>=32768 THEN
     BEGIN
@@ -8516,7 +8427,7 @@ BEGIN
        DVIPTR := DVIPTR+1;
        IF DVIPTR=DVILIMIT THEN DVISWAP;
      END;
-  GOTO 10{:610};
+  exit{:610};
   40:{609:}MEM[Q].HH.LH := MEM[P].HH.LH;
   IF MEM[Q].HH.LH=1 THEN
     BEGIN
@@ -8552,30 +8463,22 @@ BEGIN
           END;
         END;
     END{:609};
-  10:
 END;{:607}{615:}
 PROCEDURE PRUNEMOVEMEN(L:Int32);
-
-LABEL 30,10;
-
 VAR P: HALFWORD;
 BEGIN
-  WHILE DOWNPTR<>0 DO
-    BEGIN
-      IF MEM[DOWNPTR+2].INT<L THEN GOTO 30;
-      P := DOWNPTR;
-      DOWNPTR := MEM[P].HH.RH;
-      FREENODE(P,3);
-    END;
-  30:
-      WHILE RIGHTPTR<>0 DO
-        BEGIN
-          IF MEM[RIGHTPTR+2].INT<L THEN GOTO 10;
-          P := RIGHTPTR;
-          RIGHTPTR := MEM[P].HH.RH;
-          FREENODE(P,3);
-        END;
-  10:
+  WHILE DOWNPTR<>0 DO BEGIN
+    IF MEM[DOWNPTR+2].INT<L THEN break;
+    P := DOWNPTR;
+    DOWNPTR := MEM[P].HH.RH;
+    FREENODE(P,3);
+  END;
+  WHILE RIGHTPTR<>0 DO BEGIN
+    IF MEM[RIGHTPTR+2].INT<L THEN exit;
+    P := RIGHTPTR;
+    RIGHTPTR := MEM[P].HH.RH;
+    FREENODE(P,3);
+  END;
 END;
 {:615}{618:}
 PROCEDURE VLISTOUT; FORWARD;
@@ -9201,7 +9104,6 @@ BEGIN
   CURS := CURS-1;
 END;{:629}{638:}
 PROCEDURE SHIPOUT(P:HALFWORD);
-LABEL 30;
 VAR
   PAGELOC: Int32;
   J,K: 0..9;
@@ -9220,65 +9122,60 @@ BEGIN
        FILEOFFSET>0)THEN PRINTCHAR(32);
   PRINTCHAR(91);
   J := 9;
-  WHILE (EQTB[5318+J].INT=0)AND(J>0) DO
-    J := J-1;
-  FOR K:=0 TO J DO
-    BEGIN
-      PRINTINT(EQTB[5318+K].INT);
-      IF K<J THEN PRINTCHAR(46);
-    END;
+  WHILE (EQTB[5318+J].INT=0)AND(J>0) DO J := J-1;
+  FOR K:=0 TO J DO BEGIN
+    PRINTINT(EQTB[5318+K].INT);
+    IF K<J THEN PRINTCHAR(46);
+  END;
   FLUSH(OUTPUT);
-  IF EQTB[5297].INT>0 THEN
+  IF EQTB[5297].INT>0 THEN BEGIN
+    PRINTCHAR(93);
+    BEGINDIAGNOS;
+    SHOWBOX(P);
+    ENDDIAGNOSTI(TRUE);
+  END;
+
+  IF (MEM[P+3].INT>1073741823) OR
+     (MEM[P+2].INT>1073741823) OR
+     (MEM[P+3].INT+MEM[P+2].INT+EQTB[5849].INT>1073741823) OR 
+     (MEM[P+1].INT+EQTB[5848].INT>1073741823) THEN 
+  BEGIN
     BEGIN
-      PRINTCHAR(93);
+      IF INTERACTION=3 THEN;
+      print_nl_str('! ');
+      print_str('Huge page cannot be shipped out');
+    END;
+    BEGIN
+      HELPPTR := 2;
+      help_line[1] := 'The page just created is more than 18 feet tall or';
+      help_line[0] := 'more than 18 feet wide, so I suspect something went wrong.';
+    END;
+    ERROR;
+    IF EQTB[5297].INT<=0 THEN BEGIN
       BEGINDIAGNOS;
+      print_nl_str('The following box has been deleted:');
       SHOWBOX(P);
       ENDDIAGNOSTI(TRUE);
     END;
-{640:}{641:}
-  IF (MEM[P+3].INT>1073741823)OR(MEM[P+2].INT>1073741823)OR(MEM
-     [P+3].INT+MEM[P+2].INT+EQTB[5849].INT>1073741823)OR(MEM[P+1].INT+EQTB[
-     5848].INT>1073741823)THEN
-    BEGIN
-      BEGIN
-        IF INTERACTION=3 THEN;
-        print_nl_str('! ');
-        print_str('Huge page cannot be shipped out');
-      END;
-      BEGIN
-        HELPPTR := 2;
-        help_line[1] := 'The page just created is more than 18 feet tall or';
-        help_line[0] := 'more than 18 feet wide, so I suspect something went wrong.';
-      END;
-      ERROR;
-      IF EQTB[5297].INT<=0 THEN
-        BEGIN
-          BEGINDIAGNOS;
-          print_nl_str('The following box has been deleted:');
-          SHOWBOX(P);
-          ENDDIAGNOSTI(TRUE);
-        END;
-      GOTO 30;
-    END;
-  IF MEM[P+3].INT+MEM[P+2].INT+EQTB[5849].INT>MAXV THEN MAXV := MEM[P+3].INT
-                                                                +MEM[P+2].INT+EQTB[5849].INT;
-  IF MEM[P+1].INT+EQTB[5848].INT>MAXH THEN MAXH := MEM[P+1].INT+EQTB[5848].
-                                                   INT{:641};{617:}
-  DVIH := 0;
-  DVIV := 0;
-  CURH := EQTB[5848].INT;
-  DVIF := 0;
+  END else begin
+    IF MEM[P+3].INT+MEM[P+2].INT+EQTB[5849].INT>MAXV
+      THEN MAXV := MEM[P+3].INT+MEM[P+2].INT+EQTB[5849].INT;
+    IF MEM[P+1].INT+EQTB[5848].INT>MAXH
+      THEN MAXH := MEM[P+1].INT+EQTB[5848].INT;
+    DVIH := 0;
+    DVIV := 0;
+    CURH := EQTB[5848].INT;
+    DVIF := 0;
 
-  if output_file_name='' then begin
-    if job_name='' then OPENLOGFILE;
-    output_file_name := job_name + '.dvi';
-    while not b_open_out(DVIFILE, output_file_name) do begin
-      prompt_file_name(output_file_name, 'file name for output', '.dvi');
+    if output_file_name='' then begin
+      if job_name='' then OPENLOGFILE;
+      output_file_name := job_name + '.dvi';
+      while not b_open_out(DVIFILE, output_file_name) do begin
+        prompt_file_name(output_file_name, 'file name for output', '.dvi');
+      end;
     end;
-  end;
 
-  IF TOTALPAGES=0 THEN
-    BEGIN
+    IF TOTALPAGES=0 THEN BEGIN
       BEGIN
         DVIBUF[DVIPTR] := 247;
         DVIPTR := DVIPTR+1;
@@ -9307,33 +9204,33 @@ BEGIN
         DVIPTR := DVIPTR+1;
         IF DVIPTR=DVILIMIT THEN DVISWAP;
       end;
-    END{:617};
-  PAGELOC := DVIOFFSET+DVIPTR;
-  BEGIN
-    DVIBUF[DVIPTR] := 139;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  FOR K:=0 TO 9 DO
-    DVIFOUR(EQTB[5318+K].INT);
-  DVIFOUR(LASTBOP);
-  LASTBOP := PAGELOC;
-  CURV := MEM[P+3].INT+EQTB[5849].INT;
-  TEMPPTR := P;
-  IF MEM[P].HH.B0=1 THEN VLISTOUT
-  ELSE HLISTOUT;
-  BEGIN
-    DVIBUF[DVIPTR] := 140;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  TOTALPAGES := TOTALPAGES+1;
-  CURS := -1;
-  30:{:640};
+    END;
+    PAGELOC := DVIOFFSET+DVIPTR;
+    BEGIN
+      DVIBUF[DVIPTR] := 139;
+      DVIPTR := DVIPTR+1;
+      IF DVIPTR=DVILIMIT THEN DVISWAP;
+    END;
+    FOR K:=0 TO 9 DO DVIFOUR(EQTB[5318+K].INT);
+    DVIFOUR(LASTBOP);
+    LASTBOP := PAGELOC;
+    CURV := MEM[P+3].INT+EQTB[5849].INT;
+    TEMPPTR := P;
+    IF MEM[P].HH.B0=1 THEN VLISTOUT
+                      ELSE HLISTOUT;
+    BEGIN
+      DVIBUF[DVIPTR] := 140;
+      DVIPTR := DVIPTR+1;
+      IF DVIPTR=DVILIMIT THEN DVISWAP;
+    END;
+    TOTALPAGES := TOTALPAGES+1;
+    CURS := -1;
+  end;
+
   IF EQTB[5297].INT<=0 THEN PRINTCHAR(93);
   DEADCYCLES := 0;
   FLUSH(OUTPUT);
-{639:}{$IFDEF STATS}
+{$IFDEF STATS}
   IF EQTB[5294].INT>1 THEN
     BEGIN
       print_nl_str('Memory usage before: ');
@@ -9343,9 +9240,9 @@ BEGIN
       PRINTCHAR(59);
     END;
 {$ENDIF}
-  FLUSHNODELIS(P);{$IFDEF STATS}
-  IF EQTB[5294].INT>1 THEN
-    BEGIN
+  FLUSHNODELIS(P);
+{$IFDEF STATS}
+  IF EQTB[5294].INT>1 THEN BEGIN
       print_str(' after: ');
       PRINTINT(VARUSED);
       PRINTCHAR(38);
@@ -9353,64 +9250,58 @@ BEGIN
       print_str('; still untouched: ');
       PRINTINT(HIMEMMIN-LOMEMMAX-1);
       PRINTLN;
-    END;{$ENDIF}{:639};
+    END;
+{$ENDIF}
 END;
-{:638}
 
 {108:}
 FUNCTION BADNESS(T,S:SCALED): HALFWORD;
 VAR R: Int32;
 BEGIN
   IF T=0 THEN BADNESS := 0
-  ELSE
-    IF S<=0 THEN BADNESS := 10000
-  ELSE
-    BEGIN
-      IF T<=7230584 THEN R := (T*297)DIV S
-      ELSE
-        IF S>=1663497 THEN R := T DIV(S
-                                DIV 297)
-      ELSE R := T;
-      IF R>1290 THEN BADNESS := 10000
-      ELSE BADNESS := (R*R*R+131072)DIV 262144;
-    END;
+  ELSE IF S<=0 THEN BADNESS := 10000
+  ELSE BEGIN
+    IF      T<=7230584 THEN R := (T*297) DIV S
+    ELSE IF S>=1663497 THEN R := T DIV (S DIV 297)
+                       ELSE R := T;
+    IF R>1290 THEN BADNESS := 10000
+              ELSE BADNESS := (R*R*R+131072) DIV 262144;
+  END;
 END;
 {:108}
 
-
-
 {645:}
 PROCEDURE SCANSPEC(C:GROUPCODE;THREECODES:BOOLEAN);
-
-LABEL 40;
-
-VAR S: Int32;
+VAR
+  S: Int32;
   SPECCODE: 0..1;
 BEGIN
   IF THREECODES THEN S := SAVESTACK[SAVEPTR+0].INT;
-  IF scan_keyword_str('to')THEN SPECCODE := 0
-  ELSE
-    IF scan_keyword_str('spread')THEN
-      SPECCODE := 1
-  ELSE
-    BEGIN
-      SPECCODE := 1;
-      CURVAL := 0;
-      GOTO 40;
-    END;
-  SCANDIMEN(FALSE,FALSE,FALSE);
-  40:
-      IF THREECODES THEN
-        BEGIN
-          SAVESTACK[SAVEPTR+0].INT := S;
-          SAVEPTR := SAVEPTR+1;
-        END;
+
+  IF scan_keyword_str('to') THEN begin
+    SPECCODE := 0;
+    SCANDIMEN(FALSE,FALSE,FALSE);
+  end ELSE IF scan_keyword_str('spread') THEN begin
+    SPECCODE := 1;
+    SCANDIMEN(FALSE,FALSE,FALSE);
+  end ELSE BEGIN
+    SPECCODE := 1;
+    CURVAL := 0;
+  END;
+
+  IF THREECODES THEN BEGIN
+    SAVESTACK[SAVEPTR+0].INT := S;
+    SAVEPTR := SAVEPTR+1;
+  END;
   SAVESTACK[SAVEPTR+0].INT := SPECCODE;
   SAVESTACK[SAVEPTR+1].INT := CURVAL;
   SAVEPTR := SAVEPTR+2;
   NEWSAVELEVEL(C);
   SCANLEFTBRAC;
-END;{:645}{649:}
+END;
+{:645}
+
+{649:}
 FUNCTION HPACK(P:HALFWORD;W:SCALED;
                M:SMALLNUMBER): HALFWORD;
 
@@ -9535,7 +9426,7 @@ BEGIN
       MEM[R+5].HH.B0 := 0;
       MEM[R+5].HH.B1 := 0;
       MEM[R+6].GR := 0.0;
-      GOTO 10;
+      goto 10;
     END
   ELSE
     IF X>0 THEN{658:}
@@ -9571,7 +9462,7 @@ BEGIN
                   GOTO 50;
                 END;
             END{:660};
-        GOTO 10;
+        goto 10;
       END{:658}
   ELSE{664:}
     BEGIN{665:}
@@ -9625,7 +9516,7 @@ BEGIN
                   GOTO 50;
                 END;
             END{:667};
-      GOTO 10;
+      goto 10;
     END{:664}{:657};
   50:{663:}
       IF OUTPUTACTIVE THEN print_str(') has occurred while output is active')
@@ -9734,7 +9625,7 @@ BEGIN
       MEM[R+5].HH.B0 := 0;
       MEM[R+5].HH.B1 := 0;
       MEM[R+6].GR := 0.0;
-      GOTO 10;
+      goto 10;
     END
   ELSE
     IF X>0 THEN{673:}
@@ -9770,7 +9661,7 @@ BEGIN
                   GOTO 50;
                 END;
             END{:674};
-        GOTO 10;
+        goto 10;
       END{:673}
   ELSE{676:}
     BEGIN
@@ -9813,7 +9704,7 @@ BEGIN
                   GOTO 50;
                 END;
             END{:678};
-      GOTO 10;
+      goto 10;
     END{:676}{:672};
   50:{675:}
       IF OUTPUTACTIVE THEN print_str(') has occurred while output is active')
@@ -10179,72 +10070,56 @@ BEGIN
   CURLIST.AUXFIELD.INT := 0;
 END;
 {:718}{720:}
-PROCEDURE MLISTTOHLIST;
-FORWARD;
-FUNCTION CLEANBOX(P:HALFWORD;
-                  S:SMALLNUMBER): HALFWORD;
+PROCEDURE MLISTTOHLIST; FORWARD;
 
-LABEL 40;
-
-VAR Q: HALFWORD;
+FUNCTION CLEANBOX(P:HALFWORD; S:SMALLNUMBER): HALFWORD;
+VAR 
+  Q: HALFWORD;
   SAVESTYLE: SMALLNUMBER;
   X: HALFWORD;
   R: HALFWORD;
 BEGIN
-  CASE MEM[P].HH.RH OF 
-    1:
-       BEGIN
-         CURMLIST := NEWNOAD;
-         MEM[CURMLIST+1] := MEM[P];
-       END;
-    2:
-       BEGIN
-         Q := MEM[P].HH.LH;
-         GOTO 40;
-       END;
-    3: CURMLIST := MEM[P].HH.LH;
-    ELSE
-      BEGIN
-        Q := NEWNULLBOX;
-        GOTO 40;
-      END
-  END;
-  SAVESTYLE := CURSTYLE;
-  CURSTYLE := S;
-  MLISTPENALTI := FALSE;
-  MLISTTOHLIST;
-  Q := MEM[29997].HH.RH;
-  CURSTYLE := SAVESTYLE;
-{703:}
-  BEGIN
+  X := MEM[P].HH.RH;
+  if (X=1) or (X=3) then begin
+    if X=1 then begin
+      CURMLIST := NEWNOAD;
+      MEM[CURMLIST+1] := MEM[P];
+    end else begin
+      CURMLIST := MEM[P].HH.LH;
+    end;
+    SAVESTYLE := CURSTYLE;
+    CURSTYLE := S;
+    MLISTPENALTI := FALSE;
+    MLISTTOHLIST;
+    CURSTYLE := SAVESTYLE;
     IF CURSTYLE<4 THEN CURSIZE := 0
-    ELSE CURSIZE := 16*((CURSTYLE-2)
-                    DIV 2);
+                  ELSE CURSIZE := 16*((CURSTYLE-2) DIV 2);
     CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-  END{:703};
-  40:
-      IF (Q>=HIMEMMIN)OR(Q=0)THEN X := HPACK(Q,0,1)
-      ELSE
-        IF (MEM[Q].HH.RH=0)AND(
-           MEM[Q].HH.B0<=1)AND(MEM[Q+4].INT=0)THEN X := Q
-      ELSE X := HPACK(Q,0,1);
-{721:}
+    Q := MEM[29997].HH.RH;
+  end else begin
+    if X=2 then Q := MEM[P].HH.LH
+           else Q := NEWNULLBOX;
+  end;
+
+  IF (Q>=HIMEMMIN) OR (Q=0) THEN X := HPACK(Q,0,1)
+  ELSE IF (MEM[Q].HH.RH=0) AND (MEM[Q].HH.B0<=1) AND (MEM[Q+4].INT=0) THEN X := Q
+  ELSE X := HPACK(Q,0,1);
+
   Q := MEM[X+5].HH.RH;
-  IF (Q>=HIMEMMIN)THEN
-    BEGIN
-      R := MEM[Q].HH.RH;
-      IF R<>0 THEN
-        IF MEM[R].HH.RH=0 THEN
-          IF NOT(R>=HIMEMMIN)THEN
-            IF MEM[R].HH
-               .B0=11 THEN
-              BEGIN
-                FREENODE(R,2);
-                MEM[Q].HH.RH := 0;
-              END;
-    END{:721};
+  IF (Q>=HIMEMMIN) THEN BEGIN
+    R := MEM[Q].HH.RH;
+    IF R<>0 THEN
+      IF MEM[R].HH.RH=0 THEN
+        IF NOT(R>=HIMEMMIN)THEN
+          IF MEM[R].HH.B0=11 THEN BEGIN
+            FREENODE(R,2);
+            MEM[Q].HH.RH := 0;
+          END;
+  END;
   CLEANBOX := X;
-END;{:720}{722:}
+END;
+
+
 PROCEDURE FETCH(A:HALFWORD);
 BEGIN
   CURC := MEM[A].HH.B1;
@@ -10636,7 +10511,7 @@ BEGIN
 END;{:749}{752:}
 PROCEDURE MAKEORD(Q:HALFWORD);
 
-LABEL 20,10;
+LABEL 20;
 
 VAR A: Int32;
   P,R: HALFWORD;
@@ -10679,7 +10554,7 @@ BEGIN
                                              CURI.B3].INT);
                                         MEM[P].HH.RH := MEM[Q].HH.RH;
                                         MEM[Q].HH.RH := P;
-                                        GOTO 10;
+                                        exit;
                                       END
                                 ELSE
                                   BEGIN
@@ -10708,18 +10583,17 @@ BEGIN
                                           FREENODE(P,4);
                                         END
                                     END;
-                                    IF CURI.B2>3 THEN GOTO 10;
+                                    IF CURI.B2>3 THEN exit;
                                     MEM[Q+1].HH.RH := 1;
                                     GOTO 20;
                                   END{:753};
-                                IF CURI.B0>=128 THEN GOTO 10;
+                                IF CURI.B0>=128 THEN exit;
                                 A := A+CURI.B0+1;
                                 CURI := FONTINFO[A].QQQQ;
                               END;
                           END;
                       END;
             END;
-  10:
 END;{:752}{756:}
 PROCEDURE MAKESCRIPTS(Q:HALFWORD;
                       DELTA:SCALED);
@@ -11215,9 +11089,8 @@ BEGIN
     BEGIN
       SCANOPTIONAL;
       SCANGLUE(2);
-      IF EQTB[5306].INT>0 THEN GEQDEFINE(2893,117,CURVAL)
-      ELSE EQDEFINE(2893,
-                    117,CURVAL);
+      IF EQTB[5306].INT>0 THEN GEQDEFINE(2893, 117, CURVAL)
+                          ELSE EQDEFINE(2893, 117, CURVAL);
       GOTO 20;
     END;
 END;
@@ -11226,11 +11099,10 @@ END;
 {216:}
 PROCEDURE PUSHNEST;
 BEGIN
-  IF NESTPTR>MAXNESTSTACK THEN
-    BEGIN
-      MAXNESTSTACK := NESTPTR;
-      IF NESTPTR=NESTSIZE THEN overflow('semantic nest size', NESTSIZE);
-    END;
+  IF NESTPTR>MAXNESTSTACK THEN BEGIN
+    MAXNESTSTACK := NESTPTR;
+    IF NESTPTR=NESTSIZE THEN overflow('semantic nest size', NESTSIZE);
+  END;
   NEST[NESTPTR] := CURLIST;
   NESTPTR := NESTPTR+1;
   CURLIST.HEADFIELD := GETAVAIL;
@@ -11243,11 +11115,11 @@ END;
 {217:}
 PROCEDURE POPNEST;
 BEGIN
-  BEGIN
-    MEM[CURLIST.HEADFIELD].HH.RH := AVAIL;
-    AVAIL := CURLIST.HEADFIELD;{$IFDEF STATS}
-    DYNUSED := DYNUSED-1;{$ENDIF}
-  END;
+  MEM[CURLIST.HEADFIELD].HH.RH := AVAIL;
+  AVAIL := CURLIST.HEADFIELD;
+{$IFDEF STATS}
+  DYNUSED := DYNUSED-1;
+{$ENDIF}
   NESTPTR := NESTPTR-1;
   CURLIST := NEST[NESTPTR];
 END;
@@ -11430,9 +11302,6 @@ BEGIN
 END;
 {:788}{791:}
 FUNCTION FINCOL: BOOLEAN;
-
-LABEL 10;
-
 VAR P: HALFWORD;
   Q,R: HALFWORD;
   S: HALFWORD;
@@ -11577,7 +11446,7 @@ BEGIN
       IF MEM[CURALIGN+5].HH.LH>=257 THEN
         BEGIN
           FINCOL := TRUE;
-          GOTO 10;
+          exit;
         END;
       INITSPAN(P);
     END;
@@ -11588,7 +11457,6 @@ BEGIN
   CURALIGN := P;
   INITCOL;
   FINCOL := FALSE;
-  10:
 END;
 {:791}{799:}
 PROCEDURE FINROW;
@@ -11958,36 +11826,29 @@ BEGIN
       IF CURLIST.MODEFIELD=1 THEN BUILDPAGE;
     END{:812};
 END;
-{785:}
+
+
 PROCEDURE ALIGNPEEK;
-
-LABEL 20;
 BEGIN
-  20: ALIGNSTATE := 1000000;
-{406:}
-  REPEAT
-    GETXTOKEN;
-  UNTIL CURCMD<>10{:406};
-  IF CURCMD=34 THEN
-    BEGIN
-      SCANLEFTBRAC;
-      NEWSAVELEVEL(7);
-      IF CURLIST.MODEFIELD=-1 THEN NORMALPARAGR;
-    END
-  ELSE
-    IF CURCMD=2 THEN FINALIGN
-  ELSE
-    IF (CURCMD=5)AND(CURCHR=258)THEN
-      GOTO 20
-  ELSE
-    BEGIN
-      INITROW;
-      INITCOL;
-    END;
+  repeat
+    ALIGNSTATE := 1000000;
+    REPEAT
+      GETXTOKEN;
+    UNTIL CURCMD<>10;
+  until (CURCMD<>5) OR (CURCHR<>258);
+  IF CURCMD=34 THEN BEGIN
+    SCANLEFTBRAC;
+    NEWSAVELEVEL(7);
+    IF CURLIST.MODEFIELD=-1 THEN NORMALPARAGR;
+  END ELSE IF CURCMD=2 THEN FINALIGN
+  ELSE BEGIN
+    INITROW;
+    INITCOL;
+  END;
 END;
-{:785}{:800}{815:}{826:}
-FUNCTION FINITESHRINK(P:HALFWORD): HALFWORD;
 
+
+FUNCTION FINITESHRINK(P:HALFWORD): HALFWORD;
 VAR Q: HALFWORD;
 BEGIN
   IF NOSHRINKERRO THEN
@@ -12043,7 +11904,7 @@ VAR R: HALFWORD;
 {:830}
 BEGIN{831:}
   IF ABS(PI)>=10000 THEN
-    IF PI>0 THEN GOTO 10
+    IF PI>0 THEN goto 10
   ELSE PI := 
              -10000{:831};
   NOBREAKYET := TRUE;
@@ -12269,7 +12130,7 @@ BEGIN{831:}
                     PREVR := Q;
                   END{:844};
               END{:836};
-            IF R=29993 THEN GOTO 10;
+            IF R=29993 THEN goto 10;
 {850:}
             IF L>EASYLINE THEN
               BEGIN
@@ -12468,7 +12329,8 @@ BEGIN{831:}
             END{:860};
       END{:851};
     END;
-  10:{$IFDEF STATS}
+  10:
+{$IFDEF STATS}
 {858:}
       IF CURP=PRINTEDNODE THEN
         IF CURP<>0 THEN
@@ -12480,7 +12342,9 @@ BEGIN{831:}
                   T := T-1;
                   PRINTEDNODE := MEM[PRINTEDNODE].HH.RH;
                 END;
-            END{:858}{$ENDIF}
+            END
+{:858}
+{$ENDIF}
 END;
 {:829}{877:}
 PROCEDURE POSTLINEBREA(FINALWIDOWPE:Int32);
@@ -12988,7 +12852,7 @@ BEGIN{923:}
       ELSE H := 307;
     END;
   45: HN := HN-1{:930};
-  IF TRIE[CURLANG+1].B1<>CURLANG+0 THEN GOTO 10;
+  IF TRIE[CURLANG+1].B1<>CURLANG+0 THEN goto 10;
   HC[0] := 0;
   HC[HN+1] := 0;
   HC[HN+2] := 256;
@@ -13020,7 +12884,7 @@ BEGIN{923:}
 {902:}
   FOR J:=LHYF TO HN-RHYF DO
     IF ODD(HYF[J])THEN GOTO 41;
-  GOTO 10;
+  goto 10;
   41:{:902};{903:}
   Q := MEM[HB].HH.RH;
   MEM[HB].HH.RH := 0;
@@ -13205,9 +13069,6 @@ END;
 {944:}
 FUNCTION NEWTRIEOP(D,N:SMALLNUMBER;
                    V:QUARTERWORD): QUARTERWORD;
-
-LABEL 10;
-
 VAR H: -TRIEOPSIZE..TRIEOPSIZE;
   U: QUARTERWORD;
   L: 0..TRIEOPSIZE;
@@ -13232,24 +13093,20 @@ BEGIN
           TRIEOPHASH[H] := TRIEOPPTR;
           TRIEOPVAL[TRIEOPPTR] := U;
           NEWTRIEOP := U;
-          GOTO 10;
+          exit;
         END;
       IF (HYFDISTANCE[L]=D)AND(HYFNUM[L]=N)AND(HYFNEXT[L]=V)AND(TRIEOPLANG[L]=
          CURLANG)THEN
         BEGIN
           NEWTRIEOP := TRIEOPVAL[L];
-          GOTO 10;
+          exit;
         END;
       IF H>-TRIEOPSIZE THEN H := H-1
       ELSE H := TRIEOPSIZE;
     END;
-  10:
 END;
 {:944}{948:}
 FUNCTION TRIENODE(P:TRIEPOINTER): TRIEPOINTER;
-
-LABEL 10;
-
 VAR H: TRIEPOINTER;
   Q: TRIEPOINTER;
 BEGIN
@@ -13262,18 +13119,17 @@ BEGIN
         BEGIN
           TRIEHASH[H] := P;
           TRIENODE := P;
-          GOTO 10;
+          exit;
         END;
       IF (TRIEC[Q]=TRIEC[P])AND(TRIEO[Q]=TRIEO[P])AND(TRIEL[Q]=TRIEL[P])AND(
          TRIER[Q]=TRIER[P])THEN
         BEGIN
           TRIENODE := Q;
-          GOTO 10;
+          exit;
         END;
       IF H>0 THEN H := H-1
       ELSE H := TRIESIZE;
     END;
-  10:
 END;
 {:948}{949:}
 FUNCTION COMPRESSTRIE(P:TRIEPOINTER): TRIEPOINTER;
@@ -14132,7 +13988,7 @@ BEGIN
 END;{:815}{934:}
 PROCEDURE NEWHYPHEXCEP;
 
-LABEL 21,10,40,45;
+LABEL 21,40,45;
 
 VAR N: 0..64;
   J: 0..64;
@@ -14247,7 +14103,7 @@ BEGIN
                         HYPHWORD[H] := S;
                         HYPHLIST[H] := P{:940};
                       END{:939};
-                    IF CURCMD=2 THEN GOTO 10;
+                    IF CURCMD=2 THEN exit;
                     N := 0;
                     P := 0;
                   END;
@@ -14269,7 +14125,6 @@ BEGIN
               END{:936}
           END;
     END{:935};
-  10:
 END;
 {:934}{968:}
 FUNCTION PRUNEPAGETOP(P:HALFWORD): HALFWORD;
@@ -14432,7 +14287,7 @@ END;{:970}{977:}
 FUNCTION VSPLIT(N:EIGHTBITS;
                 H:SCALED): HALFWORD;
 
-LABEL 10,30;
+LABEL 30;
 
 VAR V: HALFWORD;
   P: HALFWORD;
@@ -14450,7 +14305,7 @@ BEGIN
   IF V=0 THEN
     BEGIN
       VSPLIT := 0;
-      GOTO 10;
+      exit;
     END;
   IF MEM[V].HH.B0<>1 THEN
     BEGIN
@@ -14469,7 +14324,7 @@ BEGIN
       END;
       ERROR;
       VSPLIT := 0;
-      GOTO 10;
+      exit;
     END{:978};
   Q := VERTBREAK(MEM[V+5].HH.RH,H,EQTB[5836].INT);{979:}
   P := MEM[V+5].HH.RH;
@@ -14506,7 +14361,6 @@ BEGIN
   ELSE EQTB[3678+N].HH.RH := VPACKAGE(Q,0,
                              1,1073741823);
   VSPLIT := VPACKAGE(P,H,0,EQTB[5836].INT);
-  10:
 END;
 {:977}
 
@@ -14572,9 +14426,6 @@ BEGIN
 END;
 {:993}{994:}{1012:}
 PROCEDURE FIREUP(C:HALFWORD);
-
-LABEL 10;
-
 VAR P,Q,R,S: HALFWORD;
   PREVP: HALFWORD;
   N: 0..255;
@@ -14799,7 +14650,7 @@ BEGIN{1013:}
       NEWSAVELEVEL(8);
       NORMALPARAGR;
       SCANLEFTBRAC;
-      GOTO 10;
+      exit;
     END{:1025};
 {1023:}
   BEGIN
@@ -14818,12 +14669,11 @@ BEGIN{1013:}
     SHIPOUT(EQTB[3933].HH.RH);
     EQTB[3933].HH.RH := 0;
   END{:1023};
-  10:
 END;
 {:1012}
 PROCEDURE BUILDPAGE;
 
-LABEL 10,30,31,22,80,90;
+LABEL 30,31,22,80,90;
 
 VAR P: HALFWORD;
   Q,R: HALFWORD;
@@ -14832,7 +14682,7 @@ VAR P: HALFWORD;
   N: 0..255;
   DELTA,H,W: SCALED;
 BEGIN
-  IF (MEM[29999].HH.RH=0)OR OUTPUTACTIVE THEN GOTO 10;
+  IF (MEM[29999].HH.RH=0)OR OUTPUTACTIVE THEN exit;
   REPEAT
     22: P := MEM[29999].HH.RH;
 {996:}
@@ -14884,7 +14734,7 @@ BEGIN
       11:
           IF PAGECONTENTS<2 THEN GOTO 31
           ELSE
-            IF MEM[P].HH.RH=0 THEN GOTO 10
+            IF MEM[P].HH.RH=0 THEN exit
           ELSE
             IF MEM[MEM[P].HH.RH].HH.B0=10 THEN PI := 0
           ELSE GOTO 90;
@@ -15036,7 +14886,7 @@ BEGIN
         IF (C=1073741823)OR(PI<=-10000)THEN
           BEGIN
             FIREUP(P);
-            IF OUTPUTACTIVE THEN GOTO 10;
+            IF OUTPUTACTIVE THEN exit;
             GOTO 30;
           END;
       END{:1005};
@@ -15095,7 +14945,6 @@ BEGIN
   IF NESTPTR=0 THEN CURLIST.TAILFIELD := 29999
   ELSE NEST[0].TAILFIELD 
     := 29999{:995};
-  10:
 END;{:994}{1030:}{1043:}
 PROCEDURE APPSPACE;
 
@@ -15186,8 +15035,6 @@ BEGIN
 END;
 {:1051}{1054:}
 FUNCTION ITSALLOVER: BOOLEAN;
-
-LABEL 10;
 BEGIN
   IF PRIVILEGED THEN
     BEGIN
@@ -15195,7 +15042,7 @@ BEGIN
          CURLIST.TAILFIELD)AND(DEADCYCLES=0)THEN
         BEGIN
           ITSALLOVER := TRUE;
-          GOTO 10;
+          exit;
         END;
       BACKINPUT;
       BEGIN
@@ -15214,7 +15061,6 @@ BEGIN
       BUILDPAGE;
     END;
   ITSALLOVER := FALSE;
-  10:
 END;{:1054}{1060:}
 PROCEDURE APPENDGLUE;
 
@@ -15431,7 +15277,7 @@ BEGIN
 END;{:1075}{1079:}
 PROCEDURE BEGINBOX(BOXCONTEXT:Int32);
 
-LABEL 10,30;
+LABEL 30;
 
 VAR P,Q: HALFWORD;
   M: QUARTERWORD;
@@ -15554,11 +15400,10 @@ BEGIN
             CURLIST.AUXFIELD.HH.LH := 1000;
             IF EQTB[3417].HH.RH<>0 THEN BEGINTOKENLI(EQTB[3417].HH.RH,10);
           END;
-        GOTO 10;
+        exit;
       END{:1083}
   END;
   BOXEND(BOXCONTEXT);
-  10:
 END;
 {:1079}{1084:}
 PROCEDURE SCANBOX(BOXCONTEXT:Int32);
@@ -15775,9 +15620,6 @@ BEGIN
 END;
 {:1103}{1105:}
 PROCEDURE DELETELAST;
-
-LABEL 10;
-
 VAR P,Q: HALFWORD;
   M: QUARTERWORD;
 BEGIN
@@ -15813,7 +15655,7 @@ BEGIN
                     FOR M:=1 TO MEM[Q].
                         HH.B1 DO
                       P := MEM[P].HH.RH;
-                    IF P=CURLIST.TAILFIELD THEN GOTO 10;
+                    IF P=CURLIST.TAILFIELD THEN exit;
                   END;
               Q := MEM[P].HH.RH;
             UNTIL Q=CURLIST.TAILFIELD;
@@ -15822,20 +15664,16 @@ BEGIN
             CURLIST.TAILFIELD := P;
           END;
     END;
-  10:
 END;
 {:1105}{1110:}
 PROCEDURE UNPACKAGE;
-
-LABEL 10;
-
 VAR P: HALFWORD;
   C: 0..1;
 BEGIN
   C := CURCHR;
   SCANEIGHTBIT;
   P := EQTB[3678+CURVAL].HH.RH;
-  IF P=0 THEN GOTO 10;
+  IF P=0 THEN exit;
   IF (ABS(CURLIST.MODEFIELD)=203)OR((ABS(CURLIST.MODEFIELD)=1)AND(MEM[P].HH
      .B0<>1))OR((ABS(CURLIST.MODEFIELD)=102)AND(MEM[P].HH.B0<>0))THEN
     BEGIN
@@ -15851,7 +15689,7 @@ BEGIN
         help_line[0] := 'And I can''t open any boxes in math mode.';
       END;
       ERROR;
-      GOTO 10;
+      exit;
     END;
   IF C=1 THEN MEM[CURLIST.TAILFIELD].HH.RH := COPYNODELIST(MEM[P+5].HH.RH)
   ELSE
@@ -15863,12 +15701,8 @@ BEGIN
   WHILE MEM[CURLIST.TAILFIELD].HH.RH<>0 DO
     CURLIST.TAILFIELD := MEM[CURLIST.
                          TAILFIELD].HH.RH;
-  10:
 END;{:1110}{1113:}
 PROCEDURE APPENDITALIC;
-
-LABEL 10;
-
 VAR P: HALFWORD;
   F: INTERNALFONT;
 BEGIN
@@ -15879,7 +15713,7 @@ BEGIN
       ELSE
         IF MEM[CURLIST.
            TAILFIELD].HH.B0=6 THEN P := CURLIST.TAILFIELD+1
-      ELSE GOTO 10;
+      ELSE exit;
       F := MEM[P].HH.B0;
       BEGIN
         MEM[CURLIST.TAILFIELD].HH.RH := NEWKERN(FONTINFO[ITALICBASE[F]+(
@@ -15888,7 +15722,6 @@ BEGIN
       END;
       MEM[CURLIST.TAILFIELD].HH.B1 := 1;
     END;
-  10:
 END;
 {:1113}{1117:}
 PROCEDURE APPENDDISCRE;
@@ -15919,9 +15752,6 @@ BEGIN
 END;
 {:1117}{1119:}
 PROCEDURE BUILDDISCRET;
-
-LABEL 30,10;
-
 VAR P,Q: HALFWORD;
   N: Int32;
 BEGIN
@@ -15929,8 +15759,7 @@ BEGIN
   Q := CURLIST.HEADFIELD;
   P := MEM[Q].HH.RH;
   N := 0;
-  WHILE P<>0 DO
-    BEGIN
+  WHILE P<>0 DO BEGIN
       IF NOT(P>=HIMEMMIN)THEN
         IF MEM[P].HH.B0>2 THEN
           IF MEM[P].HH.B0<>11 THEN
@@ -15951,13 +15780,12 @@ BEGIN
                 ENDDIAGNOSTI(TRUE);
                 FLUSHNODELIS(P);
                 MEM[Q].HH.RH := 0;
-                GOTO 30;
+                break;
               END;
       Q := P;
       P := MEM[Q].HH.RH;
       N := N+1;
-    END;
-  30:{:1121};
+  END;
   P := MEM[CURLIST.HEADFIELD].HH.RH;
   POPNEST;
   CASE SAVESTACK[SAVEPTR-1].INT OF 
@@ -16002,7 +15830,7 @@ BEGIN
            END;
          IF N>0 THEN CURLIST.TAILFIELD := Q;
          SAVEPTR := SAVEPTR-1;
-         GOTO 10;
+         exit;
        END{:1120};
   END;
   SAVESTACK[SAVEPTR-1].INT := SAVESTACK[SAVEPTR-1].INT+1;
@@ -16011,7 +15839,6 @@ BEGIN
   PUSHNEST;
   CURLIST.MODEFIELD := -102;
   CURLIST.AUXFIELD.HH.LH := 1000;
-  10:
 END;{:1119}{1123:}
 PROCEDURE MAKEACCENT;
 
@@ -16353,7 +16180,7 @@ BEGIN
 END;{:1142}{1151:}
 PROCEDURE SCANMATH(P:HALFWORD);
 
-LABEL 20,21,10;
+LABEL 20,21;
 
 VAR C: Int32;
 BEGIN
@@ -16402,7 +16229,7 @@ BEGIN
             SAVESTACK[SAVEPTR+0].INT := P;
             SAVEPTR := SAVEPTR+1;
             PUSHMATH(9);
-            GOTO 10;
+            exit;
           END{:1153}
       END;
   MEM[P].HH.RH := 1;
@@ -16410,7 +16237,6 @@ BEGIN
   IF (C>=28672)AND((EQTB[5307].INT>=0)AND(EQTB[5307].INT<16))THEN MEM[P].HH
     .B0 := EQTB[5307].INT
   ELSE MEM[P].HH.B0 := (C DIV 256)MOD 16;
-  10:
 END;
 {:1151}{1155:}
 PROCEDURE SETMATHCHAR(C:Int32);
@@ -16443,15 +16269,13 @@ BEGIN
     END;
 END;{:1155}{1159:}
 PROCEDURE MATHLIMITSWI;
-
-LABEL 10;
 BEGIN
   IF CURLIST.HEADFIELD<>CURLIST.TAILFIELD THEN
     IF MEM[CURLIST.
        TAILFIELD].HH.B0=17 THEN
       BEGIN
         MEM[CURLIST.TAILFIELD].HH.B1 := CURCHR;
-        GOTO 10;
+        exit;
       END;
   BEGIN
     IF INTERACTION=3 THEN;
@@ -16463,7 +16287,6 @@ BEGIN
     help_line[0] := 'I''m ignoring this misplaced \limits or \nolimits command.';
   END;
   ERROR;
-  10:
 END;
 {:1159}{1160:}
 PROCEDURE SCANDELIMITE(P:HALFWORD;R:BOOLEAN);
@@ -16597,9 +16420,6 @@ BEGIN
 END;
 {:1184}
 PROCEDURE BUILDCHOICES;
-
-LABEL 10;
-
 VAR P: HALFWORD;
 BEGIN
   UNSAVE;
@@ -16612,13 +16432,12 @@ BEGIN
        BEGIN
          MEM[CURLIST.TAILFIELD+2].HH.RH := P;
          SAVEPTR := SAVEPTR-1;
-         GOTO 10;
+         exit;
        END;
   END;
   SAVESTACK[SAVEPTR-1].INT := SAVESTACK[SAVEPTR-1].INT+1;
   PUSHMATH(13);
   SCANLEFTBRAC;
-  10:
 END;{:1174}{1176:}
 PROCEDURE SUBSUP;
 
@@ -17146,42 +16965,45 @@ BEGIN
       DELETEGLUERE(CURVAL);
       CURVAL := 0;
     END;
-END;{:1229}{1236:}
+END;
+
+
 PROCEDURE DOREGISTERCO(A:SMALLNUMBER);
-
-LABEL 40,10;
-
-VAR L,Q,R,S: HALFWORD;
+VAR
+  L,Q,R,S: HALFWORD;
   P: 0..3;
 BEGIN
   Q := CURCMD;
-{1237:}
-  BEGIN
-    IF Q<>89 THEN
-      BEGIN
-        GETXTOKEN;
-        IF (CURCMD>=73)AND(CURCMD<=76)THEN
-          BEGIN
-            L := CURCHR;
-            P := CURCMD-73;
-            GOTO 40;
-          END;
-        IF CURCMD<>89 THEN
-          BEGIN
-            BEGIN
-              IF INTERACTION=3 THEN;
-              print_nl_str('! ');
-              print_str('You can''t use `');
-            END;
-            print_str(print_cmd_chr(CURCMD,CURCHR) + ''' after ' + print_cmd_chr(Q, 0));
-            BEGIN
-              HELPPTR := 1;
-              help_line[0] := 'I''m forgetting what you said and not changing anything.';
-            END;
-            ERROR;
-            GOTO 10;
-          END;
+  if Q<>89 then begin
+    GETXTOKEN;
+    IF (CURCMD>=73) AND (CURCMD<=76) THEN BEGIN
+      L := CURCHR;
+      P := CURCMD-73;
+    end else begin
+      IF CURCMD<>89 THEN BEGIN
+        BEGIN
+          IF INTERACTION=3 THEN;
+          print_nl_str('! ');
+          print_str('You can''t use `');
+        END;
+        print_str(print_cmd_chr(CURCMD,CURCHR) + ''' after ' + print_cmd_chr(Q, 0));
+        BEGIN
+          HELPPTR := 1;
+          help_line[0] := 'I''m forgetting what you said and not changing anything.';
+        END;
+        ERROR;
+        exit;
       END;
+      P := CURCHR;
+      SCANEIGHTBIT;
+      CASE P OF 
+        0: L := CURVAL+5318;
+        1: L := CURVAL+5851;
+        2: L := CURVAL+2900;
+        3: L := CURVAL+3156;
+      END;
+    end;
+  end else begin
     P := CURCHR;
     SCANEIGHTBIT;
     CASE P OF 
@@ -17190,11 +17012,10 @@ BEGIN
       2: L := CURVAL+2900;
       3: L := CURVAL+3156;
     END;
-  END;
-  40:{:1237};
+  end;
+
   IF Q=89 THEN SCANOPTIONAL
-  ELSE
-    IF scan_keyword_str('by')THEN;
+  ELSE IF scan_keyword_str('by') THEN;
   ARITHERROR := FALSE;
   IF Q<91 THEN{1238:}
     IF P<2 THEN
@@ -17281,7 +17102,7 @@ BEGIN
       END;
       IF P>=2 THEN DELETEGLUERE(CURVAL);
       ERROR;
-      GOTO 10;
+      exit;
     END;
   IF P<2 THEN
     IF (A>=4)THEN GEQWORDDEFIN(L,CURVAL)
@@ -17293,7 +17114,6 @@ BEGIN
       IF (A>=4)THEN GEQDEFINE(L,117,CURVAL)
       ELSE EQDEFINE(L,117,CURVAL);
     END;
-  10:
 END;{:1236}{1243:}
 PROCEDURE ALTERAUX;
 
@@ -18152,14 +17972,14 @@ BEGIN
 END;
 
 PROCEDURE DEBUGHELP;
-LABEL 888,10;
+LABEL 888;
 VAR K,L,M,N: Int32;
 BEGIN;
   WHILE TRUE DO BEGIN
       print_nl_str('debug # (-1 to exit):');
       FLUSH(OUTPUT);
       READ(INPUT,M);
-      IF M<0 THEN GOTO 10
+      IF M<0 THEN exit
       ELSE
         IF M=0 THEN
           BEGIN
@@ -18204,7 +18024,6 @@ BEGIN;
           END;
         END;
     END;
-  10:
 END;
 {$ENDIF}
 
@@ -18234,7 +18053,7 @@ END;
 {:1265}
 PROCEDURE PREFIXEDCOMM;
 
-LABEL 30,10;
+LABEL 30;
 
 VAR A: SMALLNUMBER;
   F: INTERNALFONT;
@@ -18265,7 +18084,7 @@ BEGIN
             help_line[0] := 'I''ll pretend you didn''t say \long or \outer or \global.';
           END;
           BACKERROR;
-          GOTO 10;
+          exit;
         END{:1212};
     END;
 {1213:}
@@ -18638,7 +18457,7 @@ BEGIN
             REPEAT
               GETTOKEN;
             UNTIL CURCMD=2;
-            GOTO 10;
+            exit;
           END
         ELSE
           BEGIN
@@ -18677,23 +18496,19 @@ BEGIN
           BACKINPUT;
           AFTERTOKEN := 0;
         END{:1269};
-  10:
 END;{:1211}{1270:}
 PROCEDURE DOASSIGNMENT;
-
-LABEL 10;
 BEGIN
   WHILE TRUE DO
     BEGIN{404:}
       REPEAT
         GETXTOKEN;
       UNTIL (CURCMD<>10)AND(CURCMD<>0){:404};
-      IF CURCMD<=70 THEN GOTO 10;
+      IF CURCMD<=70 THEN exit;
       SETBOXALLOWE := FALSE;
       PREFIXEDCOMM;
       SETBOXALLOWE := TRUE;
     END;
-  10:
 END;
 {:1270}
 
@@ -19328,7 +19143,7 @@ END;
 {:1068}
 PROCEDURE MAINCONTROL;
 
-LABEL 60,21,70,80,90,91,92,95,100,101,110,111,112,120,10;
+LABEL 60,21,70,80,90,91,92,95,100,101,110,111,112,120;
 
 VAR T: Int32;
 BEGIN
@@ -19376,7 +19191,7 @@ BEGIN
                   GOTO 21;
                 END;
     15:
-        IF ITSALLOVER THEN GOTO 10;
+        IF ITSALLOVER THEN exit;
 {1048:}
     23,123,224,71,172,273,{:1048}{1098:}39,{:1098}{1111:}45,{:1111}
 {1144:}49,150,{:1144}7,108,209: REPORTILLEGA;
@@ -19930,7 +19745,6 @@ BEGIN
   MEM[CURLIST.TAILFIELD].HH.RH := TEMPPTR;
   CURLIST.TAILFIELD := TEMPPTR;
   GOTO 60{:1041};
-  10:
 END;{:1030}{1284:}
 PROCEDURE GIVEERRHELP;
 BEGIN
@@ -19940,11 +19754,10 @@ END;
 
 {1303:}
 
-procedure too_small(ParameterName: array of char);
+procedure too_small(ParameterName: shortstring);
 var i: Integer;
 begin
-  write(output, '---! Must increase the ');
-  for i := 1 to length(ParameterName) do write(output, ParameterName[i]);
+  write(output, '---! Must increase the ' + ParameterName);
   writeln(output);
 end;
 
