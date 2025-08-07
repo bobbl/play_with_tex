@@ -50,7 +50,8 @@ begin
 rewrite(Pascal_file); rewrite(pool);
 @y
 if paramcount <> 4 then begin
-  fatal_error('Usage: tangle input.web input.ch output.p output.pool');
+  writeln('Usage: tangle input.web input.ch output.p output.pool');
+  halt;
 end;
 assign(Pascal_file, paramstr(3));
 assign(pool,paramstr(4));
