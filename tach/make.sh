@@ -18,6 +18,7 @@ then
     exit 1
 fi
 
+compilerflags="-O3 -g -al"
 
 
 
@@ -38,8 +39,8 @@ ref() {
     do
         ../../tex82/build/tex "$f"
         b=$(basename "$f" .tex)
-        mv "from/$b.dvi" "to/$b.dvi"
-        mv "from/$b.log" "to/$b.log"
+        mv "$b.dvi" "to/$b.dvi"
+        mv "$b.log" "to/$b.log"
     done
 }
 
@@ -48,13 +49,23 @@ ref() {
 build() {
     mkdir -p build
     cd build
+
+    if [ ! -f ../../tex82/build/TeXfonts/cmr10.tfm ]
+    then
+        # .tfm files missing, therefore build tex82
+        cd ../../tex82
+        ./make.sh quick
+        cd ../tach/build
+    fi
     ln -fs ../../tex82/build/TeXfonts
+
     mkdir -p TeXformats
     cp ../tex.pool TeXformats/
     cp ../tach.pas .
 
-    fpc -dinitex tach.pas -oinitach
-    fpc tach.pas
+    fpc -dinitex tach.pas -oinitach $compilerflags
+    #fpc -ddebugging tach.pas
+    fpc tach.pas $compilerflags
 
     cp ../../tex82/sources/dist/lib/plain.tex .
     cp ../../tex82/sources/dist/lib/hyphen.tex .

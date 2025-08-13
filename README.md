@@ -3,25 +3,47 @@ Play with TeX
 
 > Experiments with the original TeX source code from Donald E. Knuth
 
+
+
+Table of Contents
+-----------------
+
+  * [Quick compilaton of TeX](#quick-compilation-of-tex)  
+    Build the original TeX source code with minimal modifications.
+    The Free Pascal compiler (FPC) and pre-compiled font files are used.
+
+  * [Compile Metafont and the metric fonts](#compile-metafont-and-the-metric-fonts)  
+    Instead of using the pre-compiled .tfm font files, build Metafont from
+    Don Knuth's source code and compile the fonts from scratch.
+
+  * [Convert to modern Pascal: tach](#tach-convert-to-modern-pascal-tach)  
+    Combine the WEB source and the generated FPC source to a readable,
+    well-formated FPC source file with self-explanatory identifiers, comments
+    and modern language features 
+
+
+
+Quick compilation of TeX
+------------------------
+
 In CTAN [Don Knuth's source code for TeX](https://ctan.org/pkg/knuth-dist) can
-be found. With the help of [Wolfgang Helbig's TeX-FPC package](https://ctan.org/pkg/tex-fpc)
-it can be compiled with a current version of Free Pascal. Because it's not all
-that simple, here are some instructions and POSIX shell scripts to download and
-compile TeX on a UNIX platform that is supported py FPC.
+be found. [Wolfgang Helbig's TeX-FPC package](https://ctan.org/pkg/tex-fpc)
+provides additional files to modify and compile the sources with a current
+version of Free Pascal. However, the build process is not straightforward and
+TeX-FPC adds some additional features that are not necessary.
 
-The instructions in this README are not perfectly correct, but should give an
-impression of the necessary steps. For the exact commands see the make script
-`make.sh` with correct paths and automatic downloading of the CTAN packages and
-other dependencies.
+So I decided to find a way to compile TeX with minimal changes and minimal
+effort. It is a mixture of TeX-FPC and the
+[instructions from Heiko Theissen with FPC for Windows](https://bitbucket.org/HeikoTheissen/tex/src/master/web/)
 
+The instructions in this README should give an impression of the necessary
+steps, but some details are omitted to increase readability. For the exact
+commands see the make script `make.sh` with correct paths and automatic
+downloading of the CTAN packages and other dependencies.
 
-
-Quick compilation of the original TeX source code with Free Pascal
-------------------------------------------------------------------
-
-This is a short description how to compile TeX quickly without Metafont.
-How to build Metafont and the metric fonts is described in the next section.
-The steps for the quick compilation are executed by running the make script:
+Following are the instructions to quickly compile without Metafont. How to
+build Metafont and the metric fonts is described in the next section. The exact
+steps are executed by running the make script with
 
     ./make quick
 
@@ -29,12 +51,11 @@ The steps for the quick compilation are executed by running the make script:
 
 Knuth's programs are written in [WEB](https://en.wikipedia.org/wiki/Web_(programming_system)).
 To translate them to Pascal, his program TANGLE is used. TANGLE expects a change
-file that describes the Pascal dialect that should be used. TeX-FPC provides
-these change files for FPC.
+file that describes the Pascal dialect that should be used.
 
-However, TANGLE is written in WEB, so you need TANGLE to compile TANGLE.
-Therefore, this repository not only contains the change file, but also the
-translated FPC source code of TANGLE that can be compiled with
+However, TANGLE is written in WEB, so you need TANGLE and a change file to
+compile TANGLE. Therefore, this repository not only contains the change file,
+but also the translated FPC source code of TANGLE that can be compiled with
 
     fpc tangle.p
 
@@ -91,13 +112,18 @@ Create a subdirectory `TeXformats/` and copy the generated `plain.fmt` to it.
 Compile Metafont and the metric fonts
 -------------------------------------
 
-A complete POSIX shell script with all steps to build TeX and Metafont can be
-found in the make script `make.sh` in function `full()`. Run it with
+The metric fonts in the CTAN packages [cm-tfm](https://ctan.org/pkg/cm-tfm) and
+[manual](https://ctan.org/pkg/manual) have the extension `.tfm` and are
+compiled versions of the original Metafont source files with the extension
+`.mf`. To compile them yourself, the Metafont program must be build from the
+WEB sources.
+A complete POSIX shell script with all steps to build TeX, Metafont and the
+metric fonts can be found in the make script `make.sh`. Run it with
 
     ./make.sh full
 
-Steps 1, 2 and 4 are the same as in the quick section above. Only step 3 is
-more laborious:
+Steps 1, 2 and 4 are the same as in the [quick section](#quick-compilation-of-tex)
+above. Only step 3 is more laborious:
 
 ### Step 3.1: Compile INIMF
 
@@ -148,12 +174,18 @@ be removed.
 
 
 
-Convert to modern Pascal - tach
--------------------------------
+Convert to modern Pascal: tach
+------------------------------
 
 The initial version of tach is a pretty printed version of `tex.p`:
 
     ptop -c ptop.cfg ../tex82/build/tex.p tach.pas
+
+Transfer additional information from WEB file into Pascal source
+
+  - [ ] Transfer comments
+  - [ ] Re-introduce named /WEB/ constants
+  - [ ] Reverse /WEB/ macro expansion
 
 Translate from ISO Pascal to Free Pascal to enable modern language features
 like e.g. string processing.
@@ -167,6 +199,9 @@ routines
 
   - [x] Integrate string pool in source code
   - [ ] Replace string pool indices by constant strings
+  - [ ] Replace printing procedures by functions that return strings
+  - [x] Replace selector=new_string by string operations
+  - [x] Replace selector=pseudo by string operations
 
 File handling
 
@@ -180,8 +215,8 @@ Miscellaneous
   - [ ] Remove all GOTOs
   - [ ] Reduce global variables
   - [ ] Use dynamic memory management for large arrays
-  - [ ] Re-introduce /WEB/ constants in source code
-  - [ ] Program argument instead of conditional compilation for /INITEX/
+  - [ ] Program arguments instead of conditional compilation for /INITEX/
+  - [ ] Split source code into modules
 
 Long term ideas (breaking changes)
 

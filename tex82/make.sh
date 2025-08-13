@@ -9,6 +9,7 @@ help() {
     echo "  full        Compile tangle, Metafont, font files and TeX"
     echo "  tripman     Test by building the trip manual"
     echo "  trip        Run trip test"
+    echo "  weavetex    Test by building the tex source code documentation"
     echo
     echo "  clean       Remove build files"
 }
@@ -90,12 +91,15 @@ build() {
             # compiled metric fonts for Computer Modern
         check_ctan fonts/ manual
             # compiled metric fonts for extra symbols
+        check_ctan fonts/ mflogo
+            # compiled metric fonts for METAFONT logo
 
         # Step 3: copy metric font files
         cd build
         mkdir -p TeXfonts
         cp ../sources/tfm/*.tfm TeXfonts/
         cp ../sources/manual/tfm/*.tfm TeXfonts/
+        cp ../sources/mflogo/tfm/*.tfm TeXfonts/
 
     else
         check_ctan systems/knuth/ local
@@ -125,6 +129,7 @@ build() {
         cd TeXfonts
         cp ../../sources/dist/cm/* .
         cp ../../sources/dist/lib/manfnt.mf .
+        cp ../../sources/dist/lib/logo*.mf .
         cp ../../sources/local/cm/* . # additional fonts
         cp ../../sources/local/lib/random.mf .
 
@@ -255,6 +260,16 @@ trip() {
 }
 
 
+# Use weave to get tex.tex and test the newly compiled tex with it
+weavetex() {
+    cd build
+
+    weave ../sources/dist/tex/tex.web ../tex.ch tex.tex
+    cp ../sources/dist/lib/webmac.tex .
+    ./tex tex.tex
+
+    cd ..
+}
 
 while [ $# -ne 0 ]
 do
@@ -264,6 +279,7 @@ do
         full)           build full ;;
         tripman)        tripman ;;
         trip)           trip ;;
+        weavetex)       weavetex ;;
 
         clean)
             rm -rf build/*
