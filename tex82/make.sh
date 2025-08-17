@@ -50,16 +50,30 @@ check_ctan() {
 
 
 
-# Build tangle from Pascal source, if necessary
+# Build TANGLE from Pascal source, if necessary
 make_tangle() {
     cd build
     if [ -f tangle ]
     then
-        echo "Found tangle"
+        echo "Found TANGLE"
     else
         cp ../tangle.p .
         fpc tangle.p
-        rm tangle.o tangle.p
+    fi
+    cd ..
+}
+
+
+
+# Build WEAVE from Pascal source, if necessary
+make_weave() {
+    cd build
+    if [ -f weave ]
+    then
+        echo "Found WEAVE"
+    else
+        ./tangle ../sources/dist/web/weave.web ../weave.ch weave.p /dev/null
+        fpc weave.p
     fi
     cd ..
 }
@@ -262,9 +276,11 @@ trip() {
 
 # Use weave to get tex.tex and test the newly compiled tex with it
 weavetex() {
+    make_weave
+
     cd build
 
-    weave ../sources/dist/tex/tex.web ../tex.ch tex.tex
+    ./weave ../sources/dist/tex/tex.web ../tex.ch tex.tex
     cp ../sources/dist/lib/webmac.tex .
     ./tex tex.tex
 

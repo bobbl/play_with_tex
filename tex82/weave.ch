@@ -17,22 +17,18 @@
 @!text_file=text;
 @z
 
-% Don't know why these lines are required, but without them it doesn't work
 @x
   end
-@y
-  end
-@z
 
-@x
 @<Globals...@>=
 @!term_out:text_file; {the terminal as an output file}
 @y
+  end
+
 @d term_out==OUTPUT {the terminal as an output file}
 @z
 
 @x
-@<Set init...@>=
 rewrite(term_out,'TTY:'); {send |term_out| output to the terminal}
 @y
 @z
@@ -47,30 +43,29 @@ rewrite(term_out,'TTY:'); {send |term_out| output to the terminal}
 begin reset(web_file); reset(change_file);
 @y
 begin
-  assign(web_file, paramstr(1));
-  assign(change_file, paramstr(2));
-  reset(web_file);
-  reset(change_file);
+ assign(web_file, paramstr(1));
+ reset(web_file);
+ assign(change_file, paramstr(2));
+ reset(change_file);
 @z
 
 @x
-rewrite(Pascal_file); rewrite(pool);
+rewrite(tex_file);
 @y
-if paramcount <> 4 then begin
-  write_ln('Usage: tangle input.web input.ch output.p output.pool');
+if paramcount <> 3 then begin
+  write_ln('Usage: weave input.web input.ch output.tex');
   halt;
 end;
-assign(Pascal_file, paramstr(3));
-assign(pool, paramstr(4));
-rewrite(Pascal_file);
-rewrite(pool);
+assign(tex_file, paramstr(3));
+rewrite(tex_file);
 @z
 
+% CLOSE must be in capital letters, otherwise it is replaced by the tangle macro
+% `close=6`
 @x
 @t\4\4@>{here files should be closed if the operating system requires it}
 @y
-close(Pascal_file);
-close(pool);
-close(web_file);
-close(change_file);
+CLOSE(web_file);
+CLOSE(change_file);
+CLOSE(tex_file);
 @z
