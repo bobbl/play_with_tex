@@ -139,7 +139,7 @@ Shift right all `part' blocks to prepare for TRAP.
 @x part
 @!mem_max=30000; {greatest index in \MF's internal |mem| array;
 @y
-@!mem_max=35000; {increased for ibycus4,
+@!mem_max=65000; {increased for cmman in play_with_tex,
  greatest index in \MF's internal |mem| array;
 @z
 

@@ -112,8 +112,11 @@ build() {
         cd build
         mkdir -p TeXfonts
         cp ../sources/tfm/*.tfm TeXfonts/
-        cp ../sources/manual/tfm/*.tfm TeXfonts/
         cp ../sources/mflogo/tfm/*.tfm TeXfonts/
+        cp ../sources/manual/tfm/*.tfm TeXfonts/
+        cp ../sources/cmman.tfm TeXfonts/
+            # cmman.tfm from CTAN fonts/manual is broken
+            # Use self-compiled from repo instead
 
     else
         check_ctan systems/knuth/ local
@@ -144,8 +147,9 @@ build() {
         cp ../../sources/dist/cm/* .
         cp ../../sources/dist/lib/manfnt.mf .
         cp ../../sources/dist/lib/logo*.mf .
-        cp ../../sources/local/cm/* . # additional fonts
+#        cp ../../sources/local/cm/* . # additional fonts
         cp ../../sources/local/lib/random.mf .
+        cp ../../sources/local/cm/cmman.mf .
 
         mkdir -p MFbases
         mv ../plain.base MFbases/
@@ -153,11 +157,15 @@ build() {
         for mf in *.mf
         do
             f=$(basename $mf .mf)
-            ../mf "\\mode=localfont; batchmode; input $f"\
-                && echo $f.tfm installed \
-                || echo "Generation of $f.tfm failed"
+            ../mf "\\mode=localfont; batchmode; input $f" > /dev/null
+            if [ $? -eq 0 ]
+            then
+                echo "Installed $f.tfm"
+            else
+                echo "          $f.mf failed"
+            fi
         done
-        rm *.mf *.log *.*gf
+        #rm *.mf *.log *.*gf
         cd ..
 
     fi
