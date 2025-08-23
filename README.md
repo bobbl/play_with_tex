@@ -45,7 +45,7 @@ Following are the instructions to quickly compile without Metafont. How to
 build Metafont and the metric fonts is described in the next section. The exact
 steps are executed by running the make script with
 
-    ./make quick
+    ./make.sh quick
 
 ### Step 1: Bootstraping TANGLE
 
@@ -83,13 +83,15 @@ TeX uses fonts in the Metafont format. To speed up compilation, the compiled
 metric fonts can be downloaded from the CTAN packages
 [cm-tfm](https://ctan.org/pkg/cm-tfm) and [manual](https://ctan.org/pkg/manual):
 
-    wget "https://mirrors.ctan.org/fonts/cm/tfm.zip"
-    wget "https://mirrors.ctan.org/fonts/manual.zip"
+    wget https://mirrors.ctan.org/fonts/cm/tfm.zip
+    wget https://mirrors.ctan.org/fonts/manual.zip
+    wget https://mirrors.ctan.org/fonts/mflogo.zip
 
 extract the files
 
     unzip tfm.zip
     unzip manual.zip
+    unzip mflogo.zip
 
 and copy the .tfm files to a new subdirectory `TeXfonts/`
 
@@ -184,8 +186,8 @@ The initial version of tach is a pretty printed version of `tex.p`:
 Transfer additional information from WEB file into Pascal source
 
   - [ ] Transfer comments
-  - [ ] Re-introduce named /WEB/ constants
-  - [ ] Reverse /WEB/ macro expansion
+  - [ ] Re-introduce named WEB constants
+  - [ ] Reverse WEB macro expansion
 
 Translate from ISO Pascal to Free Pascal to enable modern language features
 like e.g. string processing.
@@ -215,7 +217,7 @@ Miscellaneous
   - [ ] Remove all GOTOs
   - [ ] Reduce global variables
   - [ ] Use dynamic memory management for large arrays
-  - [ ] Program arguments instead of conditional compilation for /INITEX/
+  - [ ] Program arguments instead of conditional compilation for INITEX
   - [ ] Split source code into modules
 
 Long term ideas (breaking changes)

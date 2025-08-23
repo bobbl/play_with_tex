@@ -672,14 +672,12 @@ TYPE {18:}ASCIICODE = 0..255;{:18}{25:}
     STATEFIELD,INDEXFIELD: QUARTERWORD;
     STARTFIELD,LOCFIELD,LIMITFIELD,NAMEFIELD: HALFWORD;
   END;
-{:300}{548:}
+{:300}
   INTERNALFONT = 0..FONTMAX;
   FONTINDEX = 0..FONTMEMSIZE;
-{:548}{594:}
-  DVIINDEX = 0..DVIBUFSIZE;{:594}{920:}
+  DVIINDEX = 0..dvi_buf_size;
   TRIEPOINTER = 0..TRIESIZE;
-{:920}{925:}
-  HYPHPOINTER = 0..307;{:925}
+  HYPHPOINTER = 0..307;
 
 
 VAR
@@ -753,7 +751,6 @@ VAR
 {:253}{256:}
   HASH: ARRAY[514..2880] OF TWOHALVES;
   HASHUSED: HALFWORD;
-  NONEWCONTROL: BOOLEAN;
   CSCOUNT: Int32;
 {:256}{271:}
   SAVESTACK: ARRAY[0..SAVESIZE] OF MEMORYWORD;
@@ -1024,8 +1021,6 @@ VAR
 {:1345}
 
 
-PROCEDURE GETXTOKEN; FORWARD;
-PROCEDURE BACKINPUT; FORWARD;
 
 
 
@@ -1202,7 +1197,6 @@ BEGIN{21:}
   FOR K:=5263 TO 6106 DO
     XEQLEVEL[K] := 1;
 {:254}{257:}
-  NONEWCONTROL := TRUE;
   HASH[514].LH := 0;
   HASH[514].RH := 0;
   FOR K:=515 TO 2880 DO
@@ -1248,8 +1242,8 @@ BEGIN{21:}
   DEADCYCLES := 0;
   CURS := -1;
 {:593}{596:}
-  HALFBUF := DVIBUFSIZE DIV 2;
-  DVILIMIT := DVIBUFSIZE;
+  HALFBUF := dvi_buf_size DIV 2;
+  DVILIMIT := dvi_buf_size;
   DVIPTR := 0;
   DVIOFFSET := 0;
   DVIGONE := 0;{:596}{606:}
@@ -2386,128 +2380,6 @@ BEGIN
   SELECTOR := OLDSETTING+2;
 END;
 {:534}
-
-{526:}
-{Add .tex if no extension given}
-function scan_file_name : shortstring;
-var
-  s: string[file_name_size];
-  i: SizeInt;
-  WithExtension: boolean;
-BEGIN
-  NAMEINPROGRE := TRUE;
-
-  repeat
-    GETXTOKEN;
-  until CURCMD<>spacer;
-
-  WithExtension := false;
-  setlength(s, file_name_size);
-  i := 0;
-  while true do begin
-    if (CURCMD>other_char) or (CURCHR>255) then begin
-      BACKINPUT;
-      break;
-    end;
-    if CURCHR=32{' '} then break;
-    if CURCHR=46{'.'} then WithExtension := true;
-    if i < file_name_size then begin
-      i := i + 1;
-      s[i] := chr(CURCHR);
-    end;
-    GETXTOKEN;
-  end;
-  setlength(s, i);
-  if not WithExtension then s := s + '.tex';
-
-  NAMEINPROGRE := FALSE;
-  scan_file_name := s;
-END;
-{:526}
-
-
-function CharPosLast(Match: char; const s: shortstring) : sizeint;
-var i: sizeint;
-begin
-  i := length(s);
-  while (i > 0) and{_then} (s[i] <> Match) do i := i - 1;
-  CharPosLast := i;
-end;
-
-function BaseOfFileName(FileName: shortstring) : shortstring;
-var
-  Slash: sizeint;
-  Dot: sizeint;
-begin
-  Slash := CharPosLast('/', FileName);
-  Dot := pos('.', FileName);
-  if Dot=0 then Dot := length(FileName);
-  BaseOfFileName := copy(FileName, Slash+1, Dot-Slash-1);
-end;
-
-(*
-function PathOfFileName(FileName: shortstring) : shortstring;
-var
-  Slash: sizeint;
-begin
-  Slash := CharPosLast('/', FileName);
-  PathOfFileName := copy(FileName, 1, Slash);
-end;
-*)
-
-function RemoveFileExtension(const FileName: shortstring) : shortstring;
-var i: sizeint;
-begin
-  i := pos('.', FileName);
-  if i=0 then RemoveFileExtension := FileName
-         else RemoveFileExtension := copy(FileName, 1, i-1);
-end;
-
-
-
-{537:}
-PROCEDURE STARTINPUT;
-var
-  FileName: shortstring;
-  BaseName: shortstring;
-begin
-  FileName := scan_file_name;
-  while true do begin
-    BEGINFILEREA;
-    if a_open_in(INPUTFILE[CURINPUT.INDEXFIELD], FileName) then break;
-    if pos('/', FileName)=0 then begin
-      FileName := 'TeXinputs/' + FileName;
-      if a_open_in(INPUTFILE[CURINPUT.INDEXFIELD], FileName) then break;
-    end;
-    ENDFILEREADI;
-    FileName := prompt_file_name(FileName, 'input file name', '.tex');
-  end;
-
-  BaseName := BaseOfFileName(FileName);
-  CURINPUT.NAMEFIELD := AddString(BaseName); {FileName also possible?}
-  if job_name='' then begin
-    job_name := BaseName;
-    OPENLOGFILE;
-  end;
-
-  IF TERMOFFSET + length(FileName) > MAXPRINTLINE-2 THEN PRINTLN
-  ELSE IF (TERMOFFSET>0) OR (FILEOFFSET>0) THEN PRINTCHAR(32);
-  PRINTCHAR(40);
-  OPENPARENS := OPENPARENS+1;
-  slow_print_str(FileName);
-  FLUSH(OUTPUT);
-  CURINPUT.STATEFIELD := 33;
-
-  LINE := 1;
-  IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD],FALSE) THEN;
-  FIRMUPTHELIN;
-  IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
-    THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
-    ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
-  FIRST := CURINPUT.LIMITFIELD+1;
-  CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
-END;
-{:537}
 
 
 
@@ -4145,7 +4017,7 @@ END;
 
 
 { ----------------------------------------------------------------------
-  TeX Core
+  Syntactic routines
   ---------------------------------------------------------------------- }
 
 
@@ -4448,69 +4320,68 @@ BEGIN
 END;{:158}
 
 
+{@ Here is the subroutine that searches the hash table for an identifier
+that matches a given string of length |l>1| appearing in |buffer[j..
+(j+l-1)]|. If the identifier is found, the corresponding hash table address
+is returned. Otherwise, if the global variable |no_new_control_sequence|
+is |true|, the dummy address |undefined_control_sequence| is returned.
+Otherwise the identifier is inserted into the hash table and its location
+is returned.}
 
-
-{259:}
-FUNCTION IDLOOKUP(J,L:Int32): HALFWORD;
-VAR H: Int32;
+function id_lookup(no_new_control_sequence: boolean; J, L:Int32): HALFWORD;
+VAR
+  H: Int32;
   D: Int32;
   P: HALFWORD;
   K: HALFWORD;
-BEGIN{261:}
+BEGIN
   H := BUFFER[J];
-  FOR K:=J+1 TO J+L-1 DO
-    BEGIN
-      H := H+H+BUFFER[K];
-      WHILE H>=1777 DO
-        H := H-1777;
-    END{:261};
+  FOR K:=J+1 TO J+L-1 DO BEGIN
+    H := H+H+BUFFER[K];
+    WHILE H>=1777 DO H := H-1777;
+  END;
   P := H+514;
   WHILE TRUE DO BEGIN
-      IF HASH[P].RH>0 THEN
-        IF (STRSTART[HASH[P].RH+1]-
-           STRSTART[HASH[P].RH])=L THEN
-          IF STREQBUF(HASH[P].RH,J) THEN break;
-      IF HASH[P].LH=0 THEN
-        BEGIN
-          IF NONEWCONTROL THEN P := 2881
-          ELSE{260:}
-            BEGIN
-              IF HASH[P].RH>0 THEN
-                BEGIN
-                  REPEAT
-                    IF (HASHUSED=514)THEN overflow('hash size', 2100);
-                    HASHUSED := HASHUSED-1;
-                  UNTIL HASH[HASHUSED].RH=0;
-                  HASH[P].LH := HASHUSED;
-                  P := HASHUSED;
-                END;
-              BEGIN
-                IF POOLPTR+L>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-              END;
-              D := (POOLPTR-STRSTART[STRPTR]);
-              WHILE POOLPTR>STRSTART[STRPTR] DO
-                BEGIN
-                  POOLPTR := POOLPTR-1;
-                  STRPOOL[POOLPTR+L] := STRPOOL[POOLPTR];
-                END;
-              FOR K:=J TO J+L-1 DO
-                BEGIN
-                  STRPOOL[POOLPTR] := BUFFER[K];
-                  POOLPTR := POOLPTR+1;
-                END;
-              HASH[P].RH := MAKESTRING;
-              POOLPTR := POOLPTR+D;
-{$IFDEF STATS}
-              CSCOUNT := CSCOUNT+1;
-{$ENDIF}
-            END{:260};
-          break;
+    IF HASH[P].RH>0 THEN
+      IF (STRSTART[HASH[P].RH+1]-STRSTART[HASH[P].RH])=L THEN
+        IF STREQBUF(HASH[P].RH,J) THEN break;
+    IF HASH[P].LH=0 THEN BEGIN
+      IF no_new_control_sequence THEN P := undefined_control_sequence{2881}
+      ELSE BEGIN
+
+        {@<Insert a new control sequence after |p|, then make |p| point to it@>}
+        IF HASH[P].RH>0 THEN BEGIN
+          REPEAT
+            IF (HASHUSED=514) THEN overflow('hash size', 2100);
+            HASHUSED := HASHUSED-1;
+          UNTIL HASH[HASHUSED].RH=0;
+          HASH[P].LH := HASHUSED;
+          P := HASHUSED;
         END;
-      P := HASH[P].LH;
+        IF POOLPTR+L>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
+        D := (POOLPTR-STRSTART[STRPTR]);
+        WHILE POOLPTR>STRSTART[STRPTR] DO BEGIN
+          POOLPTR := POOLPTR-1;
+          STRPOOL[POOLPTR+L] := STRPOOL[POOLPTR];
+        END;
+        FOR K:=J TO J+L-1 DO BEGIN
+          STRPOOL[POOLPTR] := BUFFER[K];
+          POOLPTR := POOLPTR+1;
+        END;
+        HASH[P].RH := MAKESTRING;
+        POOLPTR := POOLPTR+D;
+{$IFDEF STATS}
+        CSCOUNT := CSCOUNT+1;
+{$ENDIF}
+
+      END;
+      break;
     END;
-  IDLOOKUP := P;
+    P := HASH[P].LH;
+  END;
+  id_lookup := P;
 END;
-{:259}
+
 
 {274:}
 PROCEDURE NEWSAVELEVEL(C:GROUPCODE);
@@ -4908,79 +4779,6 @@ END;
 {:284}
 
 
-PROCEDURE UNSAVE;
-VAR P: HALFWORD;
-  L: QUARTERWORD;
-  T: HALFWORD;
-BEGIN
-  IF CURLEVEL>1 THEN
-    BEGIN
-      CURLEVEL := CURLEVEL-1;
-{282:}
-      WHILE TRUE DO
-        BEGIN
-          SAVEPTR := SAVEPTR-1;
-          IF SAVESTACK[SAVEPTR].HH.B0=3 THEN break;
-          P := SAVESTACK[SAVEPTR].HH.RH;
-          IF SAVESTACK[SAVEPTR].HH.B0=2 THEN{326:}
-            BEGIN
-              T := CURTOK;
-              CURTOK := P;
-              BACKINPUT;
-              CURTOK := T;
-            END{:326}
-          ELSE
-            BEGIN
-              IF SAVESTACK[SAVEPTR].HH.B0=0 THEN
-                BEGIN
-                  L := 
-                       SAVESTACK[SAVEPTR].HH.B1;
-                  SAVEPTR := SAVEPTR-1;
-                END
-              ELSE SAVESTACK[SAVEPTR] := EQTB[2881];
-
-              {283:}
-              IF P<5263 THEN
-                IF EQTB[P].HH.B1=1 THEN
-                  BEGIN
-                    EQDESTROY(SAVESTACK[SAVEPTR]);
-                    {$IFDEF STATS}
-                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
-                    {$ENDIF}
-                  END
-              ELSE
-                BEGIN
-                  EQDESTROY(EQTB[P]);
-                  EQTB[P] := SAVESTACK[SAVEPTR];
-                  {$IFDEF STATS}
-                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
-                  {$ENDIF}
-                END
-              ELSE
-                IF XEQLEVEL[P]<>1 THEN
-                  BEGIN
-                    EQTB[P] := SAVESTACK[SAVEPTR];
-                    XEQLEVEL[P] := L;
-                    {$IFDEF STATS}
-                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
-                    {$ENDIF}
-                  END
-              ELSE
-                BEGIN
-                  {$IFDEF STATS}
-                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
-                  {$ENDIF}
-                END;
-              {:283}
-
-            END;
-        END;
-      CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
-      CURBOUNDARY := SAVESTACK[SAVEPTR].HH.RH{:282};
-    END
-  ELSE confusion_str('curlevel');
-END;
-
 {@ The |prepare_mag| subroutine is called whenever \TeX\ wants to use |mag|
 for magnification.}
 PROCEDURE prepare_mag;
@@ -5206,6 +5004,7 @@ END;
 
 
 
+
 {336:}
 PROCEDURE CHECKOUTERVA;
 
@@ -5294,7 +5093,7 @@ END;
 
 
 {341:}
-PROCEDURE GETNEXT;
+procedure get_next(no_new_control_sequence: boolean);
 LABEL 20,25,21,26,40,10;
 VAR K: 0..BUFSIZE;
   T: HALFWORD;
@@ -5315,7 +5114,9 @@ BEGIN
       CASE CURINPUT.STATEFIELD+CURCMD OF {345:}
         10,26,42,27,43{:345}: GOTO 25;
         1,17,33:{354:} BEGIN
-          IF CURINPUT.LOCFIELD>CURINPUT.LIMITFIELD THEN CURCS := 513
+
+          {@<Scan a control sequence and set |state:=skip_blanks| or |mid_line|@>}
+          IF CURINPUT.LOCFIELD>CURINPUT.LIMITFIELD THEN CURCS := null_cs{513} {|state| is irrelevant in this case}
           ELSE BEGIN
 26:
             K := CURINPUT.LOCFIELD;
@@ -5327,109 +5128,106 @@ BEGIN
             ELSE CURINPUT.STATEFIELD := 1;
             IF (CAT=11)AND(K<=CURINPUT.LIMITFIELD) THEN BEGIN
               {356:}
+              {@<Scan ahead in the buffer until finding a nonletter;
+                 if an expanded code is encountered, reduce it
+                 and |goto start_cs|; otherwise if a multiletter control
+                 sequence is found, adjust |cur_cs| and |loc|, and
+                 |goto found|@>}
+
               REPEAT
                 CURCHR := BUFFER[K];
-                                     CAT := EQTB[3983+CURCHR].HH.RH;
-                                     K := K+1;
-                                   UNTIL (CAT<>11)OR(K>CURINPUT.LIMITFIELD);
-{355:}
-                                   BEGIN
-                                     IF BUFFER[K]=CURCHR THEN
-                                       IF CAT=7 THEN
-                                         IF K<CURINPUT.
-                                            LIMITFIELD THEN
-                                           BEGIN
-                                             C := BUFFER[K+1];
-                                             IF C<128 THEN
-                                               BEGIN
-                                                 D := 2;
-                                                 IF (((C>=48)AND(C<=57))OR((C>=97)AND(C<=102)))THEN
-                                                   IF K+2<=CURINPUT.
-                                                      LIMITFIELD THEN
-                                                     BEGIN
-                                                       CC := BUFFER[K+2];
-                                                       IF (((CC>=48)AND(CC<=57))OR((CC>=97)AND(CC<=
-                                                          102)))THEN D := D+1;
-                                                     END;
-                                                 IF D>2 THEN
-                                                   BEGIN
-                                                     IF C<=57 THEN CURCHR := C-48
-                                                     ELSE CURCHR := C-87;
-                                                     IF CC<=57 THEN CURCHR := 16*CURCHR+CC-48
-                                                     ELSE CURCHR := 16*CURCHR+CC-87;
-                                                     BUFFER[K-1] := CURCHR;
-                                                   END
-                                                 ELSE
-                                                   IF C<64 THEN BUFFER[K-1] := C+64
-                                                 ELSE BUFFER[K-1] := C-64;
-                                                 CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-D;
-                                                 FIRST := FIRST-D;
-                                                 WHILE K<=CURINPUT.LIMITFIELD DO
-                                                   BEGIN
-                                                     BUFFER[K] := BUFFER[K+D];
-                                                     K := K+1;
-                                                   END;
-                                                 GOTO 26;
-                                               END;
-                                           END;
-                                   END{:355};
-                                   IF CAT<>11 THEN K := K-1;
-                                   IF K>CURINPUT.LOCFIELD+1 THEN
-                                     BEGIN
-                                       CURCS := IDLOOKUP(CURINPUT.LOCFIELD,K-
-                                                CURINPUT.LOCFIELD);
-                                       CURINPUT.LOCFIELD := K;
-                                       GOTO 40;
-                                     END;
-                                 END{:356}
-                               ELSE{355:}
-                                 BEGIN
-                                   IF BUFFER[K]=CURCHR THEN
-                                     IF CAT=7 THEN
-                                       IF K<
-                                          CURINPUT.LIMITFIELD THEN
-                                         BEGIN
-                                           C := BUFFER[K+1];
-                                           IF C<128 THEN
-                                             BEGIN
-                                               D := 2;
-                                               IF (((C>=48)AND(C<=57))OR((C>=97)AND(C<=102)))THEN
-                                                 IF K+2<=CURINPUT.
-                                                    LIMITFIELD THEN
-                                                   BEGIN
-                                                     CC := BUFFER[K+2];
-                                                     IF (((CC>=48)AND(CC<=57))OR((CC>=97)AND(CC<=102
-                                                        )))THEN D := D+1;
-                                                   END;
-                                               IF D>2 THEN
-                                                 BEGIN
-                                                   IF C<=57 THEN CURCHR := C-48
-                                                   ELSE CURCHR := C-87;
-                                                   IF CC<=57 THEN CURCHR := 16*CURCHR+CC-48
-                                                   ELSE CURCHR := 16*CURCHR+CC-87;
-                                                   BUFFER[K-1] := CURCHR;
-                                                 END
-                                               ELSE
-                                                 IF C<64 THEN BUFFER[K-1] := C+64
-                                               ELSE BUFFER[K-1] := C-64;
-                                               CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-D;
-                                               FIRST := FIRST-D;
-                                               WHILE K<=CURINPUT.LIMITFIELD DO
-                                                 BEGIN
-                                                   BUFFER[K] := BUFFER[K+D];
-                                                   K := K+1;
-                                                 END;
-                                               GOTO 26;
-                                             END;
-                                         END;
-                                 END{:355};
-                               CURCS := 257+BUFFER[CURINPUT.LOCFIELD];
-                               CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-                             END;
-                           40: CURCMD := EQTB[CURCS].HH.B0;
-                           CURCHR := EQTB[CURCS].HH.RH;
-                           IF CURCMD>=113 THEN CHECKOUTERVA;
-                         END{:354};
+                CAT := EQTB[3983+CURCHR].HH.RH;
+                K := K+1;
+              UNTIL (CAT<>11)OR(K>CURINPUT.LIMITFIELD);
+
+              {@<If an expanded code is present, reduce it and |goto start_cs|@>}
+              {355:}
+              BEGIN
+                IF BUFFER[K]=CURCHR THEN
+                  IF CAT=7 THEN
+                    IF K<CURINPUT.LIMITFIELD THEN
+                BEGIN
+                  C := BUFFER[K+1];
+                  IF C<128 THEN BEGIN
+                    D := 2;
+                    IF (((C>=48)AND(C<=57))OR((C>=97)AND(C<=102))) THEN
+                      IF K+2<=CURINPUT.LIMITFIELD THEN
+                    BEGIN
+                      CC := BUFFER[K+2];
+                      IF (((CC>=48)AND(CC<=57))OR((CC>=97)AND(CC<=102))) THEN D := D+1;
+                    END;
+                    IF D>2 THEN BEGIN
+                      IF C<=57  THEN CURCHR := C-48
+                                ELSE CURCHR := C-87;
+                      IF CC<=57 THEN CURCHR := 16*CURCHR+CC-48
+                                ELSE CURCHR := 16*CURCHR+CC-87;
+                      BUFFER[K-1] := CURCHR;
+                    END ELSE IF C<64 THEN BUFFER[K-1] := C+64
+                    ELSE BUFFER[K-1] := C-64;
+                    CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-D;
+                    FIRST := FIRST-D;
+                    WHILE K<=CURINPUT.LIMITFIELD DO BEGIN
+                      BUFFER[K] := BUFFER[K+D];
+                      K := K+1;
+                    END;
+                    GOTO 26;
+                  END;
+                END;
+              END;
+              {:355}
+
+              IF CAT<>11 THEN K := K-1;
+              IF K>CURINPUT.LOCFIELD+1 THEN BEGIN
+                CURCS := id_lookup(no_new_control_sequence, CURINPUT.LOCFIELD, K-CURINPUT.LOCFIELD);
+                CURINPUT.LOCFIELD := K;
+              END else begin
+                CURCS := 257+BUFFER[CURINPUT.LOCFIELD];
+                CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
+              end;
+            END ELSE BEGIN
+
+              {@<If an expanded code is present, reduce it and |goto start_cs|@>}
+              {FIXME: same as above}
+              IF BUFFER[K]=CURCHR THEN
+                IF CAT=7 THEN
+                  IF K<CURINPUT.LIMITFIELD THEN
+              BEGIN
+                C := BUFFER[K+1];
+                IF C<128 THEN BEGIN
+                  D := 2;
+                  IF (((C>=48)AND(C<=57))OR((C>=97)AND(C<=102)))THEN
+                    IF K+2<=CURINPUT.LIMITFIELD THEN
+                  BEGIN
+                    CC := BUFFER[K+2];
+                    IF (((CC>=48)AND(CC<=57))OR((CC>=97)AND(CC<=102))) THEN D := D+1;
+                  END;
+                  IF D>2 THEN BEGIN
+                    IF C<=57  THEN CURCHR := C-48
+                              ELSE CURCHR := C-87;
+                    IF CC<=57 THEN CURCHR := 16*CURCHR+CC-48
+                              ELSE CURCHR := 16*CURCHR+CC-87;
+                    BUFFER[K-1] := CURCHR;
+                  END ELSE IF C<64 THEN BUFFER[K-1] := C+64
+                  ELSE BUFFER[K-1] := C-64;
+                  CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-D;
+                  FIRST := FIRST-D;
+                  WHILE K<=CURINPUT.LIMITFIELD DO BEGIN
+                    BUFFER[K] := BUFFER[K+D];
+                    K := K+1;
+                  END;
+                  GOTO 26;
+                END;
+              END;
+
+              CURCS := 257+BUFFER[CURINPUT.LOCFIELD];
+              CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
+            END;
+          END;
+          CURCMD := EQTB[CURCS].HH.B0;
+          CURCHR := EQTB[CURCS].HH.RH;
+          IF CURCMD>=113 THEN CHECKOUTERVA;
+          {:354}
+        END;
                 14,30,46:{353:}
                           BEGIN
                             CURCS := CURCHR+1;
@@ -5658,18 +5456,18 @@ END;
 {365:}
 PROCEDURE GETTOKEN;
 BEGIN
-  NONEWCONTROL := FALSE;
-  GETNEXT;
-  NONEWCONTROL := TRUE;
+  get_next(false);
   IF CURCS=0 THEN CURTOK := (CURCMD*256)+CURCHR
   ELSE CURTOK := 4095+CURCS;
 END;
-{:365}{366:}{389:}
+{:365}
+
+{366:}
+{389:}
 PROCEDURE MACROCALL;
-
 LABEL 22,30,31,40;
-
-VAR R: HALFWORD;
+VAR
+  R: HALFWORD;
   P: HALFWORD;
   Q: HALFWORD;
   S: HALFWORD;
@@ -5932,6 +5730,133 @@ BEGIN
   CURINPUT.INDEXFIELD := 4;
 END;{:379}
 
+
+
+PROCEDURE GETXTOKEN; FORWARD;
+
+
+{Add .tex if no extension given}
+function scan_file_name : shortstring;
+var
+  s: string[file_name_size];
+  i: SizeInt;
+  WithExtension: boolean;
+BEGIN
+  NAMEINPROGRE := TRUE;
+
+  repeat
+    GETXTOKEN;
+  until CURCMD<>spacer;
+
+  WithExtension := false;
+  setlength(s, file_name_size);
+  i := 0;
+  while true do begin
+    if (CURCMD>other_char) or (CURCHR>255) then begin
+      BACKINPUT;
+      break;
+    end;
+    if CURCHR=32{' '} then break;
+    if CURCHR=46{'.'} then WithExtension := true;
+    if i < file_name_size then begin
+      i := i + 1;
+      s[i] := chr(CURCHR);
+    end;
+    GETXTOKEN;
+  end;
+  setlength(s, i);
+  if not WithExtension then s := s + '.tex';
+
+  NAMEINPROGRE := FALSE;
+  scan_file_name := s;
+END;
+
+
+function CharPosLast(Match: char; const s: shortstring) : sizeint;
+var i: sizeint;
+begin
+  i := length(s);
+  while (i > 0) and{_then} (s[i] <> Match) do i := i - 1;
+  CharPosLast := i;
+end;
+
+function BaseOfFileName(FileName: shortstring) : shortstring;
+var
+  Slash: sizeint;
+  Dot: sizeint;
+begin
+  Slash := CharPosLast('/', FileName);
+  Dot := pos('.', FileName);
+  if Dot=0 then Dot := length(FileName);
+  BaseOfFileName := copy(FileName, Slash+1, Dot-Slash-1);
+end;
+
+(*
+function PathOfFileName(FileName: shortstring) : shortstring;
+var
+  Slash: sizeint;
+begin
+  Slash := CharPosLast('/', FileName);
+  PathOfFileName := copy(FileName, 1, Slash);
+end;
+*)
+
+function RemoveFileExtension(const FileName: shortstring) : shortstring;
+var i: sizeint;
+begin
+  i := pos('.', FileName);
+  if i=0 then RemoveFileExtension := FileName
+         else RemoveFileExtension := copy(FileName, 1, i-1);
+end;
+
+PROCEDURE STARTINPUT;
+var
+  FileName: shortstring;
+  BaseName: shortstring;
+begin
+  FileName := scan_file_name;
+  while true do begin
+    BEGINFILEREA;
+    if a_open_in(INPUTFILE[CURINPUT.INDEXFIELD], FileName) then break;
+    if pos('/', FileName)=0 then begin
+      FileName := 'TeXinputs/' + FileName;
+      if a_open_in(INPUTFILE[CURINPUT.INDEXFIELD], FileName) then break;
+    end;
+    ENDFILEREADI;
+    FileName := prompt_file_name(FileName, 'input file name', '.tex');
+  end;
+
+  BaseName := BaseOfFileName(FileName);
+  CURINPUT.NAMEFIELD := AddString(BaseName); {FileName also possible?}
+  if job_name='' then begin
+    job_name := BaseName;
+    OPENLOGFILE;
+  end;
+
+  IF TERMOFFSET + length(FileName) > MAXPRINTLINE-2 THEN PRINTLN
+  ELSE IF (TERMOFFSET>0) OR (FILEOFFSET>0) THEN PRINTCHAR(32);
+  PRINTCHAR(40);
+  OPENPARENS := OPENPARENS+1;
+  slow_print_str(FileName);
+  FLUSH(OUTPUT);
+  CURINPUT.STATEFIELD := 33;
+
+  LINE := 1;
+  IF INPUTLN(INPUTFILE[CURINPUT.INDEXFIELD],FALSE) THEN;
+  FIRMUPTHELIN;
+  IF (EQTB[5311].INT<0)OR(EQTB[5311].INT>255)
+    THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
+    ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
+  FIRST := CURINPUT.LIMITFIELD+1;
+  CURINPUT.LOCFIELD := CURINPUT.STARTFIELD;
+END;
+
+
+
+
+
+
+
 PROCEDURE PASSTEXT; FORWARD;
 PROCEDURE CONDITIONAL; FORWARD;
 PROCEDURE CONVTOKS; FORWARD;
@@ -6025,9 +5950,7 @@ BEGIN
                  END;
                IF J>FIRST+1 THEN
                  BEGIN
-                   NONEWCONTROL := FALSE;
-                   CURCS := IDLOOKUP(FIRST,J-FIRST);
-                   NONEWCONTROL := TRUE;
+                   CURCS := id_lookup(false, FIRST, J-FIRST);
                  END
                ELSE
                  IF J=FIRST THEN CURCS := 513
@@ -6100,7 +6023,7 @@ END;
 PROCEDURE GETXTOKEN;
 BEGIN
   while true do begin
-    GETNEXT;
+    get_next(true);
     if CURCMD<=100 then break;
     if CURCMD<111 then EXPAND
     else if CURCMD<115 then MACROCALL
@@ -6121,7 +6044,7 @@ BEGIN
   WHILE CURCMD>100 DO
     BEGIN
       EXPAND;
-      GETNEXT;
+      get_next(true);
     END;
   IF CURCS=0 THEN CURTOK := (CURCMD*256)+CURCHR
   ELSE CURTOK := 4095+CURCS;
@@ -7354,7 +7277,7 @@ begin
     IF Xpand THEN BEGIN
       {478:}
       WHILE TRUE DO BEGIN
-        GETNEXT;
+        get_next(true);
         IF CURCMD<=100 THEN break;
         IF CURCMD<>109 THEN EXPAND
         ELSE BEGIN
@@ -7584,7 +7507,7 @@ BEGIN
   L := 0;
   SKIPLINE := LINE;
   WHILE TRUE DO BEGIN
-    GETNEXT;
+    get_next(true);
     IF CURCMD=106 THEN BEGIN
       IF L=0 THEN break;
       IF CURCHR=2 THEN L := L-1;
@@ -7727,11 +7650,11 @@ BEGIN{495:}
         BEGIN
           SAVESCANNERS := SCANNERSTATU;
           SCANNERSTATU := 0;
-          GETNEXT;
+          get_next(true);
           N := CURCS;
           P := CURCMD;
           Q := CURCHR;
-          GETNEXT;
+          get_next(true);
           IF CURCMD<>P THEN B := FALSE
           ELSE
             IF CURCMD<111 THEN B := (CURCHR=Q)
@@ -7875,6 +7798,30 @@ BEGIN
 END;
 {:582}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  Device-independent file format
+  ---------------------------------------------------------------------- }
+
+
+
+
+
+
+
 {597:}
 PROCEDURE WRITEDVI(A,B: DVIINDEX);
 BEGIN
@@ -7885,17 +7832,17 @@ END;
 {598:}
 PROCEDURE DVISWAP;
 BEGIN
-  IF DVILIMIT=DVIBUFSIZE THEN
+  IF DVILIMIT=dvi_buf_size THEN
     BEGIN
       WRITEDVI(0,HALFBUF-1);
       DVILIMIT := HALFBUF;
-      DVIOFFSET := DVIOFFSET+DVIBUFSIZE;
+      DVIOFFSET := DVIOFFSET+dvi_buf_size;
       DVIPTR := 0;
     END
   ELSE
     BEGIN
-      WRITEDVI(HALFBUF,DVIBUFSIZE-1);
-      DVILIMIT := DVIBUFSIZE;
+      WRITEDVI(HALFBUF,dvi_buf_size-1);
+      DVILIMIT := dvi_buf_size;
     END;
   DVIGONE := DVIGONE+HALFBUF;
 END;
@@ -7911,271 +7858,184 @@ end;
 {600:}
 PROCEDURE DVIFOUR(X:Int32);
 BEGIN
-  IF X>=0 THEN
-    BEGIN
-      DVIBUF[DVIPTR] := X DIV 16777216;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END
-  ELSE
-    BEGIN
-      X := X+1073741824;
-      X := X+1073741824;
-      BEGIN
-        DVIBUF[DVIPTR] := (X DIV 16777216)+128;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-    END;
+  IF X>=0 
+  THEN dvi_out(X DIV 16777216)
+  ELSE BEGIN
+    X := X+1073741824;
+    X := X+1073741824;
+    dvi_out((X DIV 16777216)+128);
+  END;
   X := X MOD 16777216;
-  BEGIN
-    DVIBUF[DVIPTR] := X DIV 65536;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
+  dvi_out(X DIV 65536);
   X := X MOD 65536;
-  BEGIN
-    DVIBUF[DVIPTR] := X DIV 256;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := X MOD 256;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
+  dvi_out(X div 256);
+  dvi_out(X mod 256);
 END;
-{:600}{601:}
+
 PROCEDURE DVIPOP(L:Int32);
 BEGIN
   IF (L=DVIOFFSET+DVIPTR)AND(DVIPTR>0)THEN DVIPTR := DVIPTR-1
-  ELSE
-    BEGIN
-      DVIBUF[DVIPTR] := 142;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+  ELSE dvi_out(142);
 END;
-{:601}{602:}
-PROCEDURE DVIFONTDEF(F:INTERNALFONT);
 
+PROCEDURE DVIFONTDEF(F:INTERNALFONT);
 VAR K: POOLPOINTER;
 BEGIN
-  BEGIN
-    DVIBUF[DVIPTR] := 243;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := F-1;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := FONTCHECK[F].B0-0;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := FONTCHECK[F].B1-0;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := FONTCHECK[F].B2-0;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := FONTCHECK[F].B3-0;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
+  dvi_out(243);
+  dvi_out(F-1);
+  dvi_out(FONTCHECK[F].B0);
+  dvi_out(FONTCHECK[F].B1);
+  dvi_out(FONTCHECK[F].B2);
+  dvi_out(FONTCHECK[F].B3);
   DVIFOUR(FONTSIZE[F]);
   DVIFOUR(FONTDSIZE[F]);
-  BEGIN
-    DVIBUF[DVIPTR] := (STRSTART[FONTAREA[F]+1]-STRSTART[FONTAREA[F]]);
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  BEGIN
-    DVIBUF[DVIPTR] := (STRSTART[FONTNAME[F]+1]-STRSTART[FONTNAME[F]]);
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-{603:}
+  dvi_out(STRSTART[FONTAREA[F]+1]-STRSTART[FONTAREA[F]]);
+  dvi_out(STRSTART[FONTNAME[F]+1]-STRSTART[FONTNAME[F]]);
   FOR K:=STRSTART[FONTAREA[F]]TO STRSTART[FONTAREA[F]+1]-1 DO
-    BEGIN
-      DVIBUF[DVIPTR] := STRPOOL[K];
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+    dvi_out(STRPOOL[K]);
   FOR K:=STRSTART[FONTNAME[F]]TO STRSTART[FONTNAME[F]+1]-1 DO
-    BEGIN
-      DVIBUF
-      [DVIPTR] := STRPOOL[K];
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END{:603};
-END;{:602}{607:}
+    dvi_out(STRPOOL[K]);
+END;
+
+
+{@ Here is a subroutine that produces a \DVI command for some specified
+downward or rightward motion. It has two parameters: |w| is the amount
+of motion, and |o| is either |down1| or |right1|. We use the fact that
+the command codes have convenient arithmetic properties: |y1-down1=w1-right1|
+and |z1-down1=x1-right1|.}
+
 PROCEDURE MOVEMENT(W:SCALED;O:EIGHTBITS);
-
-LABEL 40,45,2,1;
-
-VAR MSTATE: SMALLNUMBER;
+VAR
+  MSTATE: SMALLNUMBER;
   P,Q: HALFWORD;
   K: Int32;
 BEGIN
   Q := GETNODE(3);
   MEM[Q+1].INT := W;
   MEM[Q+2].INT := DVIOFFSET+DVIPTR;
-  IF O=157 THEN
-    BEGIN
-      MEM[Q].HH.RH := DOWNPTR;
-      DOWNPTR := Q;
-    END
-  ELSE
-    BEGIN
-      MEM[Q].HH.RH := RIGHTPTR;
-      RIGHTPTR := Q;
-    END;
-{611:}
+  IF O=157 THEN BEGIN
+    MEM[Q].HH.RH := DOWNPTR;
+    DOWNPTR := Q;
+  END ELSE BEGIN
+    MEM[Q].HH.RH := RIGHTPTR;
+    RIGHTPTR := Q;
+  END;
+
+  {@<Look at the other stack entries until deciding what sort of \DVI command
+   to generate; |goto found| if node |p| is a ``hit''@>}
   P := MEM[Q].HH.RH;
   MSTATE := 0;
-  WHILE P<>0 DO
-    BEGIN
-      IF MEM[P+1].INT=W THEN{612:}
-        CASE MSTATE+MEM[P].HH.LH 
-          OF 
-          3,4,15,16:
-                     IF MEM[P+2].INT<DVIGONE THEN GOTO 45
-                     ELSE{613:}
-                       BEGIN
-                         K := MEM
-                              [P+2].INT-DVIOFFSET;
-                         IF K<0 THEN K := K+DVIBUFSIZE;
-                         DVIBUF[K] := DVIBUF[K]+5;
-                         MEM[P].HH.LH := 1;
-                         GOTO 40;
-                       END{:613};
-          5,9,11:
-                  IF MEM[P+2].INT<DVIGONE THEN GOTO 45
-                  ELSE{614:}
-                    BEGIN
-                      K := MEM[P+2].
-                           INT-DVIOFFSET;
-                      IF K<0 THEN K := K+DVIBUFSIZE;
-                      DVIBUF[K] := DVIBUF[K]+10;
-                      MEM[P].HH.LH := 2;
-                      GOTO 40;
-                    END{:614};
-          1,2,8,13: GOTO 40;
-          ELSE
-        END{:612}
-      ELSE
-        CASE MSTATE+MEM[P].HH.LH OF 
-          1: MSTATE := 6;
-          2: MSTATE := 12;
-          8,13: GOTO 45;
-          ELSE
-        END;
-      P := MEM[P].HH.RH;
-    END;
-  45:{:611};
-{610:}
-  MEM[Q].HH.LH := 3;
-  IF ABS(W)>=8388608 THEN
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := O+3;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
+  WHILE P<>0 DO BEGIN
+    IF MEM[P+1].INT=W THEN begin
+
+      {@<Consider a node with matching width; |goto found| if it's a hit@>}
+      CASE MSTATE+MEM[P].HH.LH OF 
+        3,4,15,16:
+            begin
+              IF MEM[P+2].INT<DVIGONE THEN break; {not found}
+
+              {@<Change buffered instruction to |y| or |w| and |goto found|@>}
+              K := MEM[P+2].INT-DVIOFFSET;
+              IF K<0 THEN K := K+dvi_buf_size;
+              DVIBUF[K] := DVIBUF[K]+5;
+              MEM[P].HH.LH := 1;
+              {fallthrough to found}
+            end;
+        5,9,11:
+            begin
+              IF MEM[P+2].INT<DVIGONE THEN break; {not found}
+
+              {@<Change buffered instruction to |z| or |x| and |goto found|@>}
+              K := MEM[P+2].INT-DVIOFFSET;
+              IF K<0 THEN K := K+dvi_buf_size;
+              DVIBUF[K] := DVIBUF[K]+10;
+              MEM[P].HH.LH := 2;
+              {fallthrough to found}
+            end;
+        1,2,8,13: ;
+              {fallthrough to found}
+        else begin
+              P := MEM[P].HH.RH;
+              continue;
+            end;
       END;
-      DVIFOUR(W);
-      exit;
-    END;
-  IF ABS(W)>=32768 THEN
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := O+2;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      IF W<0 THEN W := W+16777216;
-      BEGIN
-        DVIBUF[DVIPTR] := W DIV 65536;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      W := W MOD 65536;
-      GOTO 2;
-    END;
-  IF ABS(W)>=128 THEN
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := O+1;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      IF W<0 THEN W := W+65536;
-      GOTO 2;
-    END;
-  BEGIN
-    DVIBUF[DVIPTR] := O;
-    DVIPTR := DVIPTR+1;
-    IF DVIPTR=DVILIMIT THEN DVISWAP;
-  END;
-  IF W<0 THEN W := W+256;
-  GOTO 1;
-  2:
-     BEGIN
-       DVIBUF[DVIPTR] := W DIV 256;
-       DVIPTR := DVIPTR+1;
-       IF DVIPTR=DVILIMIT THEN DVISWAP;
-     END;
-  1:
-     BEGIN
-       DVIBUF[DVIPTR] := W MOD 256;
-       DVIPTR := DVIPTR+1;
-       IF DVIPTR=DVILIMIT THEN DVISWAP;
-     END;
-  exit{:610};
-  40:{609:}MEM[Q].HH.LH := MEM[P].HH.LH;
-  IF MEM[Q].HH.LH=1 THEN
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := O+4;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      WHILE MEM[Q].HH.RH<>P DO
-        BEGIN
+
+      {found:}
+      {@<Generate a |y0| or |z0| command in order to reuse a previous appearance of~|w|@>}
+      MEM[Q].HH.LH := MEM[P].HH.LH;
+      IF MEM[Q].HH.LH=1 THEN BEGIN
+        dvi_out(O+4);
+        WHILE MEM[Q].HH.RH<>P DO BEGIN
           Q := MEM[Q].HH.RH;
           CASE MEM[Q].HH.LH OF 
             3: MEM[Q].HH.LH := 5;
             4: MEM[Q].HH.LH := 6;
-            ELSE
           END;
         END;
-    END
-  ELSE
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := O+9;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      WHILE MEM[Q].HH.RH<>P DO
-        BEGIN
+      END ELSE BEGIN
+        dvi_out(O+9);
+        WHILE MEM[Q].HH.RH<>P DO BEGIN
           Q := MEM[Q].HH.RH;
           CASE MEM[Q].HH.LH OF 
             3: MEM[Q].HH.LH := 4;
             5: MEM[Q].HH.LH := 6;
-            ELSE
           END;
         END;
-    END{:609};
-END;{:607}{615:}
+      END;
+      exit;
+
+    end else begin
+      CASE MSTATE+MEM[P].HH.LH OF 
+        1:  MSTATE := 6;
+        2:  MSTATE := 12;
+        8,
+        13: break; {not found}
+      END;
+    end;
+    P := MEM[P].HH.RH;
+  END;
+
+  {not found:}
+  {@<Generate a |down| or |right| command for |w| and |return|@>}
+  MEM[Q].HH.LH := 3;
+  IF ABS(W)>=8388608 THEN BEGIN
+    dvi_out(O+3);
+    DVIFOUR(W);
+  end else begin
+    IF ABS(W)>=32768 THEN BEGIN
+      dvi_out(O+2);
+      IF W<0 THEN W := W+16777216;
+      dvi_out(W DIV 65536);
+      W := W MOD 65536;
+      dvi_out(W div 256);
+    end else if ABS(W)>=128 THEN BEGIN
+      dvi_out(O+1);
+      IF W<0 THEN W := W+65536;
+      dvi_out(W div 256);
+    end else begin
+      dvi_out(O);
+      IF W<0 THEN W := W+256;
+    end;
+    dvi_out(W mod 256);
+  end;
+END;
+
+procedure synch_h; inline;
+begin
+  IF CURH<>DVIH THEN BEGIN
+    MOVEMENT(CURH-DVIH,143);
+    DVIH := CURH;
+  END;
+end;
+
+procedure synch_v; inline;
+begin
+  IF CURV<>DVIV THEN BEGIN
+    MOVEMENT(CURV-DVIV,157);
+    DVIV := CURV;
+  END;
+end;
+
 PROCEDURE PRUNEMOVEMEN(L:Int32);
 VAR P: HALFWORD;
 BEGIN
@@ -8192,24 +8052,16 @@ BEGIN
     FREENODE(P,3);
   END;
 END;
-{:615}{618:}
-PROCEDURE VLISTOUT; FORWARD;
-{:618}{619:}
 
-{1368:}
+
+
 PROCEDURE SPECIALOUT(P:HALFWORD);
 var
   s: utf8string;
   i: sizeuint;
 BEGIN
-  IF CURH<>DVIH THEN BEGIN
-    MOVEMENT(CURH-DVIH,143);
-    DVIH := CURH;
-  END;
-  IF CURV<>DVIV THEN BEGIN
-    MOVEMENT(CURV-DVIV,157);
-    DVIV := CURV;
-  END;
+  synch_h;
+  synch_v;
 
   {FIXME: maximum length not POOLSIZE}
   s := show_token_list_simple(MEM[MEM[P+1].HH.RH].HH.RH, POOLSIZE);
@@ -8321,7 +8173,11 @@ BEGIN
     4:;
     ELSE confusion_str('ext4')
   END;
-END;{:1373}
+END;
+
+PROCEDURE VLISTOUT; FORWARD;
+
+
 PROCEDURE HLISTOUT;
 
 LABEL 21,13,14,15;
@@ -8350,12 +8206,7 @@ BEGIN
   GSIGN := MEM[THISBOX+5].HH.B0;
   P := MEM[THISBOX+5].HH.RH;
   CURS := CURS+1;
-  IF CURS>0 THEN
-    BEGIN
-      DVIBUF[DVIPTR] := 141;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+  IF CURS>0 THEN dvi_out(141);
   IF CURS>MAXPUSH THEN MAXPUSH := CURS;
   SAVELOC := DVIOFFSET+DVIPTR;
   BASELINE := CURV;
@@ -8364,16 +8215,8 @@ BEGIN
     21:
         IF (P>=HIMEMMIN)THEN
           BEGIN
-            IF CURH<>DVIH THEN
-              BEGIN
-                MOVEMENT(CURH-DVIH,143);
-                DVIH := CURH;
-              END;
-            IF CURV<>DVIV THEN
-              BEGIN
-                MOVEMENT(CURV-DVIV,157);
-                DVIV := CURV;
-              END;
+            synch_h;
+            synch_v;
             REPEAT
               F := MEM[P].HH.B0;
               C := MEM[P].HH.B1;
@@ -8384,38 +8227,16 @@ BEGIN
                       DVIFONTDEF(F);
                       FONTUSED[F] := TRUE;
                     END;
-                  IF F<=64 THEN
-                    BEGIN
-                      DVIBUF[DVIPTR] := F+170;
-                      DVIPTR := DVIPTR+1;
-                      IF DVIPTR=DVILIMIT THEN DVISWAP;
-                    END
+                  IF F<=64 THEN dvi_out(F+170)
                   ELSE
                     BEGIN
-                      BEGIN
-                        DVIBUF[DVIPTR] := 235;
-                        DVIPTR := DVIPTR+1;
-                        IF DVIPTR=DVILIMIT THEN DVISWAP;
-                      END;
-                      BEGIN
-                        DVIBUF[DVIPTR] := F-1;
-                        DVIPTR := DVIPTR+1;
-                        IF DVIPTR=DVILIMIT THEN DVISWAP;
-                      END;
+                      dvi_out(235);
+                      dvi_out(F-1);
                     END;
                   DVIF := F;
                 END{:621};
-              IF C>=128 THEN
-                BEGIN
-                  DVIBUF[DVIPTR] := 128;
-                  DVIPTR := DVIPTR+1;
-                  IF DVIPTR=DVILIMIT THEN DVISWAP;
-                END;
-              BEGIN
-                DVIBUF[DVIPTR] := C-0;
-                DVIPTR := DVIPTR+1;
-                IF DVIPTR=DVILIMIT THEN DVISWAP;
-              END;
+              IF C>=128 THEN dvi_out(128);
+              dvi_out(C);
               CURH := CURH+FONTINFO[WIDTHBASE[F]+FONTINFO[CHARBASE[F]+C].QQQQ.B0].INT;
               P := MEM[P].HH.RH;
             UNTIL NOT(P>=HIMEMMIN);
@@ -8435,7 +8256,7 @@ BEGIN
                        TEMPPTR := P;
                        EDGE := CURH;
                        IF MEM[P].HH.B0=1 THEN VLISTOUT
-                       ELSE HLISTOUT;
+                                         ELSE HLISTOUT;
                        DVIH := SAVEH;
                        DVIV := SAVEV;
                        CURH := EDGE+MEM[P+1].INT;
@@ -8518,25 +8339,16 @@ BEGIN
                               END{:627};
                             WHILE CURH+LEADERWD<=EDGE DO{628:}
                               BEGIN
-                                CURV := BASELINE+MEM[LEADERBOX+4].
-                                        INT;
-                                IF CURV<>DVIV THEN
-                                  BEGIN
-                                    MOVEMENT(CURV-DVIV,157);
-                                    DVIV := CURV;
-                                  END;
+                                CURV := BASELINE+MEM[LEADERBOX+4].INT;
+                                synch_v;
                                 SAVEV := DVIV;
-                                IF CURH<>DVIH THEN
-                                  BEGIN
-                                    MOVEMENT(CURH-DVIH,143);
-                                    DVIH := CURH;
-                                  END;
+                                synch_h;
                                 SAVEH := DVIH;
                                 TEMPPTR := LEADERBOX;
                                 OUTERDOINGLE := DOINGLEADERS;
                                 DOINGLEADERS := TRUE;
                                 IF MEM[LEADERBOX].HH.B0=1 THEN VLISTOUT
-                                ELSE HLISTOUT;
+                                                          ELSE HLISTOUT;
                                 DOINGLEADERS := OUTERDOINGLE;
                                 DVIV := SAVEV;
                                 DVIH := SAVEH;
@@ -8566,22 +8378,10 @@ BEGIN
             RULEHT := RULEHT+RULEDP;
             IF (RULEHT>0)AND(RULEWD>0)THEN
               BEGIN
-                IF CURH<>DVIH THEN
-                  BEGIN
-                    MOVEMENT(CURH-DVIH,143);
-                    DVIH := CURH;
-                  END;
+                synch_h;
                 CURV := BASELINE+RULEDP;
-                IF CURV<>DVIV THEN
-                  BEGIN
-                    MOVEMENT(CURV-DVIV,157);
-                    DVIV := CURV;
-                  END;
-                BEGIN
-                  DVIBUF[DVIPTR] := 132;
-                  DVIPTR := DVIPTR+1;
-                  IF DVIPTR=DVILIMIT THEN DVISWAP;
-                END;
+                synch_v;
+                dvi_out(132);
                 DVIFOUR(RULEHT);
                 DVIFOUR(RULEWD);
                 CURV := BASELINE;
@@ -8623,12 +8423,7 @@ BEGIN
   GSIGN := MEM[THISBOX+5].HH.B0;
   P := MEM[THISBOX+5].HH.RH;
   CURS := CURS+1;
-  IF CURS>0 THEN
-    BEGIN
-      DVIBUF[DVIPTR] := 141;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+  IF CURS>0 THEN dvi_out(141);
   IF CURS>MAXPUSH THEN MAXPUSH := CURS;
   SAVELOC := DVIOFFSET+DVIPTR;
   LEFTEDGE := CURH;
@@ -8641,22 +8436,18 @@ BEGIN
         BEGIN
           CASE MEM[P].HH.B0 OF 
             0,1:{632:}
-                 IF MEM[P+5].HH.RH=0 THEN CURV := CURV
-                                                  +MEM[P+3].INT+MEM[P+2].INT
+                 IF MEM[P+5].HH.RH=0 THEN
+                   CURV := CURV+MEM[P+3].INT+MEM[P+2].INT
                  ELSE
                    BEGIN
                      CURV := CURV+MEM[P+3].INT;
-                     IF CURV<>DVIV THEN
-                       BEGIN
-                         MOVEMENT(CURV-DVIV,157);
-                         DVIV := CURV;
-                       END;
+                     synch_v;
                      SAVEH := DVIH;
                      SAVEV := DVIV;
                      CURH := LEFTEDGE+MEM[P+4].INT;
                      TEMPPTR := P;
                      IF MEM[P].HH.B0=1 THEN VLISTOUT
-                     ELSE HLISTOUT;
+                                       ELSE HLISTOUT;
                      DVIH := SAVEH;
                      DVIV := SAVEV;
                      CURV := SAVEV+MEM[P+2].INT;
@@ -8739,26 +8530,17 @@ BEGIN
                             END{:636};
                           WHILE CURV+LEADERHT<=EDGE DO{637:}
                             BEGIN
-                              CURH := LEFTEDGE+MEM[LEADERBOX+4].
-                                      INT;
-                              IF CURH<>DVIH THEN
-                                BEGIN
-                                  MOVEMENT(CURH-DVIH,143);
-                                  DVIH := CURH;
-                                END;
+                              CURH := LEFTEDGE+MEM[LEADERBOX+4].INT;
+                              synch_h;
                               SAVEH := DVIH;
                               CURV := CURV+MEM[LEADERBOX+3].INT;
-                              IF CURV<>DVIV THEN
-                                BEGIN
-                                  MOVEMENT(CURV-DVIV,157);
-                                  DVIV := CURV;
-                                END;
+                              synch_v;
                               SAVEV := DVIV;
                               TEMPPTR := LEADERBOX;
                               OUTERDOINGLE := DOINGLEADERS;
                               DOINGLEADERS := TRUE;
                               IF MEM[LEADERBOX].HH.B0=1 THEN VLISTOUT
-                              ELSE HLISTOUT;
+                                                        ELSE HLISTOUT;
                               DOINGLEADERS := OUTERDOINGLE;
                               DVIV := SAVEV;
                               DVIH := SAVEH;
@@ -8781,21 +8563,9 @@ BEGIN
           CURV := CURV+RULEHT;
           IF (RULEHT>0)AND(RULEWD>0)THEN
             BEGIN
-              IF CURH<>DVIH THEN
-                BEGIN
-                  MOVEMENT(CURH-DVIH,143);
-                  DVIH := CURH;
-                END;
-              IF CURV<>DVIV THEN
-                BEGIN
-                  MOVEMENT(CURV-DVIV,157);
-                  DVIV := CURV;
-                END;
-              BEGIN
-                DVIBUF[DVIPTR] := 137;
-                DVIPTR := DVIPTR+1;
-                IF DVIPTR=DVILIMIT THEN DVISWAP;
-              END;
+              synch_h;
+              synch_v;
+              dvi_out(137);
               DVIFOUR(RULEHT);
               DVIFOUR(RULEWD);
             END;
@@ -8874,16 +8644,8 @@ BEGIN
     end;
 
     IF TOTALPAGES=0 THEN BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := 247;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := 2;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
+      dvi_out(247);
+      dvi_out(2);
       DVIFOUR(25400000);
       DVIFOUR(473628672);
       prepare_mag;
@@ -8894,21 +8656,11 @@ BEGIN
                           + IntToStr02(EQTB[int_base+day_code].INT) + ':'
                           + IntToStr02(EQTB[int_base+time_code].INT DIV 60)
                           + IntToStr02(EQTB[int_base+time_code].INT MOD 60);
-      DVIBUF[DVIPTR] := length(s);
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-      for i := 1 to length(s) do begin
-        DVIBUF[DVIPTR] := ord(s[i]);
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      end;
+      dvi_out(length(s));
+      for i := 1 to length(s) do dvi_out(ord(s[i]));
     END;
     PAGELOC := DVIOFFSET+DVIPTR;
-    BEGIN
-      DVIBUF[DVIPTR] := 139;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+    dvi_out(139);
     FOR K:=0 TO 9 DO DVIFOUR(EQTB[5318+K].INT);
     DVIFOUR(LASTBOP);
     LASTBOP := PAGELOC;
@@ -8916,11 +8668,7 @@ BEGIN
     TEMPPTR := P;
     IF MEM[P].HH.B0=1 THEN VLISTOUT
                       ELSE HLISTOUT;
-    BEGIN
-      DVIBUF[DVIPTR] := 140;
-      DVIPTR := DVIPTR+1;
-      IF DVIPTR=DVILIMIT THEN DVISWAP;
-    END;
+    dvi_out(140);
     TOTALPAGES := TOTALPAGES+1;
     CURS := -1;
   end;
@@ -8930,27 +8678,39 @@ BEGIN
   FLUSH(OUTPUT);
 {$IFDEF STATS}
   IF EQTB[5294].INT>1 THEN
-    BEGIN
-      print_nl_str('Memory usage before: ');
-      PRINTINT(VARUSED);
-      PRINTCHAR(38);
-      PRINTINT(DYNUSED);
-      PRINTCHAR(59);
-    END;
+    print_nl_str('Memory usage before: '
+                  + print_int(VARUSED) + '&'
+                  + print_int(DYNUSED) + ';');
 {$ENDIF}
   FLUSHNODELIS(P);
 {$IFDEF STATS}
   IF EQTB[5294].INT>1 THEN BEGIN
-      print_str(' after: ');
-      PRINTINT(VARUSED);
-      PRINTCHAR(38);
-      PRINTINT(DYNUSED);
-      print_str('; still untouched: ');
-      PRINTINT(HIMEMMIN-LOMEMMAX-1);
-      PRINTLN;
-    END;
+    print_str(' after: '
+                  + print_int(VARUSED) + '&'
+                  + print_int(DYNUSED) + '; still untouched: '
+                  + print_int(HIMEMMIN-LOMEMMAX-1));
+    PRINTLN;
+  END;
 {$ENDIF}
 END;
+
+
+
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  Packaging
+  ---------------------------------------------------------------------- }
+
+
+
+
+
+
 
 {108:}
 FUNCTION BADNESS(T,S:SCALED): HALFWORD;
@@ -10836,9 +10596,79 @@ BEGIN
 END;
 {:1070}
 
+PROCEDURE UNSAVE;
+VAR P: HALFWORD;
+  L: QUARTERWORD;
+  T: HALFWORD;
+BEGIN
+  IF CURLEVEL>1 THEN
+    BEGIN
+      CURLEVEL := CURLEVEL-1;
+{282:}
+      WHILE TRUE DO
+        BEGIN
+          SAVEPTR := SAVEPTR-1;
+          IF SAVESTACK[SAVEPTR].HH.B0=3 THEN break;
+          P := SAVESTACK[SAVEPTR].HH.RH;
+          IF SAVESTACK[SAVEPTR].HH.B0=2 THEN{326:}
+            BEGIN
+              T := CURTOK;
+              CURTOK := P;
+              BACKINPUT;
+              CURTOK := T;
+            END{:326}
+          ELSE
+            BEGIN
+              IF SAVESTACK[SAVEPTR].HH.B0=0 THEN
+                BEGIN
+                  L := 
+                       SAVESTACK[SAVEPTR].HH.B1;
+                  SAVEPTR := SAVEPTR-1;
+                END
+              ELSE SAVESTACK[SAVEPTR] := EQTB[2881];
 
-{786:}
-{787:}
+              {283:}
+              IF P<5263 THEN
+                IF EQTB[P].HH.B1=1 THEN
+                  BEGIN
+                    EQDESTROY(SAVESTACK[SAVEPTR]);
+                    {$IFDEF STATS}
+                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
+                    {$ENDIF}
+                  END
+              ELSE
+                BEGIN
+                  EQDESTROY(EQTB[P]);
+                  EQTB[P] := SAVESTACK[SAVEPTR];
+                  {$IFDEF STATS}
+                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
+                  {$ENDIF}
+                END
+              ELSE
+                IF XEQLEVEL[P]<>1 THEN
+                  BEGIN
+                    EQTB[P] := SAVESTACK[SAVEPTR];
+                    XEQLEVEL[P] := L;
+                    {$IFDEF STATS}
+                    IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'restoring');
+                    {$ENDIF}
+                  END
+              ELSE
+                BEGIN
+                  {$IFDEF STATS}
+                  IF EQTB[5300].INT>0 THEN restore_trace_str(P, 'retaining');
+                  {$ENDIF}
+                END;
+              {:283}
+
+            END;
+        END;
+      CURGROUP := SAVESTACK[SAVEPTR].HH.B1;
+      CURBOUNDARY := SAVESTACK[SAVEPTR].HH.RH{:282};
+    END
+  ELSE confusion_str('curlevel');
+END;
+
 PROCEDURE INITSPAN(P:HALFWORD);
 BEGIN
   PUSHNEST;
@@ -10850,7 +10680,6 @@ BEGIN
     END;
   CURSPAN := P;
 END;
-{:787}
 
 PROCEDURE INITROW;
 BEGIN
@@ -10869,7 +10698,6 @@ BEGIN
   CURTAIL := CURHEAD;
   INITSPAN(CURALIGN);
 END;
-{:786}
 
 {788:}
 PROCEDURE INITCOL;
@@ -11042,8 +10870,40 @@ END;
 
 {800:}
 PROCEDURE DOASSIGNMENT; FORWARD;
-PROCEDURE RESUMEAFTERD; FORWARD;
 PROCEDURE BUILDPAGE; FORWARD;
+
+
+
+
+FUNCTION NORMMIN(H:Int32): SMALLNUMBER;
+BEGIN
+  IF      H<=0  THEN NORMMIN := 1
+  ELSE IF H>=63 THEN NORMMIN := 63
+                ELSE NORMMIN := H;
+END;
+
+PROCEDURE RESUMEAFTERD;
+BEGIN
+  IF CURGROUP<>15 THEN confusion_str('display');
+  UNSAVE;
+  CURLIST.PGFIELD := CURLIST.PGFIELD+3;
+  PUSHNEST;
+  CURLIST.MODEFIELD := 102;
+  CURLIST.AUXFIELD.HH.LH := 1000;
+
+  IF EQTB[5313].INT<=0 THEN CURLANG := 0
+  ELSE IF EQTB[5313].INT>255 THEN CURLANG := 0
+  ELSE CURLANG := EQTB[5313].INT;
+
+  CURLIST.AUXFIELD.HH.RH := CURLANG;
+  CURLIST.PGFIELD := (NORMMIN(EQTB[5314].INT)*64+NORMMIN(EQTB[5315].INT))
+                     *65536+CURLANG;{443:}
+  BEGIN
+    GETXTOKEN;
+    IF CURCMD<>10 THEN BACKINPUT;
+  END{:443};
+  IF NESTPTR=1 THEN BUILDPAGE;
+END;
 
 
 PROCEDURE FINALIGN;
@@ -14909,14 +14769,6 @@ BEGIN
 END;
 
 
-FUNCTION NORMMIN(H:Int32): SMALLNUMBER;
-BEGIN
-  IF      H<=0  THEN NORMMIN := 1
-  ELSE IF H>=63 THEN NORMMIN := 63
-                ELSE NORMMIN := H;
-END;
-
-
 PROCEDURE NEWGRAF(INDENTED:BOOLEAN);
 BEGIN
   CURLIST.PGFIELD := 0;
@@ -16130,28 +15982,6 @@ BEGIN
       RESUMEAFTERD{:1199};
     END;
 END;{:1194}{1200:}
-PROCEDURE RESUMEAFTERD;
-BEGIN
-  IF CURGROUP<>15 THEN confusion_str('display');
-  UNSAVE;
-  CURLIST.PGFIELD := CURLIST.PGFIELD+3;
-  PUSHNEST;
-  CURLIST.MODEFIELD := 102;
-  CURLIST.AUXFIELD.HH.LH := 1000;
-  IF EQTB[5313].INT<=0 THEN CURLANG := 0
-  ELSE
-    IF EQTB[5313].INT>255 THEN
-      CURLANG := 0
-  ELSE CURLANG := EQTB[5313].INT;
-  CURLIST.AUXFIELD.HH.RH := CURLANG;
-  CURLIST.PGFIELD := (NORMMIN(EQTB[5314].INT)*64+NORMMIN(EQTB[5315].INT))
-                     *65536+CURLANG;{443:}
-  BEGIN
-    GETXTOKEN;
-    IF CURCMD<>10 THEN BACKINPUT;
-  END{:443};
-  IF NESTPTR=1 THEN BUILDPAGE;
-END;
 
 
 PROCEDURE GETRTOKEN;
@@ -18568,7 +18398,7 @@ BEGIN
     END;
   MEM[CURLIST.TAILFIELD].HH.RH := LIGSTACK;
   CURLIST.TAILFIELD := LIGSTACK{:1036};
-  100:{1038:}GETNEXT;
+  100:{1038:}get_next(true);
   IF CURCMD=11 THEN GOTO 101;
   IF CURCMD=12 THEN GOTO 101;
   IF CURCMD=68 THEN GOTO 101;
@@ -20846,7 +20676,7 @@ BEGIN
       L := STRSTART[S+1]-K;
       FOR J:=0 TO L-1 DO
         BUFFER[J] := STRPOOL[K+J];
-      CURVAL := IDLOOKUP(0,L);
+      CURVAL := id_lookup(false, 0, L);
       BEGIN
         STRPTR := STRPTR-1;
         POOLPTR := STRSTART[STRPTR];
@@ -20862,7 +20692,6 @@ END;
 {1336:}
 PROCEDURE INITPRIM;
 BEGIN
-  NONEWCONTROL := FALSE;
 {226:}
   PRIMITIVE(376,75,2882);
   PRIMITIVE(377,75,2883);
@@ -21235,7 +21064,6 @@ BEGIN
   PRIMITIVE(1287,59,3);
   PRIMITIVE(1288,59,4);
   PRIMITIVE(1289,59,5);{:1344};
-  NONEWCONTROL := TRUE;
 END;{$ENDIF}
 {:1336}
 
@@ -21348,96 +21176,54 @@ BEGIN
                 SAVESIZE:1,'s');
       END{:1334};{$ENDIF};
 {642:}
-  WHILE CURS>-1 DO
-    BEGIN
-      IF CURS>0 THEN
-        BEGIN
-          DVIBUF[DVIPTR] := 142;
-          DVIPTR := DVIPTR+1;
-          IF DVIPTR=DVILIMIT THEN DVISWAP;
-        END
-      ELSE
-        BEGIN
-          BEGIN
-            DVIBUF[DVIPTR] := 140;
-            DVIPTR := DVIPTR+1;
-            IF DVIPTR=DVILIMIT THEN DVISWAP;
-          END;
-          TOTALPAGES := TOTALPAGES+1;
-        END;
-      CURS := CURS-1;
+  WHILE CURS>-1 DO BEGIN
+    IF CURS>0 
+    THEN dvi_out(142)
+    ELSE BEGIN
+      dvi_out(140);
+      TOTALPAGES := TOTALPAGES+1;
     END;
-  IF TOTALPAGES=0 THEN print_nl_str('No pages of output.')
-  ELSE
-    BEGIN
-      BEGIN
-        DVIBUF[DVIPTR] := 248;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      DVIFOUR(LASTBOP);
-      LASTBOP := DVIOFFSET+DVIPTR-5;
-      DVIFOUR(25400000);
-      DVIFOUR(473628672);
-      prepare_mag;
-      DVIFOUR(EQTB[5280].INT);
-      DVIFOUR(MAXV);
-      DVIFOUR(MAXH);
-      BEGIN
-        DVIBUF[DVIPTR] := MAXPUSH DIV 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := MAXPUSH MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := (TOTALPAGES DIV 256)MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      BEGIN
-        DVIBUF[DVIPTR] := TOTALPAGES MOD 256;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-{643:}
-      WHILE FONTPTR>0 DO
-        BEGIN
-          IF FONTUSED[FONTPTR]THEN DVIFONTDEF(
-                                              FONTPTR);
-          FONTPTR := FONTPTR-1;
-        END{:643};
-      BEGIN
-        DVIBUF[DVIPTR] := 249;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      DVIFOUR(LASTBOP);
-      BEGIN
-        DVIBUF[DVIPTR] := 2;
-        DVIPTR := DVIPTR+1;
-        IF DVIPTR=DVILIMIT THEN DVISWAP;
-      END;
-      K := 4+((DVIBUFSIZE-DVIPTR)MOD 4);
-      WHILE K>0 DO
-        BEGIN
-          BEGIN
-            DVIBUF[DVIPTR] := 223;
-            DVIPTR := DVIPTR+1;
-            IF DVIPTR=DVILIMIT THEN DVISWAP;
-          END;
-          K := K-1;
-        END;
-{599:}
-      IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,DVIBUFSIZE-1);
-      IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
-      print_nl_str('Output written on ');
-      slow_print_str(output_file_name);
-        {FIXME: this is the only reason for saving output_file_name}
-      print_str(' (');
+    CURS := CURS-1;
+  END;
+  
+  IF TOTALPAGES=0
+  THEN print_nl_str('No pages of output.')
+  ELSE BEGIN
+    dvi_out(248);
+    DVIFOUR(LASTBOP);
+    LASTBOP := DVIOFFSET+DVIPTR-5;
+    DVIFOUR(25400000);
+    DVIFOUR(473628672);
+    prepare_mag;
+    DVIFOUR(EQTB[5280].INT);
+    DVIFOUR(MAXV);
+    DVIFOUR(MAXH);
+    dvi_out(MAXPUSH DIV 256);
+    dvi_out(MAXPUSH MOD 256);
+    dvi_out((TOTALPAGES DIV 256) MOD 256);
+    dvi_out(TOTALPAGES MOD 256);
+
+    {643:}
+    WHILE FONTPTR>0 DO BEGIN
+      IF FONTUSED[FONTPTR] THEN DVIFONTDEF(FONTPTR);
+      FONTPTR := FONTPTR-1;
+    END
+    {:643};
+
+    dvi_out(249);
+    DVIFOUR(LASTBOP);
+    dvi_out(2);
+    K := 4+((dvi_buf_size-DVIPTR)MOD 4);
+    WHILE K>0 DO BEGIN
+      dvi_out(223);
+      K := K-1;
+    END;
+
+    {599:}
+    IF DVILIMIT=HALFBUF THEN WRITEDVI(HALFBUF,dvi_buf_size-1);
+    IF DVIPTR>0 THEN WRITEDVI(0,DVIPTR-1){:599};
+    print_nl_str('Output written on ' + output_file_name + ' (');
+      {FIXME: this is the only reason for saving output_file_name}
       PRINTINT(TOTALPAGES);
       print_str(' page');
       IF TOTALPAGES<>1 THEN PRINTCHAR(115);
@@ -21445,7 +21231,8 @@ BEGIN
       PRINTINT(DVIOFFSET+DVIPTR);
       print_str(' bytes).');
       close(DVIFILE);
-    END{:642};
+  END;
+  {:642}
   IF LOGOPENED THEN
     BEGIN
       WRITELN(LOGFILE);
