@@ -721,9 +721,8 @@ VAR
   OKTOINTERRUP: BOOLEAN;{:96}{104:}
   ARITHERROR: BOOLEAN;
   REMAINDER: SCALED;
-{:104}{115:}
-  TEMPPTR: HALFWORD;
-{:115}{116:}
+{:104}
+{116:}
   MEM: ARRAY[MEMMIN..MEMMAX] OF MEMORYWORD;
   LOMEMMAX: HALFWORD;
   HIMEMMIN: HALFWORD;{:116}{117:}
@@ -854,7 +853,6 @@ VAR
   MAXPUSH: Int32;
   LASTBOP: Int32;
   DEADCYCLES: Int32;
-  DOINGLEADERS: BOOLEAN;
   C,F: QUARTERWORD;
   RULEHT,RULEDP,RULEWD: SCALED;
   G: HALFWORD;
@@ -880,11 +878,10 @@ VAR
   PACKBEGINLIN: Int32;{:661}{684:}
   EMPTYFIELD: TWOHALVES;
   NULLDELIMITE: FOURQUARTERS;{:684}{719:}
-  CURMLIST: HALFWORD;
-  CURSTYLE: SMALLNUMBER;
   CURSIZE: SMALLNUMBER;
   CURMU: SCALED;
-  MLISTPENALTI: BOOLEAN;{:719}{724:}
+{:719}
+{724:}
   CURF: INTERNALFONT;
   CURC: QUARTERWORD;
   CURI: FOURQUARTERS;{:724}{764:}
@@ -1238,7 +1235,6 @@ BEGIN{21:}
   MAXH := 0;
   MAXPUSH := 0;
   LASTBOP := -1;
-  DOINGLEADERS := FALSE;
   DEADCYCLES := 0;
   CURS := -1;
 {:593}{596:}
@@ -2788,7 +2784,7 @@ function print_fam_and_char(Node: HALFWORD) : shortstring;
 BEGIN
   print_fam_and_char := print_esc('fam')
                       + print_int(MEM[Node].HH.B0) + ' '
-                      + GetString(MEM[Node].HH.B1-0);
+                      + GetString(MEM[Node].HH.B1);
 END;
 
 
@@ -2802,41 +2798,6 @@ BEGIN
          ELSE print_delimiter := print_hex(A);
 END;
 
-
-{692:}
-{@ The inelegant introduction of |show_info| in the code above seems better
-than the alternative of using \PASCAL's strange |forward| declaration for a
-procedure with parameters. The \PASCAL\ convention about dropping parameters
-from a post-|forward| procedure is, frankly, so intolerable to the author
-of \TeX\ that he would rather stoop to communication via a global temporary
-variable. (A similar stoopidity occurred with respect to |hlist_out| and
-|vlist_out| above, and it will occur with respect to |mlist_to_hlist| below.)}
-PROCEDURE SHOWINFO; FORWARD;
-
-PROCEDURE PRINTSUBSIDI(P:HALFWORD;C:ASCIICODE);
-BEGIN
-  IF (POOLPTR-STRSTART[STRPTR])>=DEPTHTHRESHO THEN BEGIN
-    IF MEM[P].HH.RH<>0 THEN print_str(' []');
-  END ELSE BEGIN
-    append_char(C);
-    TEMPPTR := P;
-    CASE MEM[P].HH.RH OF 
-      1:  BEGIN
-            PRINTLN;
-            PRINTCURRENT;
-            print_str(print_fam_and_char(P));
-          END;
-      2:  SHOWINFO;
-      3:  IF MEM[P].HH.LH=0 THEN BEGIN
-            PRINTLN;
-            PRINTCURRENT;
-            print_str('{}');
-          END ELSE SHOWINFO;
-    END;
-    POOLPTR := POOLPTR-1;
-  END;
-END;
-{:692}
 
 function print_style(Code: int32) : shortstring;
 begin
@@ -2879,8 +2840,41 @@ begin
 END;
 
 
+procedure SHOWNODELIST(P: Int32); forward;
+
+{@ The next subroutine will descend to another level of recursion when a
+subsidiary mlist needs to be displayed. The parameter |c| indicates what
+character is to become part of the recursion history. An empty mlist is
+distinguished from a field with |math_type(p)=empty|, because these are
+not equivalent (as explained above).}
+
+(*print_subsidiary_data*)
+
+PROCEDURE PRINTSUBSIDI(P:HALFWORD;C:ASCIICODE);
+BEGIN
+  IF (POOLPTR-STRSTART[STRPTR])>=DEPTHTHRESHO THEN BEGIN
+    IF MEM[P].HH.RH<>0 THEN print_str(' []');
+  END ELSE BEGIN
+    append_char(C);
+    CASE MEM[P].HH.RH OF 
+      1:  BEGIN
+            PRINTLN;
+            PRINTCURRENT;
+            print_str(print_fam_and_char(P));
+          END;
+      2:  SHOWNODELIST(MEM[P].HH.LH);
+      3:  IF MEM[P].HH.LH=0 THEN BEGIN
+            PRINTLN;
+            PRINTCURRENT;
+            print_str('{}');
+          END ELSE SHOWNODELIST(MEM[P].HH.LH);
+    END;
+    POOLPTR := POOLPTR-1;
+  END;
+END;
+
 {182:}
-PROCEDURE SHOWNODELIST(P:Int32);
+PROCEDURE SHOWNODELIST(P: Int32);
 VAR N: Int32;
   G: Double;
 BEGIN
@@ -3168,13 +3162,6 @@ BEGIN
   END;
 END;
 {:182}
-
-{693:}
-PROCEDURE SHOWINFO;
-BEGIN
-  SHOWNODELIST(MEM[TEMPPTR].HH.LH);
-END;
-{:693}
 
 {198:}
 PROCEDURE SHOWBOX(P:HALFWORD);
@@ -4068,19 +4055,22 @@ BEGIN
   MEM[Q].HH.RH := MEM[Q].HH.RH+1;
   NEWGLUE := P;
 END;
-{:153}{154:}
-FUNCTION NEWSKIPPARAM(N:SMALLNUMBER): HALFWORD;
+{:153}
 
+{154:}
+function new_skip_param(var NewSpecPtr: HALFWORD; N:SMALLNUMBER): HALFWORD;
 VAR P: HALFWORD;
 BEGIN
-  TEMPPTR := NEWSPEC({224:}EQTB[2882+N].HH.RH{:224});
-  P := NEWGLUE(TEMPPTR);
-  MEM[TEMPPTR].HH.RH := 0;
+  NewSpecPtr := NEWSPEC({224:}EQTB[2882+N].HH.RH{:224});
+  P := NEWGLUE(NewSpecPtr);
+  MEM[NewSpecPtr].HH.RH := 0;
   MEM[P].HH.B1 := N+1;
-  NEWSKIPPARAM := P;
-END;{:154}{156:}
-FUNCTION NEWKERN(W:SCALED): HALFWORD;
+  new_skip_param := P;
+END;
+{:154}
 
+{156:}
+FUNCTION NEWKERN(W:SCALED): HALFWORD;
 VAR P: HALFWORD;
 BEGIN
   P := GETNODE(2);
@@ -8062,51 +8052,44 @@ END;
 {:1370}
 
 {1373:}
-PROCEDURE OUTWHAT(P:HALFWORD);
-VAR 
+procedure out_what(P:HALFWORD; doing_leaders: boolean);
+VAR
   J: SMALLNUMBER;
   FileName: shortstring;
 BEGIN
   CASE MEM[P].HH.B1 OF 
-    0,1,2:{1374:}
-           IF NOT DOINGLEADERS THEN
-             BEGIN
-               J 
-               := MEM[P+1].HH.LH;
-               IF MEM[P].HH.B1=1 THEN WRITEOUT(P)
-               ELSE
-                 BEGIN
-                   IF WRITEOPEN[J]THEN close(WRITEFILE[J]);
-                   IF MEM[P].HH.B1=2 THEN WRITEOPEN[J] := FALSE
-                   ELSE
-                     IF J<16 THEN
-                       BEGIN
-                         FileName := GetString(MEM[P+1].HH.RH);
-                         while not a_open_out(WRITEFILE[J], FileName) do begin
-                           FileName := prompt_file_name(FileName, 'output file name', '.tex');
-                         end;
-
-                         WRITEOPEN[J] := TRUE;
-                       END;
-                 END;
-             END{:1374};
-    3: SPECIALOUT(P);
-    4:;
-    ELSE confusion_str('ext4')
+    0,1,2:  {1374:}
+            IF NOT doing_leaders THEN BEGIN
+              J := MEM[P+1].HH.LH;
+              IF MEM[P].HH.B1=1 THEN WRITEOUT(P)
+              ELSE BEGIN
+                IF WRITEOPEN[J] THEN close(WRITEFILE[J]);
+                IF MEM[P].HH.B1=2 THEN WRITEOPEN[J] := FALSE
+                ELSE IF J<16 THEN BEGIN
+                  FileName := GetString(MEM[P+1].HH.RH);
+                  while not a_open_out(WRITEFILE[J], FileName) do begin
+                    FileName := prompt_file_name(FileName, 'output file name', '.tex');
+                  end;
+                  WRITEOPEN[J] := TRUE;
+                END;
+              END;
+            END;
+            {:1374}
+    3:      SPECIALOUT(P);
+    4:      ;
+    ELSE    confusion_str('ext4')
   END;
 END;
 
-PROCEDURE VLISTOUT; FORWARD;
 
+procedure vlist_out(doing_leaders: boolean; THISBOX: HALFWORD); forward;
 
-PROCEDURE HLISTOUT;
-
+procedure hlist_out(doing_leaders: boolean; THISBOX: HALFWORD);
 LABEL 21,13,14,15;
-
-VAR BASELINE: SCALED;
+VAR
+  BASELINE: SCALED;
   LEFTEDGE: SCALED;
   SAVEH,SAVEV: SCALED;
-  THISBOX: HALFWORD;
   GORDER: GLUEORD;
   GSIGN: 0..2;
   P: HALFWORD;
@@ -8114,7 +8097,6 @@ VAR BASELINE: SCALED;
   LEADERBOX: HALFWORD;
   LEADERWD: SCALED;
   LX: SCALED;
-  OUTERDOINGLE: BOOLEAN;
   EDGE: SCALED;
   GLUETEMP: Double;
   CURGLUE: Double;
@@ -8122,7 +8104,6 @@ VAR BASELINE: SCALED;
 BEGIN
   CURG := 0;
   CURGLUE := 0.0;
-  THISBOX := TEMPPTR;
   GORDER := MEM[THISBOX+5].HH.B1;
   GSIGN := MEM[THISBOX+5].HH.B0;
   P := MEM[THISBOX+5].HH.RH;
@@ -8174,10 +8155,9 @@ BEGIN
                        SAVEH := DVIH;
                        SAVEV := DVIV;
                        CURV := BASELINE+MEM[P+4].INT;
-                       TEMPPTR := P;
                        EDGE := CURH;
-                       IF MEM[P].HH.B0=1 THEN VLISTOUT
-                                         ELSE HLISTOUT;
+                       IF MEM[P].HH.B0=1 THEN vlist_out(doing_leaders, P)
+                                         ELSE hlist_out(doing_leaders, P);
                        DVIH := SAVEH;
                        DVIV := SAVEV;
                        CURH := EDGE+MEM[P+1].INT;
@@ -8190,7 +8170,7 @@ BEGIN
                    RULEWD := MEM[P+1].INT;
                    GOTO 14;
                  END;
-              8:{1367:}OUTWHAT(P){:1367};
+              8:{1367:}out_what(P, doing_leaders){:1367};
               10:{625:}
                   BEGIN
                     G := MEM[P+1].HH.LH;
@@ -8265,12 +8245,8 @@ BEGIN
                                 SAVEV := DVIV;
                                 synch_h;
                                 SAVEH := DVIH;
-                                TEMPPTR := LEADERBOX;
-                                OUTERDOINGLE := DOINGLEADERS;
-                                DOINGLEADERS := TRUE;
-                                IF MEM[LEADERBOX].HH.B0=1 THEN VLISTOUT
-                                                          ELSE HLISTOUT;
-                                DOINGLEADERS := OUTERDOINGLE;
+                                IF MEM[LEADERBOX].HH.B0=1 THEN vlist_out(true, LEADERBOX)
+                                                          ELSE hlist_out(true, LEADERBOX);
                                 DVIV := SAVEV;
                                 DVIH := SAVEH;
                                 CURV := BASELINE;
@@ -8315,15 +8291,17 @@ BEGIN
   IF CURS>0 THEN DVIPOP(SAVELOC);
   CURS := CURS-1;
 END;
-{:619}{629:}
-PROCEDURE VLISTOUT;
+{:619}
+
+{629:}
+procedure vlist_out(doing_leaders: boolean; THISBOX: HALFWORD);
 
 LABEL 13,14,15;
 
-VAR LEFTEDGE: SCALED;
+VAR
+  LEFTEDGE: SCALED;
   TOPEDGE: SCALED;
   SAVEH,SAVEV: SCALED;
-  THISBOX: HALFWORD;
   GORDER: GLUEORD;
   GSIGN: 0..2;
   P: HALFWORD;
@@ -8331,7 +8309,6 @@ VAR LEFTEDGE: SCALED;
   LEADERBOX: HALFWORD;
   LEADERHT: SCALED;
   LX: SCALED;
-  OUTERDOINGLE: BOOLEAN;
   EDGE: SCALED;
   GLUETEMP: Double;
   CURGLUE: Double;
@@ -8339,7 +8316,6 @@ VAR LEFTEDGE: SCALED;
 BEGIN
   CURG := 0;
   CURGLUE := 0.0;
-  THISBOX := TEMPPTR;
   GORDER := MEM[THISBOX+5].HH.B1;
   GSIGN := MEM[THISBOX+5].HH.B0;
   P := MEM[THISBOX+5].HH.RH;
@@ -8366,9 +8342,8 @@ BEGIN
                      SAVEH := DVIH;
                      SAVEV := DVIV;
                      CURH := LEFTEDGE+MEM[P+4].INT;
-                     TEMPPTR := P;
-                     IF MEM[P].HH.B0=1 THEN VLISTOUT
-                                       ELSE HLISTOUT;
+                     IF MEM[P].HH.B0=1 THEN vlist_out(doing_leaders, P)
+                                       ELSE hlist_out(doing_leaders, P);
                      DVIH := SAVEH;
                      DVIV := SAVEV;
                      CURV := SAVEV+MEM[P+2].INT;
@@ -8381,7 +8356,7 @@ BEGIN
                  RULEWD := MEM[P+1].INT;
                  GOTO 14;
                END;
-            8:{1366:}OUTWHAT(P){:1366};
+            8:{1366:}out_what(P, doing_leaders){:1366};
             10:{634:}
                 BEGIN
                   G := MEM[P+1].HH.LH;
@@ -8457,12 +8432,8 @@ BEGIN
                               CURV := CURV+MEM[LEADERBOX+3].INT;
                               synch_v;
                               SAVEV := DVIV;
-                              TEMPPTR := LEADERBOX;
-                              OUTERDOINGLE := DOINGLEADERS;
-                              DOINGLEADERS := TRUE;
-                              IF MEM[LEADERBOX].HH.B0=1 THEN VLISTOUT
-                                                        ELSE HLISTOUT;
-                              DOINGLEADERS := OUTERDOINGLE;
+                              IF MEM[LEADERBOX].HH.B0=1 THEN vlist_out(true, LEADERBOX)
+                                                        ELSE hlist_out(true, LEADERBOX);
                               DVIV := SAVEV;
                               DVIH := SAVEH;
                               CURH := LEFTEDGE;
@@ -8498,7 +8469,10 @@ BEGIN
   PRUNEMOVEMEN(SAVELOC);
   IF CURS>0 THEN DVIPOP(SAVELOC);
   CURS := CURS-1;
-END;{:629}{638:}
+END;
+{:629}
+
+{638:}
 PROCEDURE SHIPOUT(P:HALFWORD);
 VAR
   PAGELOC: Int32;
@@ -8586,9 +8560,8 @@ BEGIN
     DVIFOUR(LASTBOP);
     LASTBOP := PAGELOC;
     CURV := MEM[P+3].INT+EQTB[5849].INT;
-    TEMPPTR := P;
-    IF MEM[P].HH.B0=1 THEN VLISTOUT
-                      ELSE HLISTOUT;
+    IF MEM[P].HH.B0=1 THEN vlist_out(false, P)
+                      ELSE hlist_out(false, P);
     dvi_out(140);
     TOTALPAGES := TOTALPAGES+1;
     CURS := -1;
@@ -9105,33 +9078,33 @@ BEGIN
   ENDDIAGNOSTI(TRUE){:675};
   10: VPACKAGE := R;
 END;
-{:668}{679:}
-PROCEDURE APPENDTOVLIS(B:HALFWORD);
+{:668}
 
-VAR D: SCALED;
+{679:}
+PROCEDURE APPENDTOVLIS(B:HALFWORD);
+VAR
+  D: SCALED;
   P: HALFWORD;
+  temp_ptr: HALFWORD;
 BEGIN
-  IF CURLIST.AUXFIELD.INT>-65536000 THEN
-    BEGIN
-      D := MEM[EQTB[2883].HH.
-           RH+1].INT-CURLIST.AUXFIELD.INT-MEM[B+3].INT;
-      IF D<EQTB[5832].INT THEN P := NEWPARAMGLUE(0)
-      ELSE
-        BEGIN
-          P := NEWSKIPPARAM(1)
-          ;
-          MEM[TEMPPTR+1].INT := D;
-        END;
-      MEM[CURLIST.TAILFIELD].HH.RH := P;
-      CURLIST.TAILFIELD := P;
+  IF CURLIST.AUXFIELD.INT>-65536000 THEN BEGIN
+    D := MEM[EQTB[2883].HH.RH+1].INT-CURLIST.AUXFIELD.INT-MEM[B+3].INT;
+    IF D<EQTB[5832].INT THEN P := NEWPARAMGLUE(0)
+    ELSE BEGIN
+      P := new_skip_param(temp_ptr, 1);
+      MEM[temp_ptr+1].INT := D;
     END;
+    MEM[CURLIST.TAILFIELD].HH.RH := P;
+    CURLIST.TAILFIELD := P;
+  END;
   MEM[CURLIST.TAILFIELD].HH.RH := B;
   CURLIST.TAILFIELD := B;
   CURLIST.AUXFIELD.INT := MEM[B+2].INT;
 END;
-{:679}{686:}
-FUNCTION NEWNOAD: HALFWORD;
+{:679}
 
+{686:}
+FUNCTION NEWNOAD: HALFWORD;
 VAR P: HALFWORD;
 BEGIN
   P := GETNODE(4);
@@ -9446,10 +9419,14 @@ BEGIN
   CURLIST.TAILFIELD := CURLIST.HEADFIELD;
   CURLIST.AUXFIELD.INT := 0;
 END;
-{:718}{720:}
-PROCEDURE MLISTTOHLIST; FORWARD;
+{:718}
 
-FUNCTION CLEANBOX(P:HALFWORD; S:SMALLNUMBER): HALFWORD;
+{720:}
+procedure mlist_to_hlist(MLIST: HALFWORD; STYLE: SMALLNUMBER; PENALTIES: boolean); forward;
+
+FUNCTION CLEANBOX(P:HALFWORD;
+                  new_style: SMALLNUMBER;
+                  cur_style: SMALLNUMBER): HALFWORD;
 VAR 
   Q: HALFWORD;
   SAVESTYLE: SMALLNUMBER;
@@ -9459,18 +9436,14 @@ BEGIN
   X := MEM[P].HH.RH;
   if (X=1) or (X=3) then begin
     if X=1 then begin
-      CURMLIST := NEWNOAD;
-      MEM[CURMLIST+1] := MEM[P];
+      Q := NEWNOAD;
+      MEM[Q+1] := MEM[P];
     end else begin
-      CURMLIST := MEM[P].HH.LH;
+      Q := MEM[P].HH.LH;
     end;
-    SAVESTYLE := CURSTYLE;
-    CURSTYLE := S;
-    MLISTPENALTI := FALSE;
-    MLISTTOHLIST;
-    CURSTYLE := SAVESTYLE;
-    IF CURSTYLE<4 THEN CURSIZE := 0
-                  ELSE CURSIZE := 16*((CURSTYLE-2) DIV 2);
+    mlist_to_hlist(Q, new_style, false);
+    IF cur_style<4 THEN CURSIZE := 0
+                   ELSE CURSIZE := 16*((cur_style-2) DIV 2);
     CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
     Q := MEM[29997].HH.RH;
   end else begin
@@ -9540,36 +9513,43 @@ BEGIN
         END;
     END;
 END;
-{:722}{726:}{734:}
-PROCEDURE MAKEOVER(Q:HALFWORD);
+{:722}
+
+{726:}
+{734:}
+PROCEDURE MAKEOVER(Q:HALFWORD; cur_style: SMALLNUMBER);
 BEGIN
-  MEM[Q+1].HH.LH := OVERBAR(CLEANBOX(Q+1,2*(CURSTYLE DIV 2)+1),3*
-                    FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT,FONTINFO[8+PARAMBASE
-                    [EQTB[3938+CURSIZE].HH.RH]].INT);
+  MEM[Q+1].HH.LH := OVERBAR(CLEANBOX(Q+1, 2*(cur_style DIV 2)+1, cur_style),
+                            3*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT,
+                            FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT);
   MEM[Q+1].HH.RH := 2;
 END;
-{:734}{735:}
-PROCEDURE MAKEUNDER(Q:HALFWORD);
+{:734}
 
-VAR P,X,Y: HALFWORD;
+{735:}
+PROCEDURE MAKEUNDER(Q:HALFWORD; cur_style: SMALLNUMBER);
+VAR 
+  P,X,Y: HALFWORD;
   DELTA: SCALED;
 BEGIN
-  X := CLEANBOX(Q+1,CURSTYLE);
+  X := CLEANBOX(Q+1, cur_style, cur_style);
   P := NEWKERN(3*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT);
   MEM[X].HH.RH := P;
-  MEM[P].HH.RH := FRACTIONRULE(FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH
-                  ]].INT);
+  MEM[P].HH.RH := FRACTIONRULE(FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT);
   Y := VPACKAGE(X,0,1,1073741823);
-  DELTA := MEM[Y+3].INT+MEM[Y+2].INT+FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE]
-           .HH.RH]].INT;
+  DELTA := MEM[Y+3].INT + MEM[Y+2].INT +
+           FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
   MEM[Y+3].INT := MEM[X+3].INT;
   MEM[Y+2].INT := DELTA-MEM[Y+3].INT;
   MEM[Q+1].HH.LH := Y;
   MEM[Q+1].HH.RH := 2;
-END;{:735}{736:}
-PROCEDURE MAKEVCENTER(Q:HALFWORD);
+END;
+{:735}
 
-VAR V: HALFWORD;
+{736:}
+PROCEDURE MAKEVCENTER(Q:HALFWORD);
+VAR
+  V: HALFWORD;
   DELTA: SCALED;
 BEGIN
   V := MEM[Q+1].HH.LH;
@@ -9579,20 +9559,22 @@ BEGIN
                   DELTA);
   MEM[V+2].INT := DELTA-MEM[V+3].INT;
 END;
-{:736}{737:}
-PROCEDURE MAKERADICAL(Q:HALFWORD);
+{:736}
 
-VAR X,Y: HALFWORD;
+{737:}
+PROCEDURE MAKERADICAL(Q:HALFWORD; cur_style: SMALLNUMBER);
+VAR
+  X,Y: HALFWORD;
   DELTA,CLR: SCALED;
 BEGIN
-  X := CLEANBOX(Q+1,2*(CURSTYLE DIV 2)+1);
-  IF CURSTYLE<2 THEN CLR := FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].
-                            INT+(ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT)DIV 4)
-  ELSE
-    BEGIN
-      CLR := FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
-      CLR := CLR+(ABS(CLR)DIV 4);
-    END;
+  X := CLEANBOX(Q+1,2*(cur_style DIV 2)+1, cur_style);
+  IF cur_style<2
+  THEN CLR := FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT +
+              (ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT) DIV 4)
+  ELSE BEGIN
+    CLR := FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
+    CLR := CLR+(ABS(CLR)DIV 4);
+  END;
   Y := VARDELIMITER(Q+4,CURSIZE,MEM[X+3].INT+MEM[X+2].INT+CLR+FONTINFO[8+
        PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT);
   DELTA := MEM[Y+2].INT-(MEM[X+3].INT+MEM[X+2].INT+CLR);
@@ -9602,7 +9584,7 @@ BEGIN
   MEM[Q+1].HH.LH := HPACK(Y,0,1);
   MEM[Q+1].HH.RH := 2;
 END;{:737}{738:}
-PROCEDURE MAKEMATHACCE(Q:HALFWORD);
+PROCEDURE MAKEMATHACCE(Q:HALFWORD; cur_style: SMALLNUMBER);
 
 LABEL 30,31;
 
@@ -9653,7 +9635,7 @@ BEGIN
             END;
         END;
       31:{:741};
-      X := CLEANBOX(Q+1,2*(CURSTYLE DIV 2)+1);
+      X := CLEANBOX(Q+1, 2*(cur_style DIV 2)+1, cur_style);
       W := MEM[X+1].INT;
       H := MEM[X+3].INT;
 {740:}
@@ -9683,7 +9665,7 @@ BEGIN
             MEM[Q+3].HH := EMPTYFIELD;
             MEM[Q+1].HH.RH := 3;
             MEM[Q+1].HH.LH := X;
-            X := CLEANBOX(Q+1,CURSTYLE);
+            X := CLEANBOX(Q+1, cur_style, cur_style);
             DELTA := DELTA+MEM[X+3].INT-H;
             H := MEM[X+3].INT;
           END{:742};
@@ -9707,60 +9689,51 @@ BEGIN
     END;
 END;
 {:738}{743:}
-PROCEDURE MAKEFRACTION(Q:HALFWORD);
-
-VAR P,V,X,Y,Z: HALFWORD;
+PROCEDURE MAKEFRACTION(Q:HALFWORD; cur_style: SMALLNUMBER);
+VAR
+   P,V,X,Y,Z: HALFWORD;
   DELTA,DELTA1,DELTA2,SHIFTUP,SHIFTDOWN,CLR: SCALED;
 BEGIN
-  IF MEM[Q+1].INT=1073741824 THEN MEM[Q+1].INT := FONTINFO[8+PARAMBASE
-                                                  [EQTB[3938+CURSIZE].HH.RH]].INT;
-{744:}
-  X := CLEANBOX(Q+2,CURSTYLE+2-2*(CURSTYLE DIV 6));
-  Z := CLEANBOX(Q+3,2*(CURSTYLE DIV 2)+3-2*(CURSTYLE DIV 6));
+  IF MEM[Q+1].INT=1073741824 
+  THEN MEM[Q+1].INT := FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
+
+  {744:}
+  X := CLEANBOX(Q+2,    cur_style       +2-2*(cur_style DIV 6), cur_style);
+  Z := CLEANBOX(Q+3, 2*(cur_style DIV 2)+3-2*(cur_style DIV 6), cur_style);
   IF MEM[X+1].INT<MEM[Z+1].INT THEN X := REBOX(X,MEM[Z+1].INT)
   ELSE Z := REBOX(
             Z,MEM[X+1].INT);
-  IF CURSTYLE<2 THEN
-    BEGIN
-      SHIFTUP := FONTINFO[8+PARAMBASE[EQTB[3937+CURSIZE
-                 ].HH.RH]].INT;
-      SHIFTDOWN := FONTINFO[11+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
-    END
-  ELSE
-    BEGIN
-      SHIFTDOWN := FONTINFO[12+PARAMBASE[EQTB[3937+CURSIZE].HH.RH
-                   ]].INT;
-      IF MEM[Q+1].INT<>0 THEN SHIFTUP := FONTINFO[9+PARAMBASE[EQTB[3937+CURSIZE]
-                                         .HH.RH]].INT
-      ELSE SHIFTUP := FONTINFO[10+PARAMBASE[EQTB[3937+CURSIZE].HH.
-                      RH]].INT;
-    END{:744};
-  IF MEM[Q+1].INT=0 THEN{745:}
-    BEGIN
-      IF CURSTYLE<2 THEN CLR := 7*FONTINFO[8+
-                                PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT
-      ELSE CLR := 3*FONTINFO[8+
-                  PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
-      DELTA := HALF(CLR-((SHIFTUP-MEM[X+2].INT)-(MEM[Z+3].INT-SHIFTDOWN)));
-      IF DELTA>0 THEN
-        BEGIN
-          SHIFTUP := SHIFTUP+DELTA;
-          SHIFTDOWN := SHIFTDOWN+DELTA;
-        END;
-    END{:745}
-  ELSE{746:}
-    BEGIN
-      IF CURSTYLE<2 THEN CLR := 3*MEM[Q+1].INT
-      ELSE CLR 
-        := MEM[Q+1].INT;
-      DELTA := HALF(MEM[Q+1].INT);
-      DELTA1 := CLR-((SHIFTUP-MEM[X+2].INT)-(FONTINFO[22+PARAMBASE[EQTB[3937+
+  IF cur_style<2 THEN BEGIN
+    SHIFTUP := FONTINFO[8+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+    SHIFTDOWN := FONTINFO[11+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+  END ELSE BEGIN
+    SHIFTDOWN := FONTINFO[12+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+    IF MEM[Q+1].INT<>0
+    THEN SHIFTUP := FONTINFO[9+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+    ELSE SHIFTUP := FONTINFO[10+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+  END
+  {:744};
+
+  IF MEM[Q+1].INT=0 THEN{745:} BEGIN
+    IF cur_style<2
+    THEN CLR := 7*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT
+    ELSE CLR := 3*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT;
+    DELTA := HALF(CLR-((SHIFTUP-MEM[X+2].INT)-(MEM[Z+3].INT-SHIFTDOWN)));
+    IF DELTA>0 THEN BEGIN
+      SHIFTUP := SHIFTUP+DELTA;
+      SHIFTDOWN := SHIFTDOWN+DELTA;
+    END;
+  END{:745} ELSE{746:} BEGIN
+    IF cur_style<2 THEN CLR := 3*MEM[Q+1].INT
+                   ELSE CLR := MEM[Q+1].INT;
+    DELTA := HALF(MEM[Q+1].INT);
+    DELTA1 := CLR-((SHIFTUP-MEM[X+2].INT)-(FONTINFO[22+PARAMBASE[EQTB[3937+
                 CURSIZE].HH.RH]].INT+DELTA));
-      DELTA2 := CLR-((FONTINFO[22+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT-DELTA
+    DELTA2 := CLR-((FONTINFO[22+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT-DELTA
                 )-(MEM[Z+3].INT-SHIFTDOWN));
-      IF DELTA1>0 THEN SHIFTUP := SHIFTUP+DELTA1;
-      IF DELTA2>0 THEN SHIFTDOWN := SHIFTDOWN+DELTA2;
-    END{:746};
+    IF DELTA1>0 THEN SHIFTUP := SHIFTUP+DELTA1;
+    IF DELTA2>0 THEN SHIFTDOWN := SHIFTDOWN+DELTA2;
+  END{:746};
 {747:}
   V := NEWNULLBOX;
   MEM[V].HH.B0 := 1;
@@ -9787,30 +9760,30 @@ BEGIN
   MEM[X].HH.RH := P;
   MEM[V+5].HH.RH := X{:747};
 {748:}
-  IF CURSTYLE<2 THEN DELTA := FONTINFO[20+PARAMBASE[EQTB[3937+CURSIZE]
-                              .HH.RH]].INT
-  ELSE DELTA := FONTINFO[21+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]
-                ].INT;
+  IF cur_style<2
+  THEN DELTA := FONTINFO[20+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+  ELSE DELTA := FONTINFO[21+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
   X := VARDELIMITER(Q+4,CURSIZE,DELTA);
   MEM[X].HH.RH := V;
   Z := VARDELIMITER(Q+5,CURSIZE,DELTA);
   MEM[V].HH.RH := Z;
   MEM[Q+1].INT := HPACK(X,0,1){:748};
 END;
-{:743}{749:}
-FUNCTION MAKEOP(Q:HALFWORD): SCALED;
+{:743}
 
+{749:}
+FUNCTION MAKEOP(Q:HALFWORD; cur_style: SMALLNUMBER): SCALED;
 VAR DELTA: SCALED;
   P,V,X,Y,Z: HALFWORD;
   C: QUARTERWORD;
   I: FOURQUARTERS;
   SHIFTUP,SHIFTDOWN: SCALED;
 BEGIN
-  IF (MEM[Q].HH.B1=0)AND(CURSTYLE<2)THEN MEM[Q].HH.B1 := 1;
+  IF (MEM[Q].HH.B1=0)AND(cur_style<2)THEN MEM[Q].HH.B1 := 1;
   IF MEM[Q+1].HH.RH=1 THEN
     BEGIN
       FETCH(Q+1);
-      IF (CURSTYLE<2)AND(((CURI.B2-0)MOD 4)=2)THEN
+      IF (cur_style<2)AND(((CURI.B2-0)MOD 4)=2)THEN
         BEGIN
           C := CURI.B3;
           I := FONTINFO[CHARBASE[CURF]+C].QQQQ;
@@ -9822,9 +9795,9 @@ BEGIN
             END;
         END;
       DELTA := FONTINFO[ITALICBASE[CURF]+(CURI.B2-0)DIV 4].INT;
-      X := CLEANBOX(Q+1,CURSTYLE);
-      IF (MEM[Q+3].HH.RH<>0)AND(MEM[Q].HH.B1<>1)THEN MEM[X+1].INT := MEM[X+1].INT
-                                                                     -DELTA;
+      X := CLEANBOX(Q+1, cur_style, cur_style);
+      IF (MEM[Q+3].HH.RH<>0)AND(MEM[Q].HH.B1<>1)
+      THEN MEM[X+1].INT := MEM[X+1].INT-DELTA;
       MEM[X+4].INT := HALF(MEM[X+3].INT-MEM[X+2].INT)-FONTINFO[22+PARAMBASE[EQTB
                       [3937+CURSIZE].HH.RH]].INT;
       MEM[Q+1].HH.RH := 2;
@@ -9833,10 +9806,9 @@ BEGIN
   ELSE DELTA := 0;
   IF MEM[Q].HH.B1=1 THEN{750:}
     BEGIN
-      X := CLEANBOX(Q+2,2*(CURSTYLE DIV 4)+4+(
-           CURSTYLE MOD 2));
-      Y := CLEANBOX(Q+1,CURSTYLE);
-      Z := CLEANBOX(Q+3,2*(CURSTYLE DIV 4)+5);
+      X := CLEANBOX(Q+2, 2*(cur_style DIV 4)+4+(cur_style MOD 2), cur_style);
+      Y := CLEANBOX(Q+1, cur_style,                               cur_style);
+      Z := CLEANBOX(Q+3, 2*(cur_style DIV 4)+5,                   cur_style);
       V := NEWNULLBOX;
       MEM[V].HH.B0 := 1;
       MEM[V+1].INT := MEM[Y+1].INT;
@@ -9974,100 +9946,90 @@ BEGIN
                           END;
                       END;
             END;
-END;{:752}{756:}
-PROCEDURE MAKESCRIPTS(Q:HALFWORD;
-                      DELTA:SCALED);
+END;
+{:752}
 
+{756:}
+PROCEDURE MAKESCRIPTS(Q:HALFWORD; DELTA:SCALED; cur_style: SMALLNUMBER);
 VAR P,X,Y,Z: HALFWORD;
   SHIFTUP,SHIFTDOWN,CLR: SCALED;
   T: SMALLNUMBER;
 BEGIN
   P := MEM[Q+1].INT;
-  IF (P>=HIMEMMIN)THEN
+  IF (P>=HIMEMMIN) THEN BEGIN
+    SHIFTUP := 0;
+    SHIFTDOWN := 0;
+  END ELSE BEGIN
+    Z := HPACK(P,0,1);
+    IF cur_style<4 THEN T := 16
+                   ELSE T := 32;
+    SHIFTUP := MEM[Z+3].INT-FONTINFO[18+PARAMBASE[EQTB[3937+T].HH.RH]].INT;
+    SHIFTDOWN := MEM[Z+2].INT+FONTINFO[19+PARAMBASE[EQTB[3937+T].HH.RH]].INT;
+    FREENODE(Z,7);
+  END;
+  IF MEM[Q+2].HH.RH=0 THEN{757:} BEGIN
+    X := CLEANBOX(Q+3, 2*(cur_style DIV 4)+5, cur_style);
+    MEM[X+1].INT := MEM[X+1].INT+EQTB[5842].INT;
+    IF SHIFTDOWN<FONTINFO[16+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+    THEN SHIFTDOWN := FONTINFO[16+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+    CLR := MEM[X+3].INT -
+           (ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT*4)DIV 5);
+    IF SHIFTDOWN<CLR THEN SHIFTDOWN := CLR;
+    MEM[X+4].INT := SHIFTDOWN;
+  END{:757} ELSE BEGIN{758:}
     BEGIN
-      SHIFTUP := 0;
-      SHIFTDOWN := 0;
-    END
-  ELSE
-    BEGIN
-      Z := HPACK(P,0,1);
-      IF CURSTYLE<4 THEN T := 16
-      ELSE T := 32;
-      SHIFTUP := MEM[Z+3].INT-FONTINFO[18+PARAMBASE[EQTB[3937+T].HH.RH]].INT;
-      SHIFTDOWN := MEM[Z+2].INT+FONTINFO[19+PARAMBASE[EQTB[3937+T].HH.RH]].INT;
-      FREENODE(Z,7);
-    END;
-  IF MEM[Q+2].HH.RH=0 THEN{757:}
-    BEGIN
-      X := CLEANBOX(Q+3,2*(CURSTYLE DIV 4)+5
-           );
+      X := CLEANBOX(Q+2, 2*(cur_style DIV 4)+4+(cur_style MOD 2), cur_style);
       MEM[X+1].INT := MEM[X+1].INT+EQTB[5842].INT;
-      IF SHIFTDOWN<FONTINFO[16+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT THEN
-        SHIFTDOWN := FONTINFO[16+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
-      CLR := MEM[X+3].INT-(ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].
-             INT*4)DIV 5);
-      IF SHIFTDOWN<CLR THEN SHIFTDOWN := CLR;
+      IF ODD(cur_style)
+      THEN CLR := FONTINFO[15+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+      ELSE IF cur_style<2 
+           THEN CLR := FONTINFO[13+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+           ELSE CLR := FONTINFO[14+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+      IF SHIFTUP<CLR THEN SHIFTUP := CLR;
+      CLR := MEM[X+2].INT +
+             (ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT)DIV 4);
+      IF SHIFTUP<CLR THEN SHIFTUP := CLR;
+    END{:758};
+    IF MEM[Q+3].HH.RH=0
+    THEN MEM[X+4].INT := -SHIFTUP
+    ELSE{759:} BEGIN
+      Y := CLEANBOX(Q+3, 2*(cur_style DIV 4)+5, cur_style);
+      MEM[Y+1].INT := MEM[Y+1].INT+EQTB[5842].INT;
+      IF SHIFTDOWN<FONTINFO[17+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT
+      THEN SHIFTDOWN := FONTINFO[17+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
+      CLR := 4*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT -
+             ((SHIFTUP-MEM[X+2].INT)-(MEM[Y+3].INT-SHIFTDOWN));
+      IF CLR>0 THEN BEGIN
+        SHIFTDOWN := SHIFTDOWN+CLR;
+        CLR := (ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT*4) 
+               DIV 5) - (SHIFTUP-MEM[X+2].INT);
+        IF CLR>0 THEN BEGIN
+          SHIFTUP := SHIFTUP+CLR;
+          SHIFTDOWN := SHIFTDOWN-CLR;
+        END;
+      END;
+      MEM[X+4].INT := DELTA;
+      P := NEWKERN((SHIFTUP-MEM[X+2].INT)-(MEM[Y+3].INT-SHIFTDOWN));
+      MEM[X].HH.RH := P;
+      MEM[P].HH.RH := Y;
+      X := VPACKAGE(X,0,1,1073741823);
       MEM[X+4].INT := SHIFTDOWN;
-    END{:757}
-  ELSE
-    BEGIN{758:}
-      BEGIN
-        X := CLEANBOX(Q+2,2*(CURSTYLE DIV 4)+4+(
-             CURSTYLE MOD 2));
-        MEM[X+1].INT := MEM[X+1].INT+EQTB[5842].INT;
-        IF ODD(CURSTYLE)THEN CLR := FONTINFO[15+PARAMBASE[EQTB[3937+CURSIZE].HH.RH
-                                    ]].INT
-        ELSE
-          IF CURSTYLE<2 THEN CLR := FONTINFO[13+PARAMBASE[EQTB[3937+
-                                    CURSIZE].HH.RH]].INT
-        ELSE CLR := FONTINFO[14+PARAMBASE[EQTB[3937+CURSIZE].
-                    HH.RH]].INT;
-        IF SHIFTUP<CLR THEN SHIFTUP := CLR;
-        CLR := MEM[X+2].INT+(ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].
-               INT)DIV 4);
-        IF SHIFTUP<CLR THEN SHIFTUP := CLR;
-      END{:758};
-      IF MEM[Q+3].HH.RH=0 THEN MEM[X+4].INT := -SHIFTUP
-      ELSE{759:}
-        BEGIN
-          Y := 
-               CLEANBOX(Q+3,2*(CURSTYLE DIV 4)+5);
-          MEM[Y+1].INT := MEM[Y+1].INT+EQTB[5842].INT;
-          IF SHIFTDOWN<FONTINFO[17+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT THEN
-            SHIFTDOWN := FONTINFO[17+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
-          CLR := 4*FONTINFO[8+PARAMBASE[EQTB[3938+CURSIZE].HH.RH]].INT-((SHIFTUP-MEM
-                 [X+2].INT)-(MEM[Y+3].INT-SHIFTDOWN));
-          IF CLR>0 THEN
-            BEGIN
-              SHIFTDOWN := SHIFTDOWN+CLR;
-              CLR := (ABS(FONTINFO[5+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT*4)DIV 5)-(
-                     SHIFTUP-MEM[X+2].INT);
-              IF CLR>0 THEN
-                BEGIN
-                  SHIFTUP := SHIFTUP+CLR;
-                  SHIFTDOWN := SHIFTDOWN-CLR;
-                END;
-            END;
-          MEM[X+4].INT := DELTA;
-          P := NEWKERN((SHIFTUP-MEM[X+2].INT)-(MEM[Y+3].INT-SHIFTDOWN));
-          MEM[X].HH.RH := P;
-          MEM[P].HH.RH := Y;
-          X := VPACKAGE(X,0,1,1073741823);
-          MEM[X+4].INT := SHIFTDOWN;
-        END{:759};
-    END;
-  IF MEM[Q+1].INT=0 THEN MEM[Q+1].INT := X
-  ELSE
-    BEGIN
-      P := MEM[Q+1].INT;
-      WHILE MEM[P].HH.RH<>0 DO
-        P := MEM[P].HH.RH;
-      MEM[P].HH.RH := X;
-    END;
+    END{:759};
+  END;
+  IF MEM[Q+1].INT=0
+  THEN MEM[Q+1].INT := X
+  ELSE BEGIN
+    P := MEM[Q+1].INT;
+    WHILE MEM[P].HH.RH<>0 DO P := MEM[P].HH.RH;
+    MEM[P].HH.RH := X;
+  END;
 END;
-{:756}{762:}
-FUNCTION MAKELEFTRIGH(Q:HALFWORD;STYLE:SMALLNUMBER;
-                      MAXD,MAXH:SCALED): SMALLNUMBER;
+{:756}
+
+{762:}
+FUNCTION MAKELEFTRIGH(Q: HALFWORD;
+                      STYLE: SMALLNUMBER;
+                      MAXD, MAXH:SCALED): SMALLNUMBER;
 
 VAR DELTA,DELTA1,DELTA2: SCALED;
 BEGIN
@@ -10082,14 +10044,11 @@ BEGIN
   MEM[Q+1].INT := VARDELIMITER(Q+1,CURSIZE,DELTA);
   MAKELEFTRIGH := MEM[Q].HH.B0-(10);
 END;{:762}
-PROCEDURE MLISTTOHLIST;
 
-LABEL 21,82,80,81,83,30;
 
-VAR MLIST: HALFWORD;
-  PENALTIES: BOOLEAN;
-  STYLE: SMALLNUMBER;
-  SAVESTYLE: SMALLNUMBER;
+procedure mlist_to_hlist(MLIST: HALFWORD; STYLE: SMALLNUMBER; PENALTIES: boolean);
+LABEL 80;
+VAR
   Q: HALFWORD;
   R: HALFWORD;
   RTYPE: SMALLNUMBER;
@@ -10099,322 +10058,366 @@ VAR MLIST: HALFWORD;
   S: SMALLNUMBER;
   MAXH,MAXD: SCALED;
   DELTA: SCALED;
+
+  cur_style: SMALLNUMBER;
+  TypeQ: QUARTERWORD;
 BEGIN
-  MLIST := CURMLIST;
-  PENALTIES := MLISTPENALTI;
-  STYLE := CURSTYLE;
   Q := MLIST;
   R := 0;
   RTYPE := 17;
   MAXH := 0;
   MAXD := 0;
-{703:}
+  cur_style := STYLE;
+
+  {703:}
   BEGIN
-    IF CURSTYLE<4 THEN CURSIZE := 0
-    ELSE CURSIZE := 16*((CURSTYLE-2)
-                    DIV 2);
+    IF cur_style<4 THEN CURSIZE := 0
+                   ELSE CURSIZE := 16*((cur_style-2) DIV 2);
     CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-  END{:703};
-  WHILE Q<>0 DO{727:}
-    BEGIN{728:}
-      21: DELTA := 0;
-      CASE MEM[Q].HH.B0 OF 
-        18:
-            CASE RTYPE OF 
-              18,17,19,20,22,30:
-                                 BEGIN
-                                   MEM[Q].HH.
-                                   B0 := 16;
-                                   GOTO 21;
-                                 END;
-              ELSE
-            END;
-        19,21,22,31:
-                     BEGIN{729:}
-                       IF RTYPE=18 THEN MEM[R].HH.B0 := 16{:729};
-                       IF MEM[Q].HH.B0=31 THEN GOTO 80;
-                     END;{733:}
-        30: GOTO 80;
-        25:
+  END;
+  {:703}
+
+
+
+  WHILE Q<>0 DO BEGIN
+    {727:}
+    {728:}
+    DELTA := 0;
+    TypeQ := MEM[Q].HH.B0;
+    case TypeQ of
+      14: BEGIN
+            cur_style := MEM[Q].HH.B1;
+              {This is one of two cases where cur_style is modified}
+              {cur_style will be restored after this loop}
+
+            {703:}
             BEGIN
-              MAKEFRACTION(Q);
-              GOTO 82;
+              IF cur_style<4 THEN CURSIZE := 0
+                            ELSE CURSIZE := 16*((cur_style-2) DIV 2);
+              CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
             END;
-        17:
-            BEGIN
-              DELTA := MAKEOP(Q);
-              IF MEM[Q].HH.B1=1 THEN GOTO 82;
+            {:703}
+
+          END;
+      15: {731:}
+          BEGIN
+            CASE cur_style DIV 2 OF
+              0:  BEGIN
+                    P := MEM[Q+1].HH.LH;
+                    MEM[Q+1].HH.LH := 0;
+                  END;
+              1:  BEGIN
+                    P := MEM[Q+1].HH.RH;
+                    MEM[Q+1].HH.RH := 0;
+                  END;
+              2:  BEGIN
+                    P := MEM[Q+2].HH.LH;
+                    MEM[Q+2].HH.LH := 0;
+                  END;
+              3:  BEGIN
+                    P := MEM[Q+2].HH.RH;
+                    MEM[Q+2].HH.RH := 0;
+                  END;
             END;
-        16: MAKEORD(Q);
-        20,23:;
-        24: MAKERADICAL(Q);
-        27: MAKEOVER(Q);
-        26: MAKEUNDER(Q);
-        28: MAKEMATHACCE(Q);
-        29: MAKEVCENTER(Q);{:733}{730:}
-        14:
-            BEGIN
-              CURSTYLE := MEM[Q].HH.B1;
-{703:}
-              BEGIN
-                IF CURSTYLE<4 THEN CURSIZE := 0
-                ELSE CURSIZE := 16*((CURSTYLE-2)
-                                DIV 2);
-                CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-              END{:703};
-              GOTO 81;
+            FLUSHNODELIS(MEM[Q+1].HH.LH);
+            FLUSHNODELIS(MEM[Q+1].HH.RH);
+            FLUSHNODELIS(MEM[Q+2].HH.LH);
+            FLUSHNODELIS(MEM[Q+2].HH.RH);
+            MEM[Q].HH.B0 := 14;
+            MEM[Q].HH.B1 := cur_style;
+            MEM[Q+1].INT := 0;
+            MEM[Q+2].INT := 0;
+            IF P<>0 THEN BEGIN
+              Z := MEM[Q].HH.RH;
+              MEM[Q].HH.RH := P;
+              WHILE MEM[P].HH.RH<>0 DO
+                P := MEM[P].HH.RH;
+              MEM[P].HH.RH := Z;
             END;
-        15:{731:}
-            BEGIN
-              CASE CURSTYLE DIV 2 OF 
-                0:
-                   BEGIN
-                     P := MEM[Q+1].HH.LH;
-                     MEM[Q+1].HH.LH := 0;
-                   END;
-                1:
-                   BEGIN
-                     P := MEM[Q+1].HH.RH;
-                     MEM[Q+1].HH.RH := 0;
-                   END;
-                2:
-                   BEGIN
-                     P := MEM[Q+2].HH.LH;
-                     MEM[Q+2].HH.LH := 0;
-                   END;
-                3:
-                   BEGIN
-                     P := MEM[Q+2].HH.RH;
-                     MEM[Q+2].HH.RH := 0;
-                   END;
-              END;
-              FLUSHNODELIS(MEM[Q+1].HH.LH);
-              FLUSHNODELIS(MEM[Q+1].HH.RH);
-              FLUSHNODELIS(MEM[Q+2].HH.LH);
-              FLUSHNODELIS(MEM[Q+2].HH.RH);
-              MEM[Q].HH.B0 := 14;
-              MEM[Q].HH.B1 := CURSTYLE;
-              MEM[Q+1].INT := 0;
-              MEM[Q+2].INT := 0;
+          END;
+          {:731}
+
+      3,4,5,8,12,7: ;
+      2:  BEGIN
+            IF MEM[Q+3].INT>MAXH THEN MAXH := MEM[Q+3].INT;
+            IF MEM[Q+2].INT>MAXD THEN MAXD := MEM[Q+2].INT;
+          END;
+      10: BEGIN
+            {732:}
+            IF MEM[Q].HH.B1=99 THEN BEGIN
+              X := MEM[Q+1].HH.LH;
+              Y := MATHGLUE(X,CURMU);
+              DELETEGLUERE(X);
+              MEM[Q+1].HH.LH := Y;
+              MEM[Q].HH.B1 := 0;
+            END ELSE IF (CURSIZE<>0)AND(MEM[Q].HH.B1=98) THEN BEGIN
+              P := MEM[Q].HH.RH;
               IF P<>0 THEN
-                BEGIN
-                  Z := MEM[Q].HH.RH;
-                  MEM[Q].HH.RH := P;
-                  WHILE MEM[P].HH.RH<>0 DO
-                    P := MEM[P].HH.RH;
-                  MEM[P].HH.RH := Z;
-                END;
-              GOTO 81;
-            END{:731};
-        3,4,5,8,12,7: GOTO 81;
-        2:
-           BEGIN
-             IF MEM[Q+3].INT>MAXH THEN MAXH := MEM[Q+3].INT;
-             IF MEM[Q+2].INT>MAXD THEN MAXD := MEM[Q+2].INT;
-             GOTO 81;
-           END;
-        10:
-            BEGIN{732:}
-              IF MEM[Q].HH.B1=99 THEN
-                BEGIN
-                  X := MEM[Q+1].HH.LH;
-                  Y := MATHGLUE(X,CURMU);
-                  DELETEGLUERE(X);
-                  MEM[Q+1].HH.LH := Y;
-                  MEM[Q].HH.B1 := 0;
-                END
-              ELSE
-                IF (CURSIZE<>0)AND(MEM[Q].HH.B1=98)THEN
-                  BEGIN
-                    P := MEM[Q].HH.RH;
-                    IF P<>0 THEN
-                      IF (MEM[P].HH.B0=10)OR(MEM[P].HH.B0=11)THEN
-                        BEGIN
-                          MEM[Q].HH.
-                          RH := MEM[P].HH.RH;
-                          MEM[P].HH.RH := 0;
-                          FLUSHNODELIS(P);
-                        END;
-                  END{:732};
-              GOTO 81;
+                IF (MEM[P].HH.B0=10)OR(MEM[P].HH.B0=11)THEN
+              BEGIN
+                MEM[Q].HH.
+                RH := MEM[P].HH.RH;
+                MEM[P].HH.RH := 0;
+                FLUSHNODELIS(P);
+              END;
             END;
-        11:
-            BEGIN
-              MATHKERN(Q,CURMU);
-              GOTO 81;
-            END;{:730}
-        ELSE confusion_str('mlist1')
-      END;
-{754:}
-      CASE MEM[Q+1].HH.RH OF 
-        1,4:{755:}
-             BEGIN
-               FETCH(Q+1);
-               IF (CURI.B0>0)THEN
-                 BEGIN
-                   DELTA := FONTINFO[ITALICBASE[CURF]+(CURI.B2-0)DIV
-                            4].INT;
-                   P := NEWCHARACTER(CURF,CURC-0);
-                   IF (MEM[Q+1].HH.RH=4)AND(FONTINFO[2+PARAMBASE[CURF]].INT<>0)THEN DELTA := 0
-                   ;
-                   IF (MEM[Q+3].HH.RH=0)AND(DELTA<>0)THEN
-                     BEGIN
-                       MEM[P].HH.RH := NEWKERN(DELTA)
-                       ;
-                       DELTA := 0;
-                     END;
-                 END
-               ELSE P := 0;
-             END{:755};
-        0: P := 0;
-        2: P := MEM[Q+1].HH.LH;
-        3:
-           BEGIN
-             CURMLIST := MEM[Q+1].HH.LH;
-             SAVESTYLE := CURSTYLE;
-             MLISTPENALTI := FALSE;
-             MLISTTOHLIST;
-             CURSTYLE := SAVESTYLE;
-{703:}
-             BEGIN
-               IF CURSTYLE<4 THEN CURSIZE := 0
-               ELSE CURSIZE := 16*((CURSTYLE-2)
-                               DIV 2);
-               CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-             END{:703};
-             P := HPACK(MEM[29997].HH.RH,0,1);
-           END;
-        ELSE confusion_str('mlist2')
-      END;
-      MEM[Q+1].INT := P;
-      IF (MEM[Q+3].HH.RH=0)AND(MEM[Q+2].HH.RH=0)THEN GOTO 82;
-      MAKESCRIPTS(Q,DELTA){:754}{:728};
-      82: Z := HPACK(MEM[Q+1].INT,0,1);
-      IF MEM[Z+3].INT>MAXH THEN MAXH := MEM[Z+3].INT;
-      IF MEM[Z+2].INT>MAXD THEN MAXD := MEM[Z+2].INT;
-      FREENODE(Z,7);
-      80: R := Q;
-      RTYPE := MEM[R].HH.B0;
-      81: Q := MEM[Q].HH.RH;
-    END{:727};
-{729:}
+            {:732}
+          END;
+      11: BEGIN
+            MATHKERN(Q,CURMU);
+          END;{:730}
+
+      else begin
+        case TypeQ of
+
+          18: CASE RTYPE OF
+                18,17,19,20,22,30:
+                  BEGIN
+                    MEM[Q].HH.B0 := 16;
+                    MAKEORD(Q);
+                  END;
+              END;
+          19,
+          21,
+          22,
+          31: BEGIN
+                {729:}
+                IF RTYPE=18 THEN MEM[R].HH.B0 := 16;
+                {:729}
+                IF MEM[Q].HH.B0=31 THEN GOTO 80;
+              END;
+
+          {733:}
+          30: GOTO 80;
+          25: BEGIN
+                MAKEFRACTION(Q, cur_style);
+
+                {update |max_h| and |max_d|}
+                Z := HPACK(MEM[Q+1].INT,0,1);
+                IF MEM[Z+3].INT>MAXH THEN MAXH := MEM[Z+3].INT;
+                IF MEM[Z+2].INT>MAXD THEN MAXD := MEM[Z+2].INT;
+                FREENODE(Z,7);
+                GOTO 80;
+              END;
+          17: BEGIN
+                DELTA := MAKEOP(Q, cur_style);
+                IF MEM[Q].HH.B1=1 THEN begin
+
+                  {update |max_h| and |max_d|}
+                  Z := HPACK(MEM[Q+1].INT,0,1);
+                  IF MEM[Z+3].INT>MAXH THEN MAXH := MEM[Z+3].INT;
+                  IF MEM[Z+2].INT>MAXD THEN MAXD := MEM[Z+2].INT;
+                  FREENODE(Z,7);
+                  GOTO 80;
+                end;
+              END;
+          16: MAKEORD(Q);
+          20,
+          23:;
+          24: MAKERADICAL(Q, cur_style);
+          27: MAKEOVER(Q, cur_style);
+          26: MAKEUNDER(Q, cur_style);
+          28: MAKEMATHACCE(Q, cur_style);
+          29: MAKEVCENTER(Q);{:733}{730:}
+          else confusion_str('mlist1')
+        end;
+
+        {754:}
+        CASE MEM[Q+1].HH.RH OF
+          1,
+          4:  BEGIN
+                {755:}
+                FETCH(Q+1);
+                IF (CURI.B0>0)THEN BEGIN
+                  DELTA := FONTINFO[ITALICBASE[CURF]+(CURI.B2-0) DIV 4].INT;
+                  P := NEWCHARACTER(CURF,CURC-0);
+                  IF (MEM[Q+1].HH.RH=4)AND(FONTINFO[2+PARAMBASE[CURF]].INT<>0) THEN DELTA := 0;
+                  IF (MEM[Q+3].HH.RH=0)AND(DELTA<>0) THEN BEGIN
+                    MEM[P].HH.RH := NEWKERN(DELTA);
+                    DELTA := 0;
+                  END;
+                END ELSE P := 0;
+                {:755}
+              END;
+          0:  P := 0;
+          2:  P := MEM[Q+1].HH.LH;
+          3:  BEGIN
+                mlist_to_hlist(MEM[Q+1].HH.LH, cur_style, false);
+
+                {703:}
+                BEGIN
+                  IF cur_style<4 THEN CURSIZE := 0
+                                ELSE CURSIZE := 16*((cur_style-2) DIV 2);
+                  CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
+                END;
+                {:703}
+
+                P := HPACK(MEM[29997].HH.RH,0,1);
+               END;
+          ELSE confusion_str('mlist2')
+        END;
+        MEM[Q+1].INT := P;
+        if (MEM[Q+3].HH.RH=0)AND(MEM[Q+2].HH.RH=0) then begin
+        end else begin
+          MAKESCRIPTS(Q, DELTA, cur_style);
+        end;
+        {:754}
+        {:728}
+
+        {update |max_h| and |max_d|}
+        Z := HPACK(MEM[Q+1].INT,0,1);
+        IF MEM[Z+3].INT>MAXH THEN MAXH := MEM[Z+3].INT;
+        IF MEM[Z+2].INT>MAXD THEN MAXD := MEM[Z+2].INT;
+        FREENODE(Z,7);
+
+80:     {done_with_noad} {go here when a noad has been fully translated}
+        R := Q;
+        RTYPE := MEM[R].HH.B0;
+      end;
+    end;
+
+    {here a node has been fully converted}
+    Q := MEM[Q].HH.RH;
+
+    {:727}
+  END;
+
+
+
+
+
+
+
+
+
+  {729:}
   IF RTYPE=18 THEN MEM[R].HH.B0 := 16{:729};{760:}
   P := 29997;
   MEM[P].HH.RH := 0;
   Q := MLIST;
   RTYPE := 0;
-  CURSTYLE := STYLE;
-{703:}
+  cur_style := STYLE;
+
+  {703:}
   BEGIN
-    IF CURSTYLE<4 THEN CURSIZE := 0
-    ELSE CURSIZE := 16*((CURSTYLE-2)
-                    DIV 2);
+    IF cur_style<4 THEN CURSIZE := 0
+                   ELSE CURSIZE := 16*((cur_style-2) DIV 2);
     CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-  END{:703};
-  WHILE Q<>0 DO
-    BEGIN{761:}
-      T := 16;
-      S := 4;
-      PEN := 10000;
-      CASE MEM[Q].HH.B0 OF 
-        17,20,21,22,23: T := MEM[Q].HH.B0;
-        18:
+  END;
+  {:703}
+
+  WHILE Q<>0 DO BEGIN
+    {761:}
+    TypeQ := MEM[Q].HH.B0;
+    case TypeQ of
+      14: BEGIN
+            {763:}
+            cur_style := MEM[Q].HH.B1;
+              {This is one of two cases where cur_style is modified}
+
+            {703:}
             BEGIN
-              T := 18;
-              PEN := EQTB[5272].INT;
+              IF cur_style<4 THEN CURSIZE := 0
+                             ELSE CURSIZE := 16*((cur_style-2) DIV 2);
+              CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
             END;
-        19:
-            BEGIN
-              T := 19;
-              PEN := EQTB[5273].INT;
-            END;
-        16,29,27,26:;
-        24: S := 5;
-        28: S := 5;
-        25: S := 6;
-        30,31: T := MAKELEFTRIGH(Q,STYLE,MAXD,MAXH);
-        14:{763:}
-            BEGIN
-              CURSTYLE := MEM[Q].HH.B1;
-              S := 3;
-{703:}
-              BEGIN
-                IF CURSTYLE<4 THEN CURSIZE := 0
-                ELSE CURSIZE := 16*((CURSTYLE-2)
-                                DIV 2);
-                CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-              END{:703};
-              GOTO 83;
-            END{:763};
-        8,12,2,7,5,3,4,10,11:
-                              BEGIN
-                                MEM[P].HH.RH := Q;
-                                P := Q;
-                                Q := MEM[Q].HH.RH;
-                                MEM[P].HH.RH := 0;
-                                GOTO 30;
-                              END;
-        ELSE confusion_str('mlist3')
-      END{:761};
-{766:}
-      IF RTYPE>0 THEN
-        BEGIN
-          CASE STRPOOL[RTYPE*8+T+MAGICOFFSET] OF 
-            48: X := 
-                     0;
-            49:
-                IF CURSTYLE<4 THEN X := 15
-                ELSE X := 0;
+            {:703}
+
+            R := Q;
+            Q := MEM[Q].HH.RH;
+            FREENODE(R, 3);
+            {:763}
+          END;
+      8,12,2,7,5,3,4,10,11:
+          BEGIN
+            MEM[P].HH.RH := Q;
+            P := Q;
+            Q := MEM[Q].HH.RH;
+            MEM[P].HH.RH := 0;
+          END;
+
+      else begin
+        T := 16;
+        S := 4;
+        PEN := 10000;
+        case TypeQ of
+          17,20,21,22,23: T := MEM[Q].HH.B0;
+          18: BEGIN
+                T := 18;
+                PEN := EQTB[5272].INT;
+              END;
+          19: BEGIN
+                T := 19;
+                PEN := EQTB[5273].INT;
+              END;
+          16,29,27,26:;
+          24: S := 5;
+          28: S := 5;
+          25: S := 6;
+          30,31: T := MAKELEFTRIGH(Q,STYLE,MAXD,MAXH);
+          else confusion_str('mlist3')
+        end;
+
+        {766:}
+        IF RTYPE>0 THEN BEGIN
+          CASE STRPOOL[RTYPE*8+T+MAGICOFFSET] OF
+            48: X := 0;
+            49: IF cur_style<4 THEN X := 15
+                               ELSE X := 0;
             50: X := 15;
-            51:
-                IF CURSTYLE<4 THEN X := 16
-                ELSE X := 0;
-            52:
-                IF CURSTYLE<4 THEN X := 17
-                ELSE X := 0;
+            51: IF cur_style<4 THEN X := 16
+                               ELSE X := 0;
+            52: IF cur_style<4 THEN X := 17
+                               ELSE X := 0;
             ELSE confusion_str('mlist4')
           END;
-          IF X<>0 THEN
-            BEGIN
-              Y := MATHGLUE(EQTB[2882+X].HH.RH,CURMU);
-              Z := NEWGLUE(Y);
-              MEM[Y].HH.RH := 0;
-              MEM[P].HH.RH := Z;
-              P := Z;
-              MEM[Z].HH.B1 := X+1;
-            END;
-        END{:766};
-{767:}
-      IF MEM[Q+1].INT<>0 THEN
-        BEGIN
+          IF X<>0 THEN BEGIN
+            Y := MATHGLUE(EQTB[2882+X].HH.RH, CURMU);
+            Z := NEWGLUE(Y);
+            MEM[Y].HH.RH := 0;
+            MEM[P].HH.RH := Z;
+            P := Z;
+            MEM[Z].HH.B1 := X+1;
+          END;
+        END;
+        {:766}
+
+        {767:}
+        IF MEM[Q+1].INT<>0 THEN BEGIN
           MEM[P].HH.RH := MEM[Q+1].INT;
           REPEAT
             P := MEM[P].HH.RH;
           UNTIL MEM[P].HH.RH=0;
         END;
-      IF PENALTIES THEN
-        IF MEM[Q].HH.RH<>0 THEN
-          IF PEN<10000 THEN
-            BEGIN
-              RTYPE 
-              := MEM[MEM[Q].HH.RH].HH.B0;
-              IF RTYPE<>12 THEN
-                IF RTYPE<>19 THEN
-                  BEGIN
-                    Z := NEWPENALTY(PEN);
-                    MEM[P].HH.RH := Z;
-                    P := Z;
-                  END;
-            END{:767};
-      RTYPE := T;
-      83: R := Q;
-      Q := MEM[Q].HH.RH;
-      FREENODE(R,S);
-      30:
-    END{:760};
-END;{:726}{772:}
-PROCEDURE PUSHALIGNMEN;
+        IF PENALTIES THEN
+          IF MEM[Q].HH.RH<>0 THEN
+            IF PEN<10000 THEN
+        BEGIN
+          RTYPE := MEM[MEM[Q].HH.RH].HH.B0;
+          IF RTYPE<>12 THEN
+            IF RTYPE<>19 THEN
+          BEGIN
+            Z := NEWPENALTY(PEN);
+            MEM[P].HH.RH := Z;
+            P := Z;
+          END;
+        END;
+        {:767}
 
+        RTYPE := T;
+        R := Q;
+        Q := MEM[Q].HH.RH;
+        FREENODE(R, S);
+      end;
+    end;
+    {:761}
+  END;
+  {:760}
+END;
+{:726}
+
+{772:}
+PROCEDURE PUSHALIGNMEN;
 VAR P: HALFWORD;
 BEGIN
   P := GETNODE(5);
@@ -13488,9 +13491,10 @@ BEGIN
 END;
 {:934}{968:}
 FUNCTION PRUNEPAGETOP(P:HALFWORD): HALFWORD;
-
-VAR PREVP: HALFWORD;
+VAR
+  PREVP: HALFWORD;
   Q: HALFWORD;
+  temp_ptr: HALFWORD;
 BEGIN
   PREVP := 29997;
   MEM[29997].HH.RH := P;
@@ -13498,13 +13502,12 @@ BEGIN
     CASE MEM[P].HH.B0 OF 
       0,1,2:{969:}
              BEGIN
-               Q := NEWSKIPPARAM(10)
-               ;
+               Q := new_skip_param(temp_ptr, 10);
                MEM[PREVP].HH.RH := Q;
                MEM[Q].HH.RH := P;
-               IF MEM[TEMPPTR+1].INT>MEM[P+3].INT THEN MEM[TEMPPTR+1].INT := MEM[TEMPPTR
-                                                                             +1].INT-MEM[P+3].INT
-               ELSE MEM[TEMPPTR+1].INT := 0;
+               IF MEM[temp_ptr+1].INT>MEM[P+3].INT
+               THEN MEM[temp_ptr+1].INT := MEM[temp_ptr+1].INT-MEM[P+3].INT
+               ELSE MEM[temp_ptr+1].INT := 0;
                P := 0;
              END{:969};
       8,4,3:
@@ -13757,6 +13760,7 @@ VAR P,Q,R,S: HALFWORD;
   SAVEVBADNESS: Int32;
   SAVEVFUZZ: SCALED;
   SAVESPLITTOP: HALFWORD;
+  temp_ptr: HALFWORD;
 BEGIN{1013:}
   IF MEM[BESTPAGEBREA].HH.B0=12 THEN
     BEGIN
@@ -13840,18 +13844,17 @@ BEGIN{1013:}
                             MEM[P+4].HH.LH := PRUNEPAGETOP(MEM[R+1].HH.RH);
                             IF MEM[P+4].HH.LH<>0 THEN
                               BEGIN
-                                TEMPPTR := VPACKAGE(MEM[P+4].HH.LH,0,1,
-                                           1073741823);
-                                MEM[P+3].INT := MEM[TEMPPTR+3].INT+MEM[TEMPPTR+2].INT;
-                                FREENODE(TEMPPTR,7);
+                                temp_ptr := VPACKAGE(MEM[P+4].HH.LH, 0, 1, 1073741823);
+                                MEM[P+3].INT := MEM[temp_ptr+3].INT+MEM[temp_ptr+2].INT;
+                                FREENODE(temp_ptr, 7);
                                 WAIT := TRUE;
                               END;
                           END;
                       MEM[R+2].HH.LH := 0;
                       N := MEM[R].HH.B1-0;
-                      TEMPPTR := MEM[EQTB[3678+N].HH.RH+5].HH.RH;
+                      temp_ptr := MEM[EQTB[3678+N].HH.RH+5].HH.RH;
                       FREENODE(EQTB[3678+N].HH.RH,7);
-                      EQTB[3678+N].HH.RH := VPACKAGE(TEMPPTR,0,1,1073741823);
+                      EQTB[3678+N].HH.RH := VPACKAGE(temp_ptr, 0, 1, 1073741823);
                     END{:1021}
                   ELSE
                     BEGIN
@@ -13987,6 +13990,7 @@ LABEL 30,31,22,80,90;
 
 VAR P: HALFWORD;
   Q,R: HALFWORD;
+  temp_ptr: HALFWORD;
   B,C: Int32;
   PI: Int32;
   N: 0..255;
@@ -14019,10 +14023,10 @@ BEGIN
                BEGIN
                  IF PAGECONTENTS=0 THEN FREEZEPAGESP(2)
                  ELSE PAGECONTENTS := 2;
-                 Q := NEWSKIPPARAM(9);
-                 IF MEM[TEMPPTR+1].INT>MEM[P+3].INT THEN MEM[TEMPPTR+1].INT := MEM[TEMPPTR
-                                                                               +1].INT-MEM[P+3].INT
-                 ELSE MEM[TEMPPTR+1].INT := 0;
+                 Q := new_skip_param(temp_ptr, 9);
+                 IF MEM[temp_ptr+1].INT>MEM[P+3].INT
+                 THEN MEM[temp_ptr+1].INT := MEM[temp_ptr+1].INT-MEM[P+3].INT
+                 ELSE MEM[temp_ptr+1].INT := 0;
                  MEM[Q].HH.RH := P;
                  MEM[29999].HH.RH := Q;
                  GOTO 22;
@@ -15699,10 +15703,7 @@ BEGIN
     END;
     {:1197};
 
-    CURMLIST := P;
-    CURSTYLE := 2;
-    MLISTPENALTI := FALSE;
-    MLISTTOHLIST;
+    mlist_to_hlist(P, 2, false);
     A := HPACK(MEM[29997].HH.RH,0,1);
     UNSAVE;
     SAVEPTR := SAVEPTR-1;
@@ -15745,10 +15746,7 @@ BEGIN
         MEM[CURLIST.TAILFIELD].HH.RH := NEWMATH(EQTB[5831].INT,0);
         CURLIST.TAILFIELD := MEM[CURLIST.TAILFIELD].HH.RH;
       END;
-      CURMLIST := P;
-      CURSTYLE := 2;
-      MLISTPENALTI := (CURLIST.MODEFIELD>0);
-      MLISTTOHLIST;
+      mlist_to_hlist(P, 2, (CURLIST.MODEFIELD>0));
       MEM[CURLIST.TAILFIELD].HH.RH := MEM[29997].HH.RH;
       WHILE MEM[CURLIST.TAILFIELD].HH.RH<>0 DO
         CURLIST.TAILFIELD := MEM[CURLIST.TAILFIELD].HH.RH;
@@ -15773,10 +15771,7 @@ BEGIN
     END;
 
     {1199:}
-    CURMLIST := P;
-    CURSTYLE := 0;
-    MLISTPENALTI := FALSE;
-    MLISTTOHLIST;
+    mlist_to_hlist(P, 0, false);
     P := MEM[29997].HH.RH;
     ADJUSTTAIL := 29995;
     B := HPACK(P,0,1);
@@ -17726,7 +17721,7 @@ BEGIN
            BEGIN
              P := CURLIST.TAILFIELD;
              DOEXTENSION;
-             OUTWHAT(CURLIST.TAILFIELD);
+             out_what(CURLIST.TAILFIELD, false);
              FLUSHNODELIS(CURLIST.TAILFIELD);
              CURLIST.TAILFIELD := P;
              MEM[P].HH.RH := 0;
@@ -17960,15 +17955,18 @@ BEGIN
   END;
 END;
 {:1068}
+
 PROCEDURE MAINCONTROL;
-
 LABEL 60,21,70,80,90,91,92,95,100,101,110,111,112,120;
-
-VAR T: Int32;
+VAR
+  T: Int32;
+  temp_ptr: HALFWORD;
 BEGIN
   IF EQTB[3419].HH.RH<>0 THEN BEGINTOKENLI(EQTB[3419].HH.RH,12);
+
 60:
   GETXTOKEN;
+
 21:
   {1031:}
   IF INTERRUPT<>0 THEN
@@ -18524,54 +18522,61 @@ BEGIN
              IF CURL<256 THEN GOTO 110;
              MAINK := BCHARLABEL[MAINF];
              GOTO 111;
-           END{:1040};
+           END;
+           {:1040}
+
   IF MAINJ.B0=0 THEN MAINK := MAINK+1
-  ELSE
-    BEGIN
-      IF MAINJ.B0>=128 THEN GOTO
-        80;
-      MAINK := MAINK+MAINJ.B0+1;
-    END;
-  GOTO 111{:1039};
-  95:{1037:}MAINP := MEM[LIGSTACK+1].HH.RH;
-  IF MAINP>0 THEN
-    BEGIN
-      MEM[CURLIST.TAILFIELD].HH.RH := MAINP;
-      CURLIST.TAILFIELD := MEM[CURLIST.TAILFIELD].HH.RH;
-    END;
-  TEMPPTR := LIGSTACK;
-  LIGSTACK := MEM[TEMPPTR].HH.RH;
-  FREENODE(TEMPPTR,2);
+  ELSE BEGIN
+    IF MAINJ.B0>=128 THEN GOTO 80;
+    MAINK := MAINK+MAINJ.B0+1;
+  END;
+  GOTO 111;
+  {:1039}
+
+95:
+  {1037:}
+  MAINP := MEM[LIGSTACK+1].HH.RH;
+  IF MAINP>0 THEN BEGIN
+    MEM[CURLIST.TAILFIELD].HH.RH := MAINP;
+    CURLIST.TAILFIELD := MEM[CURLIST.TAILFIELD].HH.RH;
+  END;
+  temp_ptr := LIGSTACK;
+  LIGSTACK := MEM[temp_ptr].HH.RH;
+  FREENODE(temp_ptr, 2);
   MAINI := FONTINFO[CHARBASE[MAINF]+CURL].QQQQ;
   LIGATUREPRES := TRUE;
-  IF LIGSTACK=0 THEN
-    IF MAINP>0 THEN GOTO 100
-  ELSE CURR := BCHAR
-  ELSE CURR := 
-               MEM[LIGSTACK].HH.B1;
-  GOTO 110{:1037}{:1034};
-  120:{1041:}
-       IF EQTB[2894].HH.RH=0 THEN
-         BEGIN{1042:}
-           BEGIN
-             MAINP := FONTGLUE[
-                      EQTB[3934].HH.RH];
-             IF MAINP=0 THEN
-               BEGIN
-                 MAINP := NEWSPEC(0);
-                 MAINK := PARAMBASE[EQTB[3934].HH.RH]+2;
-                 MEM[MAINP+1].INT := FONTINFO[MAINK].INT;
-                 MEM[MAINP+2].INT := FONTINFO[MAINK+1].INT;
-                 MEM[MAINP+3].INT := FONTINFO[MAINK+2].INT;
-                 FONTGLUE[EQTB[3934].HH.RH] := MAINP;
-               END;
-           END{:1042};
-           TEMPPTR := NEWGLUE(MAINP);
-         END
-       ELSE TEMPPTR := NEWPARAMGLUE(12);
-  MEM[CURLIST.TAILFIELD].HH.RH := TEMPPTR;
-  CURLIST.TAILFIELD := TEMPPTR;
-  GOTO 60{:1041};
+  IF LIGSTACK=0 
+  THEN IF MAINP>0 THEN GOTO 100
+                  ELSE CURR := BCHAR
+  ELSE CURR := MEM[LIGSTACK].HH.B1;
+  GOTO 110;
+  {:1037}
+  {:1034}
+
+120:
+  {1041:}
+  if EQTB[2894].HH.RH=0 then begin
+    {1042:}
+    BEGIN
+      MAINP := FONTGLUE[EQTB[3934].HH.RH];
+      IF MAINP=0 THEN BEGIN
+        MAINP := NEWSPEC(0);
+        MAINK := PARAMBASE[EQTB[3934].HH.RH]+2;
+        MEM[MAINP+1].INT := FONTINFO[MAINK].INT;
+        MEM[MAINP+2].INT := FONTINFO[MAINK+1].INT;
+        MEM[MAINP+3].INT := FONTINFO[MAINK+2].INT;
+        FONTGLUE[EQTB[3934].HH.RH] := MAINP;
+      END;
+    END;
+    {:1042}
+    temp_ptr := NEWGLUE(MAINP);
+  end else begin
+    temp_ptr := NEWPARAMGLUE(12);
+  end;
+  MEM[CURLIST.TAILFIELD].HH.RH := temp_ptr;
+  CURLIST.TAILFIELD := temp_ptr;
+  GOTO 60;
+  {:1041}
 END;
 {:1030}
 
@@ -21003,7 +21008,9 @@ END;{$ENDIF}
 
 {1335:}
 PROCEDURE FINALCLEANUP;
-VAR C: SMALLNUMBER;
+VAR
+  C: SMALLNUMBER;
+  temp_ptr: HALFWORD;
 BEGIN
   C := CURCHR;
   IF C<>1 THEN EQTB[5312].INT := -1;
@@ -21028,9 +21035,9 @@ BEGIN
     print_str(' was incomplete)');
     IFLINE := MEM[CONDPTR+1].INT;
     CURIF := MEM[CONDPTR].HH.B1;
-    TEMPPTR := CONDPTR;
+    temp_ptr := CONDPTR;
     CONDPTR := MEM[CONDPTR].HH.RH;
-    FREENODE(TEMPPTR,2);
+    FREENODE(temp_ptr, 2);
   END;
   IF HISTORY<>0 THEN
     IF ((HISTORY=1)OR(INTERACTION<3)) THEN
