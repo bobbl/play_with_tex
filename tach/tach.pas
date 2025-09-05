@@ -601,7 +601,37 @@ and a few others.}
 
 
 
+  unset_node = 13; {|type| for an unset node}
 
+{@ Each portion of a formula is classified as Ord, Op, Bin, Rel, Open,
+Close, Punct, or Inner, for purposes of spacing and line breaking. An
+|ord_noad|, |op_noad|, |bin_noad|, |rel_noad|, |open_noad|, |close_noad|,
+|punct_noad|, or |inner_noad| is used to represent portions of the various
+types. For example, an `\.=' sign in a formula leads to the creation of a
+|rel_noad| whose |nucleus| field is a representation of an equals sign
+(usually |fam=0|, |character=@'75|).  A formula preceded by \mathrel
+also results in a |rel_noad|.  When a |rel_noad| is followed by an
+|op_noad|, say, and possibly separated by one or more ordinary nodes (not
+noads), \TeX\ will insert a penalty node (with the current |rel_penalty|)
+just after the formula that corresponds to the |rel_noad|, unless there
+already was a penalty immediately following; and a ``thick space'' will be
+inserted just before the formula that corresponds to the |op_noad|.
+
+A noad of type |ord_noad|, |op_noad|, \dots, |inner_noad| usually
+has a |subtype=normal|. The only exception is that an |op_noad| might
+have |subtype=limits| or |no_limits|, if the normal positioning of
+limits has been overridden for this operator.}
+
+  ord_noad   = unset_node+3; {|type| of a noad classified Ord}
+  op_noad    = ord_noad+1;   {|type| of a noad classified Op}
+  bin_noad   = ord_noad+2;   {|type| of a noad classified Bin}
+  rel_noad   = ord_noad+3;   {|type| of a noad classified Rel}
+  open_noad  = ord_noad+4;   {|type| of a noad classified Open}
+  close_noad = ord_noad+5;   {|type| of a noad classified Close}
+  punct_noad = ord_noad+6;   {|type| of a noad classified Punct}
+  inner_noad = ord_noad+7;   {|type| of a noad classified Inner}
+  limits     = 1; {|subtype| of |op_noad| whose scripts are to be above, below}
+  no_limits  = 2; {|subtype| of |op_noad| whose scripts are to be normal}
 
 
 
@@ -885,7 +915,6 @@ VAR
   CURF: INTERNALFONT;
   CURC: QUARTERWORD;
   CURI: FOURQUARTERS;{:724}{764:}
-  MAGICOFFSET: Int32;
 {:764}{770:}
   CURALIGN: HALFWORD;
   CURSPAN: HALFWORD;
@@ -1574,6 +1603,13 @@ END;
 {:70}
 
 
+procedure too_small(ParameterName: shortstring);
+var i: Integer;
+begin
+  write(output, '---! Must increase the ' + ParameterName);
+  writeln(output);
+end;
+
 
 
 
@@ -1847,6 +1883,7 @@ procedure flush_char;
 begin
   POOLPTR := POOLPTR-1;
 end;
+
 
 
 
@@ -2201,6 +2238,88 @@ END;
 
 
 
+function UInt32LE(Buf: array of byte; Ofs: SizeUInt) : UInt32;
+begin
+  UInt32LE :=  UInt32(Buf[Ofs])           or (UInt32(Buf[Ofs+1]) shl 8) or
+              (UInt32(Buf[Ofs+2]) shl 16) or (UInt32(Buf[Ofs+3]) shl 24);
+end;
+
+function BlockReadSuccess(var f: byte_file; var Buf; Len: UInt32) : boolean;
+begin
+  {$I-}
+  blockread(f, Buf, Len);
+  BlockReadSuccess :=  IOResult = 0;
+  {$I+}
+end;
+
+{Read string pool from .fmt file}
+{1310: @<Undump the string pool@>}
+function UndumpStringPool(var f: byte_file) : boolean;
+var
+  i: uint32;
+  j: uint32;
+  Buf: array[0..7] of byte;
+begin
+  UndumpStringPool := false;
+
+  if not BlockReadSuccess(f, Buf, 8) then exit;
+
+  POOLPTR     := UInt32LE(Buf,  0);
+  STRPTR      := UInt32LE(Buf,  4);
+  INITPOOLPTR := POOLPTR;
+  INITSTRPTR  := STRPTR;
+  if (POOLPTR > pool_size)   then too_small('string_pool_size');
+  if (STRPTR  > max_strings) then too_small('max string');
+
+  if not BlockReadSuccess(f, STRPOOL, STRPTR*4+4) then exit;
+  for i := 0 to STRPTR do STRSTART[i] := UInt32LE(STRPOOL, 4*i);
+
+  j := (POOLPTR + 3) and (not 3);
+  if not BlockReadSuccess(f, STRPOOL, j) then exit;
+  {FIXME: special treatment of last word}
+  for i := 0 to 3 do STRPOOL[POOLPTR-4+i] := STRPOOL[j-4+i];
+  UndumpStringPool := true;
+end;
+{:1310}
+
+procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
+begin
+  Buf[Ofs] := Val;
+  Buf[Ofs+1] := Val shr 8;
+  Buf[Ofs+2] := Val shr 16;
+  Buf[Ofs+3] := Val shr 24;
+end;
+
+function BlockWriteSuccess(var f: file; var Buf; Len: UInt32) : boolean;
+begin
+  {$I-}
+  blockwrite(f, Buf, Len);
+  BlockWriteSuccess :=  IOResult = 0;
+  {$I+}
+end;
+
+{Write string pool to .fmt file}
+procedure DumpStringPool(var f: byte_file);
+var
+  i: uint32;
+  Buf: array[0..3] of byte;
+begin
+  SetUInt32LE(Buf, 0, POOLPTR);
+  SetUInt32LE(Buf, 4, STRPTR);
+  blockwrite(f, Buf, 8);
+
+  {FIXME: pack in 16 bit and use one blockwrite}
+  for i := 0 to STRPTR do begin
+    SetUInt32LE(Buf, 0, STRSTART[i]);
+    blockwrite(f, Buf, 4);
+  end;
+
+  blockwrite(f, STRPOOL, POOLPTR and not 3);
+  {FIXME: special treatment of last word}
+  if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
+end;
+
+
 
 
 { ----------------------------------------------------------------------
@@ -2243,119 +2362,13 @@ END;
 {@ Here is a similar procedure; it avoids the error checks, and it never
 prints a space after the control sequence.}
 
-function sprint_cs(P:HALFWORD) : string;
+function sprint_cs(P:HALFWORD) : shortstring;
 begin
   if      P<257 then sprint_cs := PrintableChar(P-1)
   else if P<513 then sprint_cs := print_esc(chr(P-257))
   else if P<514 then sprint_cs := print_esc('csname') + print_esc('endcsname')
                 else sprint_cs := print_esc(GetString(HASH[P].RH));
 end;
-
-{@ Hexadecimal printing of nonnegative integers is accomplished by |print_hex|.}
-
-function print_hex(n: int32): shortstring;
-var 
-  s: string[9];
-  i: uint32;
-  Digit: uint32;
-begin
-  setlength(s, 9);
-  i := 9;
-  repeat
-    Digit := n mod 16;
-    n := n div 16;
-    if Digit > 10 then Digit := Digit - 10 + ord('A') - ord('0');
-    s[i] := chr(Digit + ord('0'));
-    i := i - 1;
-  until n=0;
-  s[i] := '"';
-  print_hex := copy(s, i, 10-i);
-end;
-
-{@ Roman numerals are produced by the |print_roman_int| routine.  Readers
-who like puzzles might enjoy trying to figure out how this tricky code
-works; therefore no explanation will be given. Notice that 1990 yields
-"mcmxc", not "mxm".}
-
-function print_roman_int(N: uint32) : shortstring;
-const
-  Letters = 'mdclxvi';
-VAR
-  U, V: uint32;
-  i: sizeuint;
-  s: shortstring;
-BEGIN
-  i := 1;
-  s := '';
-
-  V := 1000;
-  while true do begin
-    while N>=V do begin
-      s := s + Letters[i];
-      N := N - V;
-    end;
-    if N<=0 then begin
-      print_roman_int := s;
-      exit;
-    end;
-
-    if odd(i) then begin
-      U := V div 10;
-      if N+U >= V then begin
-        s := s + Letters[i+2] + Letters[i];
-        N := N + U - V;
-      end;
-      V := V div 2;
-    end else begin
-      U := V div 5;
-      if N+U >= V then begin
-        s := s + Letters[i+1] + Letters[i];
-        N := N + U - V;
-      end;
-      V := V div 5;
-    end;
-    i := i + 1;
-(*
-    U := V div 10;
-    if N+U >= V then begin
-      s := s + Letters[i+2] + Letters[i];       {>900 CM XC IX}
-      N := N + U - V;
-    end else if N >= 5*U then begin
-      s := s + Letters[i+1];                    {>500 D  L  V}
-      N := N - 5*U;
-    end else if N >= 4*U then begin
-      s := s + Letters[i+2] + Letters[i+1];     {>400 CD XL IV}
-      N := N - 4*U;
-    end;
-    V := U;
-    i := i + 2;
-*)
-
-  end;
-end;
-
-{convert SCALED to string}
-function print_scaled(Scale: SCALED) : shortstring;
-VAR
-  Delta: SCALED;
-  st: shortstring;
-BEGIN
-  st := '';
-  if Scale<0 then begin
-    st := st + '-';
-    Scale := -Scale;
-  end;
-  st := st + print_int(Scale shr 16) + '.';
-  Scale := 10*(Scale and 65535)+5;
-  Delta := 10;
-  REPEAT
-    IF Delta>65536 THEN Scale := Scale-17232;
-    st := st + chr((Scale shr 16)+48);
-    Scale := 10*(Scale and 65535);
-    Delta := Delta*10;
-  UNTIL Scale <= Delta;
-  print_scaled := st;
-END;
 
 {119:}
 {292:}
@@ -2664,6 +2677,8 @@ END;
 
 
 
+{------------------- natural boundary -----------------------------------}
+
 
 
 
@@ -2738,6 +2753,115 @@ BEGIN
   ELSE print_utf8str(show_token_list_simple(MEM[P].HH.RH,MAXPRINTLINE-10));
   PRINTCHAR(125);
 END;
+
+
+{@ Hexadecimal printing of nonnegative integers is accomplished by |print_hex|.}
+
+function print_hex(n: int32): shortstring;
+var 
+  s: string[9];
+  i: uint32;
+  Digit: uint32;
+begin
+  setlength(s, 9);
+  i := 9;
+  repeat
+    Digit := n mod 16;
+    n := n div 16;
+    if Digit > 10 then Digit := Digit - 10 + ord('A') - ord('0');
+    s[i] := chr(Digit + ord('0'));
+    i := i - 1;
+  until n=0;
+  s[i] := '"';
+  print_hex := copy(s, i, 10-i);
+end;
+
+{@ Roman numerals are produced by the |print_roman_int| routine.  Readers
+who like puzzles might enjoy trying to figure out how this tricky code
+works; therefore no explanation will be given. Notice that 1990 yields
+"mcmxc", not "mxm".}
+
+function print_roman_int(N: uint32) : shortstring;
+const
+  Letters = 'mdclxvi';
+VAR
+  U, V: uint32;
+  i: sizeuint;
+  s: shortstring;
+BEGIN
+  i := 1;
+  s := '';
+
+  V := 1000;
+  while true do begin
+    while N>=V do begin
+      s := s + Letters[i];
+      N := N - V;
+    end;
+    if N<=0 then begin
+      print_roman_int := s;
+      exit;
+    end;
+
+    if odd(i) then begin
+      U := V div 10;
+      if N+U >= V then begin
+        s := s + Letters[i+2] + Letters[i];
+        N := N + U - V;
+      end;
+      V := V div 2;
+    end else begin
+      U := V div 5;
+      if N+U >= V then begin
+        s := s + Letters[i+1] + Letters[i];
+        N := N + U - V;
+      end;
+      V := V div 5;
+    end;
+    i := i + 1;
+(*
+    U := V div 10;
+    if N+U >= V then begin
+      s := s + Letters[i+2] + Letters[i];       {>900 CM XC IX}
+      N := N + U - V;
+    end else if N >= 5*U then begin
+      s := s + Letters[i+1];                    {>500 D  L  V}
+      N := N - 5*U;
+    end else if N >= 4*U then begin
+      s := s + Letters[i+2] + Letters[i+1];     {>400 CD XL IV}
+      N := N - 4*U;
+    end;
+    V := U;
+    i := i + 2;
+*)
+
+  end;
+end;
+
+{convert SCALED to string}
+function print_scaled(Scale: SCALED) : shortstring;
+VAR
+  Delta: SCALED;
+  st: shortstring;
+BEGIN
+  st := '';
+  if Scale<0 then begin
+    st := st + '-';
+    Scale := -Scale;
+  end;
+  st := st + print_int(Scale shr 16) + '.';
+  Scale := 10*(Scale and 65535)+5;
+  Delta := 10;
+  REPEAT
+    IF Delta>65536 THEN Scale := Scale-17232;
+    st := st + chr((Scale shr 16)+48);
+    Scale := 10*(Scale and 65535);
+    Delta := Delta*10;
+  UNTIL Scale <= Delta;
+  print_scaled := st;
+END;
+
+
 
 function RuleDimStr(Dim: SCALED): shortstring;
 begin 
@@ -2878,12 +3002,10 @@ PROCEDURE SHOWNODELIST(P: Int32);
 VAR N: Int32;
   G: Double;
 BEGIN
-  IF (POOLPTR-STRSTART[STRPTR])>DEPTHTHRESHO THEN
-    BEGIN
-      IF P>0 THEN
-        print_str(' []');
-      exit;
-    END;
+  IF (POOLPTR-STRSTART[STRPTR])>DEPTHTHRESHO THEN BEGIN
+    IF P>0 THEN print_str(' []');
+    exit;
+  END;
   N := 0;
   WHILE P>MEMMIN DO BEGIN
     PRINTLN;
@@ -3795,7 +3917,6 @@ END;
 
 {306:}
 PROCEDURE RUNAWAY;
-
 VAR P: HALFWORD;
 BEGIN
   IF SCANNERSTATU>1 THEN
@@ -4131,11 +4252,14 @@ BEGIN
           P := HASHUSED;
         END;
         IF POOLPTR+L>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
+
+        {move current string up to make room for another}
         D := (POOLPTR-STRSTART[STRPTR]);
         WHILE POOLPTR>STRSTART[STRPTR] DO BEGIN
           POOLPTR := POOLPTR-1;
           STRPOOL[POOLPTR+L] := STRPOOL[POOLPTR];
         END;
+
         FOR K:=J TO J+L-1 DO append_char(BUFFER[K]);
         HASH[P].RH := MAKESTRING;
         POOLPTR := POOLPTR+D;
@@ -4872,6 +4996,21 @@ begin
         'control sequence to too much text. How can we recover?',
         'My plan is to forget the whole thing and hope for the best.');
   BACKERROR;
+end;
+
+{@<Complain about an undefined family and set |cur_i| null@>}
+procedure ReportUndefinedFamily(FontName: shortstring; 
+                                FontFamily: byte;
+                                UndefChar: byte);
+begin
+  print_err(print_esc(FontName) + 
+    ' ' + print_int(FontFamily) +
+    ' is undefined (character ' + GetString(UndefChar) + ')');
+  help4('Somewhere in the math formula just ended, you used the',
+        'stated character from an undefined font family. For example,',
+        'plain TeX doesn''t allow \it or \sl in subscripts. Proceed,',
+        'and I''ll try to forget that I needed that character.');
+  ERROR;
 end;
 
 PROCEDURE MUERROR;
@@ -7781,6 +7920,12 @@ BEGIN
   dvi_out(X mod 256);
 END;
 
+procedure DVIOutStr(const s: shortstring);
+var i: sizeint;
+begin
+  for i := 1 to length(s) do dvi_out(ord(s[i]));
+end;
+
 PROCEDURE DVIPOP(L:Int32);
 BEGIN
   IF (L=DVIOFFSET+DVIPTR)AND(DVIPTR>0)THEN DVIPTR := DVIPTR-1
@@ -7788,7 +7933,10 @@ BEGIN
 END;
 
 PROCEDURE DVIFONTDEF(F:INTERNALFONT);
-VAR K: POOLPOINTER;
+VAR
+  K: POOLPOINTER;
+  Area: shortstring;
+  Name: shortstring;
 BEGIN
   dvi_out(243);
   dvi_out(F-1);
@@ -7798,12 +7946,12 @@ BEGIN
   dvi_out(FONTCHECK[F].B3);
   DVIFOUR(FONTSIZE[F]);
   DVIFOUR(FONTDSIZE[F]);
-  dvi_out(STRSTART[FONTAREA[F]+1]-STRSTART[FONTAREA[F]]);
-  dvi_out(STRSTART[FONTNAME[F]+1]-STRSTART[FONTNAME[F]]);
-  FOR K:=STRSTART[FONTAREA[F]]TO STRSTART[FONTAREA[F]+1]-1 DO
-    dvi_out(STRPOOL[K]);
-  FOR K:=STRSTART[FONTNAME[F]]TO STRSTART[FONTNAME[F]+1]-1 DO
-    dvi_out(STRPOOL[K]);
+  Area := GetString(FONTAREA[F]);
+  Name := GetString(FONTNAME[F]);
+  dvi_out(length(Area));
+  dvi_out(length(Name));
+  DVIOutStr(Area);
+  DVIOutStr(Name);
 END;
 
 
@@ -9421,6 +9569,37 @@ BEGIN
 END;
 {:718}
 
+
+
+
+
+
+
+
+
+
+
+
+
+{ ----------------------------------------------------------------------
+  Typesetting math formulas
+  ---------------------------------------------------------------------- }
+
+{@* \[36] Typesetting math formulas.
+\TeX's most important routine for dealing with formulas is called
+|mlist_to_hlist|.  After a formula has been scanned and represented as an
+mlist, this routine converts it to an hlist that can be placed into a box
+or incorporated into the text of a paragraph. There are three implicit
+parameters, passed in global variables: |cur_mlist| points to the first
+node or noad in the given mlist (and it might be |null|); |cur_style| is a
+style code; and |mlist_penalties| is |true| if penalty nodes for potential
+line breaks are to be inserted into the resulting hlist. After
+|mlist_to_hlist| has acted, |link(temp_head)| points to the translated hlist.
+
+Since mlists can be inside mlists, the procedure is recursive. And since this
+is not part of \TeX's inner loop, the program has been written in a manner
+that stresses compactness over efficiency.}
+
 {720:}
 procedure mlist_to_hlist(MLIST: HALFWORD; STYLE: SMALLNUMBER; PENALTIES: boolean); forward;
 
@@ -9468,22 +9647,6 @@ BEGIN
   END;
   CLEANBOX := X;
 END;
-
-
-{@<Complain about an undefined family and set |cur_i| null@>}
-procedure ReportUndefinedFamily(FontName: shortstring; 
-                                FontFamily: byte;
-                                UndefChar: byte);
-begin
-  print_err(print_esc(FontName) + 
-    ' ' + print_int(FontFamily) +
-    ' is undefined (character ' + GetString(UndefChar) + ')');
-  help4('Somewhere in the math formula just ended, you used the',
-        'stated character from an undefined font family. For example,',
-        'plain TeX doesn''t allow \it or \sl in subscripts. Proceed,',
-        'and I''ll try to forget that I needed that character.');
-  ERROR;
-end;
 
 
 PROCEDURE FETCH(A:HALFWORD);
@@ -9583,11 +9746,11 @@ BEGIN
   MEM[Y].HH.RH := OVERBAR(X,CLR,MEM[Y+3].INT);
   MEM[Q+1].HH.LH := HPACK(Y,0,1);
   MEM[Q+1].HH.RH := 2;
-END;{:737}{738:}
+END;
+{:737}
+
+{738:}
 PROCEDURE MAKEMATHACCE(Q:HALFWORD; cur_style: SMALLNUMBER);
-
-LABEL 30,31;
-
 VAR P,X,Y: HALFWORD;
   A: Int32;
   C: QUARTERWORD;
@@ -9599,96 +9762,95 @@ VAR P,X,Y: HALFWORD;
   W: SCALED;
 BEGIN
   FETCH(Q+4);
-  IF (CURI.B0>0)THEN
-    BEGIN
-      I := CURI;
-      C := CURC;
-      F := CURF;{741:}
-      S := 0;
-      IF MEM[Q+1].HH.RH=1 THEN
-        BEGIN
-          FETCH(Q+1);
-          IF ((CURI.B2-0)MOD 4)=1 THEN
-            BEGIN
-              A := LIGKERNBASE[CURF]+CURI.B3;
-              CURI := FONTINFO[A].QQQQ;
-              IF CURI.B0>128 THEN
-                BEGIN
-                  A := LIGKERNBASE[CURF]+256*CURI.B2+CURI.B3
-                       +32768-256*(128);
-                  CURI := FONTINFO[A].QQQQ;
-                END;
-              WHILE TRUE DO
-                BEGIN
-                  IF CURI.B1-0=SKEWCHAR[CURF]THEN
-                    BEGIN
-                      IF CURI.B2>=
-                         128 THEN
-                        IF CURI.B0<=128 THEN S := FONTINFO[KERNBASE[CURF]+256*CURI.B2+
-                                                  CURI.B3].INT;
-                      GOTO 31;
-                    END;
-                  IF CURI.B0>=128 THEN GOTO 31;
-                  A := A+CURI.B0+1;
-                  CURI := FONTINFO[A].QQQQ;
-                END;
-            END;
+  IF (CURI.B0>0) THEN BEGIN
+    I := CURI;
+    C := CURC;
+    F := CURF;
+
+    {741:}
+    S := 0;
+    IF MEM[Q+1].HH.RH=1 THEN BEGIN
+      FETCH(Q+1);
+      IF ((CURI.B2-0)MOD 4)=1 THEN BEGIN
+        A := LIGKERNBASE[CURF]+CURI.B3;
+        CURI := FONTINFO[A].QQQQ;
+        IF CURI.B0>128 THEN BEGIN
+          A := LIGKERNBASE[CURF]+256*CURI.B2+CURI.B3+32768-256*(128);
+          CURI := FONTINFO[A].QQQQ;
         END;
-      31:{:741};
-      X := CLEANBOX(Q+1, 2*(cur_style DIV 2)+1, cur_style);
-      W := MEM[X+1].INT;
-      H := MEM[X+3].INT;
-{740:}
-      WHILE TRUE DO
-        BEGIN
-          IF ((I.B2-0)MOD 4)<>2 THEN GOTO 30;
-          Y := I.B3;
-          I := FONTINFO[CHARBASE[F]+Y].QQQQ;
-          IF NOT(I.B0>0)THEN GOTO 30;
-          IF FONTINFO[WIDTHBASE[F]+I.B0].INT>W THEN GOTO 30;
-          C := Y;
+        WHILE TRUE DO BEGIN
+          IF CURI.B1=SKEWCHAR[CURF] THEN BEGIN
+            IF CURI.B2>=128 THEN
+              IF CURI.B0<=128 THEN 
+                S := FONTINFO[KERNBASE[CURF]+256*CURI.B2+CURI.B3].INT;
+            break;
+          END;
+          IF CURI.B0>=128 THEN break;
+          A := A+CURI.B0+1;
+          CURI := FONTINFO[A].QQQQ;
         END;
-      30:{:740};
-      IF H<FONTINFO[5+PARAMBASE[F]].INT THEN DELTA := H
-      ELSE DELTA := FONTINFO[5+
-                    PARAMBASE[F]].INT;
-      IF (MEM[Q+2].HH.RH<>0)OR(MEM[Q+3].HH.RH<>0)THEN
-        IF MEM[Q+1].HH.RH=1 THEN
-{742:}
-          BEGIN
-            FLUSHNODELIS(X);
-            X := NEWNOAD;
-            MEM[X+1] := MEM[Q+1];
-            MEM[X+2] := MEM[Q+2];
-            MEM[X+3] := MEM[Q+3];
-            MEM[Q+2].HH := EMPTYFIELD;
-            MEM[Q+3].HH := EMPTYFIELD;
-            MEM[Q+1].HH.RH := 3;
-            MEM[Q+1].HH.LH := X;
-            X := CLEANBOX(Q+1, cur_style, cur_style);
-            DELTA := DELTA+MEM[X+3].INT-H;
-            H := MEM[X+3].INT;
-          END{:742};
-      Y := CHARBOX(F,C);
-      MEM[Y+4].INT := S+HALF(W-MEM[Y+1].INT);
-      MEM[Y+1].INT := 0;
-      P := NEWKERN(-DELTA);
-      MEM[P].HH.RH := X;
-      MEM[Y].HH.RH := P;
-      Y := VPACKAGE(Y,0,1,1073741823);
-      MEM[Y+1].INT := MEM[X+1].INT;
-      IF MEM[Y+3].INT<H THEN{739:}
-        BEGIN
-          P := NEWKERN(H-MEM[Y+3].INT);
-          MEM[P].HH.RH := MEM[Y+5].HH.RH;
-          MEM[Y+5].HH.RH := P;
-          MEM[Y+3].INT := H;
-        END{:739};
-      MEM[Q+1].HH.LH := Y;
-      MEM[Q+1].HH.RH := 2;
+      END;
     END;
+    {:741};
+
+    X := CLEANBOX(Q+1, 2*(cur_style DIV 2)+1, cur_style);
+    W := MEM[X+1].INT;
+    H := MEM[X+3].INT;
+
+    {740:}
+    while ((I.B2) MOD 4) = 2 do begin
+      Y := I.B3;
+      I := FONTINFO[CHARBASE[F]+Y].QQQQ;
+      IF I.B0=0 THEN break; {if not char_exists(I)}
+      IF FONTINFO[WIDTHBASE[F]+I.B0].INT>W THEN break; {if char_width(F, I) > W}
+      C := Y;
+    end;
+    {:740};
+
+    IF H<FONTINFO[5+PARAMBASE[F]].INT
+    THEN DELTA := H
+    ELSE DELTA := FONTINFO[5+PARAMBASE[F]].INT;
+    IF (MEM[Q+2].HH.RH<>0)OR(MEM[Q+3].HH.RH<>0) THEN
+      IF MEM[Q+1].HH.RH=1 THEN
+    BEGIN
+      {742:}
+      FLUSHNODELIS(X);
+      X := NEWNOAD;
+      MEM[X+1] := MEM[Q+1];
+      MEM[X+2] := MEM[Q+2];
+      MEM[X+3] := MEM[Q+3];
+      MEM[Q+2].HH := EMPTYFIELD;
+      MEM[Q+3].HH := EMPTYFIELD;
+      MEM[Q+1].HH.RH := 3;
+      MEM[Q+1].HH.LH := X;
+      X := CLEANBOX(Q+1, cur_style, cur_style);
+      DELTA := DELTA+MEM[X+3].INT-H;
+      H := MEM[X+3].INT;
+      {:742}
+    END;
+    Y := CHARBOX(F,C);
+    MEM[Y+4].INT := S+HALF(W-MEM[Y+1].INT);
+    MEM[Y+1].INT := 0;
+    P := NEWKERN(-DELTA);
+    MEM[P].HH.RH := X;
+    MEM[Y].HH.RH := P;
+    Y := VPACKAGE(Y,0,1,1073741823);
+    MEM[Y+1].INT := MEM[X+1].INT;
+    IF MEM[Y+3].INT<H THEN BEGIN
+      {739:}
+      P := NEWKERN(H-MEM[Y+3].INT);
+      MEM[P].HH.RH := MEM[Y+5].HH.RH;
+      MEM[Y+5].HH.RH := P;
+      MEM[Y+3].INT := H;
+      {:739}
+    END;
+    MEM[Q+1].HH.LH := Y;
+    MEM[Q+1].HH.RH := 2;
+  END;
 END;
-{:738}{743:}
+{:738}
+
+{743:}
 PROCEDURE MAKEFRACTION(Q:HALFWORD; cur_style: SMALLNUMBER);
 VAR
    P,V,X,Y,Z: HALFWORD;
@@ -9860,92 +10022,78 @@ BEGIN
       MEM[Q+1].INT := V;
     END{:750};
   MAKEOP := DELTA;
-END;{:749}{752:}
+END;
+{:749}
+
+{752:}
 PROCEDURE MAKEORD(Q:HALFWORD);
-
-LABEL 20;
-
-VAR A: Int32;
+VAR
+  A: Int32;
   P,R: HALFWORD;
 BEGIN
-  20:
-      IF MEM[Q+3].HH.RH=0 THEN
-        IF MEM[Q+2].HH.RH=0 THEN
-          IF MEM[Q+1].
-             HH.RH=1 THEN
-            BEGIN
-              P := MEM[Q].HH.RH;
-              IF P<>0 THEN
-                IF (MEM[P].HH.B0>=16)AND(MEM[P].HH.B0<=22)THEN
-                  IF MEM[P+1].
-                     HH.RH=1 THEN
-                    IF MEM[P+1].HH.B0=MEM[Q+1].HH.B0 THEN
-                      BEGIN
-                        MEM[Q+1].HH.RH 
-                        := 4;
-                        FETCH(Q+1);
-                        IF ((CURI.B2-0)MOD 4)=1 THEN
-                          BEGIN
-                            A := LIGKERNBASE[CURF]+CURI.B3;
-                            CURC := MEM[P+1].HH.B1;
-                            CURI := FONTINFO[A].QQQQ;
-                            IF CURI.B0>128 THEN
-                              BEGIN
-                                A := LIGKERNBASE[CURF]+256*CURI.B2+CURI.B3
-                                     +32768-256*(128);
-                                CURI := FONTINFO[A].QQQQ;
-                              END;
-                            WHILE TRUE DO
-                              BEGIN{753:}
-                                IF CURI.B1=CURC THEN
-                                  IF CURI.B0<=128 THEN
-                                    IF 
-                                       CURI.B2>=128 THEN
-                                      BEGIN
-                                        P := NEWKERN(FONTINFO[KERNBASE[CURF]+256*CURI.B2+
-                                             CURI.B3].INT);
-                                        MEM[P].HH.RH := MEM[Q].HH.RH;
-                                        MEM[Q].HH.RH := P;
-                                        exit;
-                                      END
-                                ELSE
-                                  BEGIN
-                                    BEGIN
-                                      IF INTERRUPT<>0 THEN PAUSEFORINST;
-                                    END;
-                                    CASE CURI.B2 OF 
-                                      1,5: MEM[Q+1].HH.B1 := CURI.B3;
-                                      2,6: MEM[P+1].HH.B1 := CURI.B3;
-                                      3,7,11:
-                                              BEGIN
-                                                R := NEWNOAD;
-                                                MEM[R+1].HH.B1 := CURI.B3;
-                                                MEM[R+1].HH.B0 := MEM[Q+1].HH.B0;
-                                                MEM[Q].HH.RH := R;
-                                                MEM[R].HH.RH := P;
-                                                IF CURI.B2<11 THEN MEM[R+1].HH.RH := 1
-                                                ELSE MEM[R+1].HH.RH := 4;
-                                              END;
-                                      ELSE
-                                        BEGIN
-                                          MEM[Q].HH.RH := MEM[P].HH.RH;
-                                          MEM[Q+1].HH.B1 := CURI.B3;
-                                          MEM[Q+3] := MEM[P+3];
-                                          MEM[Q+2] := MEM[P+2];
-                                          FREENODE(P,4);
-                                        END
-                                    END;
-                                    IF CURI.B2>3 THEN exit;
-                                    MEM[Q+1].HH.RH := 1;
-                                    GOTO 20;
-                                  END{:753};
-                                IF CURI.B0>=128 THEN exit;
-                                A := A+CURI.B0+1;
-                                CURI := FONTINFO[A].QQQQ;
-                              END;
-                          END;
+  while true do begin
+    IF MEM[Q+3].HH.RH<>0 THEN exit;
+    IF MEM[Q+2].HH.RH<>0 THEN exit;
+    IF MEM[Q+1].HH.RH<>1 THEN exit;
+    P := MEM[Q].HH.RH;
+    IF P=0 THEN exit;
+    IF (MEM[P].HH.B0<16) or (MEM[P].HH.B0>22) THEN exit;
+    IF MEM[P+1].HH.RH<>1 THEN exit;
+    IF MEM[P+1].HH.B0<>MEM[Q+1].HH.B0 THEN exit;
+    MEM[Q+1].HH.RH := 4;
+    FETCH(Q+1);
+    IF ((CURI.B2-0)MOD 4)<>1 THEN exit;
+
+    A := LIGKERNBASE[CURF]+CURI.B3;
+    CURC := MEM[P+1].HH.B1;
+    CURI := FONTINFO[A].QQQQ;
+    IF CURI.B0>128 THEN BEGIN
+      A := LIGKERNBASE[CURF]+256*CURI.B2+CURI.B3+32768-256*(128);
+      CURI := FONTINFO[A].QQQQ;
+    END;
+
+    WHILE TRUE DO BEGIN
+      {753:}
+      IF CURI.B1=CURC THEN
+        IF CURI.B0<=128 THEN
+          IF CURI.B2>=128 THEN BEGIN
+            P := NEWKERN(FONTINFO[KERNBASE[CURF]+256*CURI.B2+CURI.B3].INT);
+            MEM[P].HH.RH := MEM[Q].HH.RH;
+            MEM[Q].HH.RH := P;
+            exit;
+          END ELSE BEGIN
+            IF INTERRUPT<>0 THEN PAUSEFORINST;
+            CASE CURI.B2 OF 
+              1,5: MEM[Q+1].HH.B1 := CURI.B3;
+              2,6: MEM[P+1].HH.B1 := CURI.B3;
+              3,7,11: BEGIN
+                        R := NEWNOAD;
+                        MEM[R+1].HH.B1 := CURI.B3;
+                        MEM[R+1].HH.B0 := MEM[Q+1].HH.B0;
+                        MEM[Q].HH.RH := R;
+                        MEM[R].HH.RH := P;
+                        IF CURI.B2<11 THEN MEM[R+1].HH.RH := 1
+                                      ELSE MEM[R+1].HH.RH := 4;
                       END;
+              ELSE    BEGIN
+                        MEM[Q].HH.RH := MEM[P].HH.RH;
+                        MEM[Q+1].HH.B1 := CURI.B3;
+                        MEM[Q+3] := MEM[P+3];
+                        MEM[Q+2] := MEM[P+2];
+                        FREENODE(P,4);
+                      END
             END;
+            IF CURI.B2>3 THEN exit;
+            MEM[Q+1].HH.RH := 1;
+            break;
+          END;
+      {:753}
+
+      IF CURI.B0>=128 THEN exit;
+      A := A+CURI.B0+1;
+      CURI := FONTINFO[A].QQQQ;
+    END;
+  end;
 END;
 {:752}
 
@@ -10026,15 +10174,23 @@ BEGIN
 END;
 {:756}
 
+
+
+{@ The |make_left_right| function constructs a left or right delimiter of
+the required size and returns the value |open_noad| or |close_noad|. The
+|right_noad| and |left_noad| will both be based on the original |style|,
+so they will have consistent sizes.
+
+We use the fact that |right_noad-left_noad=close_noad-open_noad|.}
+
 {762:}
 FUNCTION MAKELEFTRIGH(Q: HALFWORD;
                       STYLE: SMALLNUMBER;
-                      MAXD, MAXH:SCALED): SMALLNUMBER;
-
+                      MAXD, MAXH: SCALED): SMALLNUMBER;
 VAR DELTA,DELTA1,DELTA2: SCALED;
 BEGIN
   IF STYLE<4 THEN CURSIZE := 0
-  ELSE CURSIZE := 16*((STYLE-2)DIV 2);
+             ELSE CURSIZE := 16*((STYLE-2)DIV 2);
   DELTA2 := MAXD+FONTINFO[22+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT;
   DELTA1 := MAXH+MAXD-DELTA2;
   IF DELTA2>DELTA1 THEN DELTA1 := DELTA2;
@@ -10043,11 +10199,58 @@ BEGIN
   IF DELTA<DELTA2 THEN DELTA := DELTA2;
   MEM[Q+1].INT := VARDELIMITER(Q+1,CURSIZE,DELTA);
   MAKELEFTRIGH := MEM[Q].HH.B0-(10);
-END;{:762}
+END;
+{:762}
 
+
+{@ When the style changes, the following piece of program computes associated
+information:}
+
+{@<Set up the values of |cur_size| and |cur_mu|, based on |cur_style|@>}
+procedure SetUpCurStyle(cur_style: SMALLNUMBER);
+begin
+  {703:}
+  if cur_style < 4{script_style} then CURSIZE := 0{text_size}
+                                 else CURSIZE := 16*((cur_style-2{text_style}) div 2);
+  CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT, 18);
+  {:703}
+end;
+
+function choose_mlist(var Node: HALFWORD) : HALFWORD;
+begin
+  choose_mlist := Node;
+  Node := 0;
+end;
 
 procedure mlist_to_hlist(MLIST: HALFWORD; STYLE: SMALLNUMBER; PENALTIES: boolean);
 LABEL 80;
+const
+  Always   = 1;
+  DontCare = 2;
+  Thin     = thin_mu_skip_code;
+  Med      = med_mu_skip_code;
+  Thick    = thick_mu_skip_code;
+
+  math_spacing : array[ord_noad .. inner_noad, ord_noad .. inner_noad] of byte = (
+    (0,      Always, Med,      Thick,    0,     0,        0,        Thin),
+    (Always, Always, DontCare, Thick,    0,     0,        0,        Thin),
+    (Med,    Med,    DontCare, DontCare, Med,   DontCare, DontCare, Med),
+    (Thick,  Thick,  DontCare, 0,        Thick, 0,        0,        Thick),
+    (0,      0,      DontCare, 0,        0,     0,        0,        0),
+    (0,      Always, Med,      Thick,    0,     0,        0,        Thin),
+    (Thin,   Thin,   DontCare, Thin,     Thin,  Thin,     Thin,     Thin),
+    (Thin,   Always, Med,      Thick,    Thin,  0,        Thin,     Thin));
+
+  { In original TeX source:
+  02340001
+  22*40001
+  33**3**3
+  44*04004
+  00*00000
+  02340001
+  11*11111
+  12341011}
+
 VAR
   Q: HALFWORD;
   R: HALFWORD;
@@ -10068,16 +10271,7 @@ BEGIN
   MAXH := 0;
   MAXD := 0;
   cur_style := STYLE;
-
-  {703:}
-  BEGIN
-    IF cur_style<4 THEN CURSIZE := 0
-                   ELSE CURSIZE := 16*((cur_style-2) DIV 2);
-    CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-  END;
-  {:703}
-
-
+  SetUpCurStyle(cur_style);
 
   WHILE Q<>0 DO BEGIN
     {727:}
@@ -10089,35 +10283,15 @@ BEGIN
             cur_style := MEM[Q].HH.B1;
               {This is one of two cases where cur_style is modified}
               {cur_style will be restored after this loop}
-
-            {703:}
-            BEGIN
-              IF cur_style<4 THEN CURSIZE := 0
-                            ELSE CURSIZE := 16*((cur_style-2) DIV 2);
-              CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-            END;
-            {:703}
-
+            SetUpCurStyle(cur_style);
           END;
       15: {731:}
           BEGIN
             CASE cur_style DIV 2 OF
-              0:  BEGIN
-                    P := MEM[Q+1].HH.LH;
-                    MEM[Q+1].HH.LH := 0;
-                  END;
-              1:  BEGIN
-                    P := MEM[Q+1].HH.RH;
-                    MEM[Q+1].HH.RH := 0;
-                  END;
-              2:  BEGIN
-                    P := MEM[Q+2].HH.LH;
-                    MEM[Q+2].HH.LH := 0;
-                  END;
-              3:  BEGIN
-                    P := MEM[Q+2].HH.RH;
-                    MEM[Q+2].HH.RH := 0;
-                  END;
+              0:  P := choose_mlist(MEM[Q+1].HH.LH);
+              1:  P := choose_mlist(MEM[Q+1].HH.RH);
+              2:  P := choose_mlist(MEM[Q+2].HH.LH);
+              3:  P := choose_mlist(MEM[Q+2].HH.RH);
             END;
             FLUSHNODELIS(MEM[Q+1].HH.LH);
             FLUSHNODELIS(MEM[Q+1].HH.RH);
@@ -10243,15 +10417,7 @@ BEGIN
           2:  P := MEM[Q+1].HH.LH;
           3:  BEGIN
                 mlist_to_hlist(MEM[Q+1].HH.LH, cur_style, false);
-
-                {703:}
-                BEGIN
-                  IF cur_style<4 THEN CURSIZE := 0
-                                ELSE CURSIZE := 16*((cur_style-2) DIV 2);
-                  CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-                END;
-                {:703}
-
+                SetUpCurStyle(cur_style);
                 P := HPACK(MEM[29997].HH.RH,0,1);
                END;
           ELSE confusion_str('mlist2')
@@ -10282,30 +10448,17 @@ BEGIN
     {:727}
   END;
 
-
-
-
-
-
-
-
-
   {729:}
-  IF RTYPE=18 THEN MEM[R].HH.B0 := 16{:729};{760:}
+  IF RTYPE=18 THEN MEM[R].HH.B0 := 16;
+  {:729}
+
+  {760:}
   P := 29997;
   MEM[P].HH.RH := 0;
   Q := MLIST;
   RTYPE := 0;
   cur_style := STYLE;
-
-  {703:}
-  BEGIN
-    IF cur_style<4 THEN CURSIZE := 0
-                   ELSE CURSIZE := 16*((cur_style-2) DIV 2);
-    CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-  END;
-  {:703}
-
+  SetUpCurStyle(cur_style);
   WHILE Q<>0 DO BEGIN
     {761:}
     TypeQ := MEM[Q].HH.B0;
@@ -10314,15 +10467,7 @@ BEGIN
             {763:}
             cur_style := MEM[Q].HH.B1;
               {This is one of two cases where cur_style is modified}
-
-            {703:}
-            BEGIN
-              IF cur_style<4 THEN CURSIZE := 0
-                             ELSE CURSIZE := 16*((cur_style-2) DIV 2);
-              CURMU := XOVERN(FONTINFO[6+PARAMBASE[EQTB[3937+CURSIZE].HH.RH]].INT,18);
-            END;
-            {:703}
-
+            SetUpCurStyle(cur_style);
             R := Q;
             Q := MEM[Q].HH.RH;
             FREENODE(R, 3);
@@ -10358,19 +10503,13 @@ BEGIN
           else confusion_str('mlist3')
         end;
 
-        {766:}
+        {@<Append inter-element spacing based on |r_type| and |t|@>}
         IF RTYPE>0 THEN BEGIN
-          CASE STRPOOL[RTYPE*8+T+MAGICOFFSET] OF
-            48: X := 0;
-            49: IF cur_style<4 THEN X := 15
-                               ELSE X := 0;
-            50: X := 15;
-            51: IF cur_style<4 THEN X := 16
-                               ELSE X := 0;
-            52: IF cur_style<4 THEN X := 17
-                               ELSE X := 0;
-            ELSE confusion_str('mlist4')
-          END;
+          X := math_spacing[RTYPE, T];
+          if X=Always then X := Thin
+          else if cur_style>=4 then X := 0;
+          assert(X<>DontCare);
+
           IF X<>0 THEN BEGIN
             Y := MATHGLUE(EQTB[2882+X].HH.RH, CURMU);
             Z := NEWGLUE(Y);
@@ -10380,7 +10519,6 @@ BEGIN
             MEM[Z].HH.B1 := X+1;
           END;
         END;
-        {:766}
 
         {767:}
         IF MEM[Q+1].INT<>0 THEN BEGIN
@@ -10416,6 +10554,19 @@ BEGIN
 END;
 {:726}
 
+
+
+
+
+
+
+
+
+
+
+
+
+
 {772:}
 PROCEDURE PUSHALIGNMEN;
 VAR P: HALFWORD;
@@ -10432,14 +10583,16 @@ BEGIN
   ALIGNPTR := P;
   CURHEAD := GETAVAIL;
 END;
-PROCEDURE POPALIGNMENT;
 
+PROCEDURE POPALIGNMENT;
 VAR P: HALFWORD;
 BEGIN
   BEGIN
     MEM[CURHEAD].HH.RH := AVAIL;
-    AVAIL := CURHEAD;{$IFDEF STATS}
-    DYNUSED := DYNUSED-1;{$ENDIF}
+    AVAIL := CURHEAD;
+{$IFDEF STATS}
+    DYNUSED := DYNUSED-1;
+{$ENDIF}
   END;
   P := ALIGNPTR;
   CURTAIL := MEM[P+4].HH.RH;
@@ -10452,30 +10605,30 @@ BEGIN
   ALIGNPTR := MEM[P].HH.RH;
   FREENODE(P,5);
 END;
-{:772}{774:}{782:}
-PROCEDURE GETPREAMBLET;
+{:772}
 
-LABEL 20;
+{774:}
+{782:}
+PROCEDURE GETPREAMBLET;
 BEGIN
-  20: GETTOKEN;
-  WHILE (CURCHR=256)AND(CURCMD=4) DO
-    BEGIN
+  while true do begin
+    GETTOKEN;
+    WHILE (CURCHR=256)AND(CURCMD=4) DO BEGIN
       GETTOKEN;
-      IF CURCMD>100 THEN
-        BEGIN
-          EXPAND;
-          GETTOKEN;
-        END;
+      IF CURCMD>100 THEN BEGIN
+        EXPAND;
+        GETTOKEN;
+      END;
     END;
-  IF CURCMD=9 THEN fatal_error('(interwoven alignment preambles are not allowed)');
-  IF (CURCMD=75)AND(CURCHR=2893)THEN
-    BEGIN
+
+    IF CURCMD=9 THEN fatal_error('(interwoven alignment preambles are not allowed)');
+    IF (CURCMD=75) AND (CURCHR=2893)THEN BEGIN
       SCANOPTIONAL;
       SCANGLUE(2);
       IF EQTB[5306].INT>0 THEN GEQDEFINE(2893, 117, CURVAL)
                           ELSE EQDEFINE(2893, 117, CURVAL);
-      GOTO 20;
-    END;
+    END ELSE break;
+  end;
 END;
 {:782}
 
@@ -12210,10 +12363,8 @@ BEGIN
     END{:910};
   RECONSTITUTE := J;
 END;{:906}
+
 PROCEDURE HYPHENATE;
-
-LABEL 50,30,40,41,42,45,10;
-
 VAR {901:}I,J,L: 0..65;
   Q,R,S: HALFWORD;
   BCHAR: HALFWORD;{:901}{912:}
@@ -12227,6 +12378,8 @@ VAR {901:}I,J,L: 0..65;
   H: HYPHPOINTER;
   K: STRNUMBER;
   U: POOLPOINTER;
+
+  HyphStr: shortstring;
 {:929}
 BEGIN{923:}
   FOR J:=0 TO HN DO
@@ -12236,49 +12389,57 @@ BEGIN{923:}
   HC[HN] := CURLANG;
   FOR J:=2 TO HN DO
     H := (H+H+HC[J])MOD 307;
-  WHILE TRUE DO
-    BEGIN{931:}
-      K := HYPHWORD[H];
-      IF K=0 THEN GOTO 45;
-      IF (STRSTART[K+1]-STRSTART[K])<HN THEN GOTO 45;
-      IF (STRSTART[K+1]-STRSTART[K])=HN THEN
-        BEGIN
-          J := 1;
-          U := STRSTART[K];
-          REPEAT
-            IF STRPOOL[U]<HC[J]THEN GOTO 45;
-            IF STRPOOL[U]>HC[J]THEN GOTO 30;
-            J := J+1;
-            U := U+1;
-          UNTIL J>HN;{932:}
+
+  WHILE TRUE DO BEGIN
+    {931:}
+    K := HYPHWORD[H];
+
+    if K<>0 then begin
+      HyphStr := GetString(K);
+      if length(HyphStr) = HN then begin
+        J := 1;
+        while (J<=HN) and (ord(HyphStr[J])=HC[J]) do J := J+1;
+
+        if J > HN then begin
+
+          {932:}
           S := HYPHLIST[H];
-          WHILE S<>0 DO
-            BEGIN
-              HYF[MEM[S].HH.LH] := 1;
-              S := MEM[S].HH.RH;
-            END{:932};
+          WHILE S<>0 DO BEGIN
+            HYF[MEM[S].HH.LH] := 1;
+            S := MEM[S].HH.RH;
+          END;
+          {:932}
+
           HN := HN-1;
-          GOTO 40;
-        END;
-      30:{:931};
-      IF H>0 THEN H := H-1
-      ELSE H := 307;
-    END;
-  45: HN := HN-1{:930};
-  IF TRIE[CURLANG+1].B1<>CURLANG+0 THEN goto 10;
-  HC[0] := 0;
-  HC[HN+1] := 0;
-  HC[HN+2] := 256;
-  FOR J:=0 TO HN-RHYF+1 DO
-    BEGIN
+          break;
+        end;
+
+        if ord(HyphStr[J])>HC[J] then begin
+          IF H>0 THEN H := H-1
+                 ELSE H := 307;
+          continue;
+        end;
+      end else if length(HyphStr) > HN then begin
+        IF H>0 THEN H := H-1
+               ELSE H := 307;
+        continue;
+      end;
+    end;
+
+
+    HN := HN-1{:930};
+    IF TRIE[CURLANG+1].B1<>CURLANG+0 THEN exit;
+    HC[0] := 0;
+    HC[HN+1] := 0;
+    HC[HN+2] := 256;
+    FOR J:=0 TO HN-RHYF+1 DO BEGIN
       Z := TRIE[CURLANG+1].RH+HC[J];
       L := J;
       WHILE HC[L]=TRIE[Z].B1-0 DO
         BEGIN
           IF TRIE[Z].B0<>0 THEN{924:}
             BEGIN
-              V := 
-                   TRIE[Z].B0;
+              V := TRIE[Z].B0;
               REPEAT
                 V := V+OPSTART[CURLANG];
                 I := L-HYFDISTANCE[V];
@@ -12290,67 +12451,74 @@ BEGIN{923:}
           Z := TRIE[Z].RH+HC[L];
         END;
     END;
-  40: FOR J:=0 TO LHYF-1 DO
+    break;
+
+  END;
+    {:931};
+
+
+  FOR J:=0 TO LHYF-1 DO
         HYF[J] := 0;
   FOR J:=0 TO RHYF-1 DO
     HYF[HN-J] := 0{:923};
-{902:}
-  FOR J:=LHYF TO HN-RHYF DO
-    IF ODD(HYF[J])THEN GOTO 41;
-  goto 10;
-  41:{:902};{903:}
+
+  {@<If no hyphens were found, |return|@>}
+  J := LHYF;
+  while not odd(HYF[J]) do begin
+    J := J + 1;
+    if J > (HN-RHYF) then exit;
+  end;
+
+
+{903:}
   Q := MEM[HB].HH.RH;
   MEM[HB].HH.RH := 0;
   R := MEM[HA].HH.RH;
   MEM[HA].HH.RH := 0;
   BCHAR := HYFBCHAR;
-  IF (HA>=HIMEMMIN)THEN
-    IF MEM[HA].HH.B0<>HF THEN GOTO 42
-  ELSE
-    BEGIN
-      INITLIST := HA;
-      INITLIG := FALSE;
-      HU[0] := MEM[HA].HH.B1-0;
-    END
-  ELSE
-    IF MEM[HA].HH.B0=6 THEN
-      IF MEM[HA+1].HH.B0<>HF THEN GOTO 42
-  ELSE
-    BEGIN
-      INITLIST := MEM[HA+1].HH.RH;
-      INITLIG := TRUE;
-      INITLFT := (MEM[HA].HH.B1>1);
-      HU[0] := MEM[HA+1].HH.B1-0;
-      IF INITLIST=0 THEN
-        IF INITLFT THEN
-          BEGIN
-            HU[0] := 256;
-            INITLIG := FALSE;
-          END;
-      FREENODE(HA,2);
-    END
-  ELSE
-    BEGIN
-      IF NOT(R>=HIMEMMIN)THEN
-        IF MEM[R].HH.B0=6 THEN
-          IF MEM[R].
-             HH.B1>1 THEN GOTO 42;
-      J := 1;
-      S := HA;
+  J := 0;
+  IF (HA>=HIMEMMIN) THEN begin 
+    INITLIG := FALSE;
+    IF MEM[HA].HH.B0<>HF THEN begin
       INITLIST := 0;
-      GOTO 50;
-    END;
-  S := CURP;
-  WHILE MEM[S].HH.RH<>HA DO
-    S := MEM[S].HH.RH;
-  J := 0;
-  GOTO 50;
-  42: S := HA;
-  J := 0;
-  HU[0] := 256;
-  INITLIG := FALSE;
-  INITLIST := 0;
-  50: FLUSHNODELIS(R);
+      HU[0] := 256;
+      S := HA;
+    end ELSE BEGIN
+      INITLIST := HA;
+      HU[0] := MEM[HA].HH.B1-0;
+      S := CURP;
+      WHILE MEM[S].HH.RH<>HA DO S := MEM[S].HH.RH;
+    END
+  end ELSE IF MEM[HA].HH.B0=6 THEN begin
+    INITLIG := FALSE;
+    HU[0] := 256;
+    IF MEM[HA+1].HH.B0<>HF THEN begin
+      INITLIST := 0;
+      S := HA;
+    end ELSE BEGIN
+      INITLIST := MEM[HA+1].HH.RH;
+      INITLFT := (MEM[HA].HH.B1>1);
+      IF (INITLIST<>0) or not INITLFT THEN BEGIN
+        INITLIG := TRUE;
+        HU[0] := MEM[HA+1].HH.B1;
+      END;
+      FREENODE(HA,2);
+      S := CURP;
+      WHILE MEM[S].HH.RH<>HA DO S := MEM[S].HH.RH;
+    END
+  end ELSE BEGIN
+    INITLIST := 0;
+    S := HA;
+    IF (R<HIMEMMIN) and (MEM[R].HH.B0=6) and (MEM[R].HH.B1>1) THEN begin
+      INITLIG := FALSE;
+      HU[0] := 256;
+    end else begin
+      J := 1;
+      // INITLIG ???
+    end;
+  END;
+  FLUSHNODELIS(R);
+
 {913:}
   REPEAT
     L := J;
@@ -12473,7 +12641,6 @@ BEGIN{923:}
   UNTIL J>HN;
   MEM[S].HH.RH := Q{:913};
   FLUSHLIST(INITLIST){:903};
-  10:
 END;
 {:895}
 
@@ -13366,12 +13533,35 @@ BEGIN
       Q := CURP;
     END{:865};
   PACKBEGINLIN := 0;
-END;{:815}{934:}
+END;
+{:815}
+
+function StringLowerOrEqual(s, t: shortstring) : boolean;
+var
+  i : sizeint;
+  Len : sizeint;
+begin
+  Len := length(s);
+  if Len = length(t) then begin
+    i := 1;
+    while s[i]=t[i] do begin
+      i := i + 1;
+      if i > Len then begin
+        StringLowerOrEqual := true; {equal}
+        exit;
+      end;
+    end;
+    StringLowerOrEqual := (s[i] < t[i]);
+  end else begin
+    StringLowerOrEqual := (Len < length(t));
+  end;
+end;
+
+
+{934:}
 PROCEDURE NEWHYPHEXCEP;
-
-LABEL 21,40,45;
-
-VAR N: 0..64;
+VAR
+  N: 0..64;
   J: 0..64;
   H: HYPHPOINTER;
   K: STRNUMBER;
@@ -13379,117 +13569,111 @@ VAR N: 0..64;
   Q: HALFWORD;
   S,T: STRNUMBER;
   U,V: POOLPOINTER;
+  HCStr: shortstring;
+  TabStr: shortstring;
 BEGIN
   SCANLEFTBRAC;
-  IF EQTB[5313].INT<=0 THEN CURLANG := 0
-  ELSE
-    IF EQTB[5313].INT>255 THEN
-      CURLANG := 0
-  ELSE CURLANG := EQTB[5313].INT;{935:}
+  IF      EQTB[5313].INT<=0  THEN CURLANG := 0
+  ELSE IF EQTB[5313].INT>255 THEN CURLANG := 0
+                             ELSE CURLANG := EQTB[5313].INT;
+  {935:}
   N := 0;
   P := 0;
-  WHILE TRUE DO
-    BEGIN
-      GETXTOKEN;
-      21:
-          CASE CURCMD OF 
-            11,12,68:{937:}
-                      IF CURCHR=45 THEN{938:}
-                        BEGIN
-                          IF N<63
-                            THEN
-                            BEGIN
-                              Q := GETAVAIL;
-                              MEM[Q].HH.RH := P;
-                              MEM[Q].HH.LH := N;
-                              P := Q;
-                            END;
-                        END{:938}
-                      ELSE
-                        BEGIN
-                          IF EQTB[4239+CURCHR].HH.RH=0 THEN
-                            BEGIN
-                              print_err('Not a letter');
-                              help2('Letters in \hyphenation words must have \lccode>0.',
-                                    'Proceed; I''ll ignore the character I just read.');
-                              ERROR;
-                            END
-                          ELSE
-                            IF N<63 THEN
-                              BEGIN
-                                N := N+1;
-                                HC[N] := EQTB[4239+CURCHR].HH.RH;
-                              END;
-                        END{:937};
-            16:
-                BEGIN
-                  SCANCHARNUM;
-                  CURCHR := CURVAL;
-                  CURCMD := 68;
-                  GOTO 21;
-                END;
-            10,2:
-                  BEGIN
-                    IF N>1 THEN{939:}
-                      BEGIN
-                        N := N+1;
-                        HC[N] := CURLANG;
-                        BEGIN
-                          IF POOLPTR+N>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
-                        END;
-                        H := 0;
-                        FOR J:=1 TO N DO
-                          BEGIN
-                            H := (H+H+HC[J])MOD 307;
-                            append_char(HC[J]);
-                          END;
-                        S := MAKESTRING;
-{940:}
-                        IF HYPHCOUNT=307 THEN overflow('exception dictionary', 307);
-                        HYPHCOUNT := HYPHCOUNT+1;
-                        WHILE HYPHWORD[H]<>0 DO
-                          BEGIN{941:}
-                            K := HYPHWORD[H];
-                            IF (STRSTART[K+1]-STRSTART[K])<(STRSTART[S+1]-STRSTART[S])THEN GOTO 40;
-                            IF (STRSTART[K+1]-STRSTART[K])>(STRSTART[S+1]-STRSTART[S])THEN GOTO 45;
-                            U := STRSTART[K];
-                            V := STRSTART[S];
-                            REPEAT
-                              IF STRPOOL[U]<STRPOOL[V]THEN GOTO 40;
-                              IF STRPOOL[U]>STRPOOL[V]THEN GOTO 45;
-                              U := U+1;
-                              V := V+1;
-                            UNTIL U=STRSTART[K+1];
-                            40: Q := HYPHLIST[H];
-                            HYPHLIST[H] := P;
-                            P := Q;
-                            T := HYPHWORD[H];
-                            HYPHWORD[H] := S;
-                            S := T;
-                            45:{:941};
-                            IF H>0 THEN H := H-1
-                            ELSE H := 307;
-                          END;
-                        HYPHWORD[H] := S;
-                        HYPHLIST[H] := P{:940};
-                      END{:939};
-                    IF CURCMD=2 THEN exit;
-                    N := 0;
-                    P := 0;
-                  END;
-            ELSE
-              BEGIN
-                {936:}
-                print_err('Improper ' + print_esc('hyphenation') + ' will be flushed');
-                help2('Hyphenation exceptions must contain only letters',
-                      'and hyphens. But continue; I''ll forgive and forget.');
-                ERROR;
-                {:936}
-              END
+  WHILE TRUE DO BEGIN
+    GETXTOKEN;
+
+    if CURCMD=16 then begin
+      SCANCHARNUM;
+      CURCHR := CURVAL;
+      CURCMD := 68;
+    end;
+
+    CASE CURCMD OF 
+      11,
+      12,
+      68: {937:}
+          IF CURCHR=45 THEN BEGIN
+            {938:}
+            IF N<63 THEN BEGIN
+              Q := GETAVAIL;
+              MEM[Q].HH.RH := P;
+              MEM[Q].HH.LH := N;
+              P := Q;
+            END;
+            {:938}
+          END ELSE BEGIN
+            IF EQTB[4239+CURCHR].HH.RH=0 THEN BEGIN
+              print_err('Not a letter');
+              help2('Letters in \hyphenation words must have \lccode>0.',
+                    'Proceed; I''ll ignore the character I just read.');
+              ERROR;
+            END ELSE IF N<63 THEN BEGIN
+              N := N+1;
+              HC[N] := EQTB[4239+CURCHR].HH.RH;
+            END;
           END;
-    END{:935};
+          {:937}
+      10,
+      2:  BEGIN
+            IF N>1 THEN BEGIN
+
+              {@<Enter a hyphenation exception@>}
+              {939:}
+              N := N+1;
+              HC[N] := CURLANG;
+              setlength(HCStr, N);
+              H := 0;
+              FOR J:=1 TO N DO BEGIN
+                H := (H+H+HC[J])MOD 307;
+                HCStr[J] := chr(HC[J]);
+              END;
+              S := AddString(HCStr);
+
+              {@<Insert the pair |(s,p)| into the exception table@>}
+              {940:}
+              IF HYPHCOUNT=307 THEN overflow('exception dictionary', 307);
+              HYPHCOUNT := HYPHCOUNT+1;
+              WHILE HYPHWORD[H]<>0 DO BEGIN
+
+                {@<If the string |hyph_word[h]| is less than or equal to |s|,
+                   interchange |(hyph_word[h],hyph_list[h])| with |(s,p)|@>}
+                K := HYPHWORD[H];
+                if StringLowerOrEqual(GetString(K), HCStr) then begin
+                  Q := HYPHLIST[H];
+                  HYPHLIST[H] := P;
+                  P := Q;
+                  T := HYPHWORD[H];
+                  HYPHWORD[H] := S;
+                  S := T;
+                end;
+
+                IF H>0 THEN H := H-1
+                       ELSE H := 307;
+              END;
+              HYPHWORD[H] := S;
+              HYPHLIST[H] := P;
+              {:940}
+              {:939}
+            END;
+            IF CURCMD=2 THEN exit;
+            N := 0;
+            P := 0;
+          END;
+      ELSE BEGIN
+            {936:}
+            print_err('Improper ' + print_esc('hyphenation') + ' will be flushed');
+            help2('Hyphenation exceptions must contain only letters',
+                  'and hyphens. But continue; I''ll forgive and forget.');
+            ERROR;
+            {:936}
+          END;
+    END;
+  END;
+  {:935}
 END;
-{:934}{968:}
+{:934}
+
+{968:}
 FUNCTION PRUNEPAGETOP(P:HALFWORD): HALFWORD;
 VAR
   PREVP: HALFWORD;
@@ -18580,27 +18764,7 @@ BEGIN
 END;
 {:1030}
 
-{1303:}
-procedure too_small(ParameterName: shortstring);
-var i: Integer;
-begin
-  write(output, '---! Must increase the ' + ParameterName);
-  writeln(output);
-end;
 
-function UInt32LE(Buf: array of byte; Ofs: SizeUInt) : UInt32;
-begin
-  UInt32LE :=  UInt32(Buf[Ofs])           or (UInt32(Buf[Ofs+1]) shl 8) or
-              (UInt32(Buf[Ofs+2]) shl 16) or (UInt32(Buf[Ofs+3]) shl 24);
-end;
-
-function BlockReadSuccess(var f: byte_file; var Buf; Len: UInt32) : boolean;
-begin
-  {$I-}
-  blockread(f, Buf, Len);
-  BlockReadSuccess :=  IOResult = 0;
-  {$I+}
-end;
 
 function ReadFormatFile(var f: byte_file): boolean;
 VAR
@@ -18615,7 +18779,7 @@ BEGIN
   ReadFormatFile := false;
 
   {1308: @<Undump constants for consistency check@>}
-  if not BlockReadSuccess(f, Buf, 32) then exit;
+  if not BlockReadSuccess(f, Buf, 24) then exit;
   if (UInt32LE(Buf,  0) <> 69577846) or
      (UInt32LE(Buf,  4) <> mem_bot) or
      (UInt32LE(Buf,  8) <> mem_top) or
@@ -18625,21 +18789,7 @@ BEGIN
   {:1308}
 
   {1310: @<Undump the string pool@>}
-  u32 := UInt32LE(Buf, 24);
-  if (u32 > pool_size) then too_small('string_pool_size');
-  POOLPTR := u32;
-  u32 := UInt32LE(Buf, 28);
-  if (u32 > max_strings) then too_small('max string');
-  STRPTR := u32;
-  INITSTRPTR := STRPTR;
-  INITPOOLPTR := POOLPTR;
-  if not BlockReadSuccess(f, STRPOOL, STRPTR*4+4) then exit;
-  for i := 0 to STRPTR do STRSTART[i] := UInt32LE(STRPOOL, 4*i);
-
-  j := (POOLPTR + 3) and (not 3);
-  if not BlockReadSuccess(f, STRPOOL, j) then exit;
-  {Special treatment of last word. FIXME}
-  for i := 0 to 3 do STRPOOL[POOLPTR-4+i] := STRPOOL[j-4+i];
+  if not UndumpStringPool(f) then exit;
   {:1310}
 
   {1312: @<Undump the dynamic memory@>}
@@ -18999,22 +19149,6 @@ END;
 
 
 {1302:}
-procedure SetUInt32LE(var Buf: array of byte; Ofs: SizeUInt; Val: UInt32);
-begin
-  Buf[Ofs] := Val;
-  Buf[Ofs+1] := Val shr 8;
-  Buf[Ofs+2] := Val shr 16;
-  Buf[Ofs+3] := Val shr 24;
-end;
-
-function BlockWriteSuccess(var f: file; var Buf; Len: UInt32) : boolean;
-begin
-  {$I-}
-  blockwrite(f, Buf, Len);
-  BlockWriteSuccess :=  IOResult = 0;
-  {$I+}
-end;
-
 PROCEDURE StoreFormatFile;
 LABEL 41,42,31,32;
 VAR J,K,L: Int32;
@@ -19066,22 +19200,11 @@ BEGIN
   SetUInt32LE(Buf, 12, eqtb_size);
   SetUInt32LE(Buf, 16, hash_prime);
   SetUInt32LE(Buf, 20, hyph_size);
+  blockwrite(f, Buf, 24);
   {:1307}
 
   {1309: @<Dump the string pool@>}
-  SetUInt32LE(Buf, 24, POOLPTR);
-  SetUInt32LE(Buf, 28, STRPTR);
-  blockwrite(f, Buf, 32);
-
-  {FIXME: pack in 16 bit and use one blockwrite}
-  for K := 0 to STRPTR do begin
-    SetUInt32LE(Buf, 0, STRSTART[K]);
-    blockwrite(f, Buf, 4);
-  end;
-
-  blockwrite(f, STRPOOL, POOLPTR and not 3);
-  {Special treatment of last word. FIXME}
-  if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
+  DumpStringPool(f);
 
   PRINTLN;
   PRINTINT(STRPTR);
@@ -21240,7 +21363,6 @@ BEGIN
     THEN CURINPUT.LIMITFIELD := CURINPUT.LIMITFIELD-1
     ELSE BUFFER[CURINPUT.LIMITFIELD] := EQTB[5311].INT;
 
-  MAGICOFFSET := STRSTART[892]-9*16{:765};
   IF INTERACTION=0 THEN SELECTOR := 16
                    ELSE SELECTOR := 17;
 
