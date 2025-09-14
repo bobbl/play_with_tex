@@ -763,10 +763,12 @@ VAR
   ROVER: HALFWORD;
 {:124}
 
-{173:}
-  FONTINSHORTD: Int32;{:173}{181:}
-  DEPTHTHRESHO: Int32;
-  BREADTHMAX: Int32;{:181}{213:}
+
+
+
+
+
+{213:}
   NEST: ARRAY[0..NESTSIZE] OF LISTSTATEREC;
   NESTPTR: 0..NESTSIZE;
   MAXNESTSTACK: 0..NESTSIZE;
@@ -1469,32 +1471,12 @@ begin
   print_str(PrintableChar(ch));
 end;
 
-procedure slow_print_str(s: shortstring);
-begin
-  print_str(PrintableStr(s));
-end;
-
 procedure slow_print_utf8str(const s: utf8string);
 var
   i: sizeint;
 begin
   for i := 1 to length(s) do print_str(PrintableChar(ord(s[i])));
 end;
-
-PROCEDURE SLOWPRINT(S:Int32);
-VAR J: POOLPOINTER;
-BEGIN
-  if S<256 then slow_print_char(S)
-  else if S>=STRPTR then print_str('???')
-  else begin
-    J := STRSTART[S];
-    WHILE J<STRSTART[S+1] DO BEGIN
-      slow_print_char(STRPOOL[J]);
-      J := J+1;
-    END;
-  end;
-end;
-{:60}
 
 {62:}
 procedure print_nl_str(s: shortstring);
@@ -1520,18 +1502,8 @@ var ch: int32;
 begin
   ch := EQTB[5308].INT; {current escape character}
   if (ch>=0) and (ch<256) then slow_print_char(ch);
-  slow_print_str(s);
+  print_str(PrintableStr(s));
 end;
-
-PROCEDURE PRINTESC(S:STRNUMBER);
-VAR C: Int32;
-BEGIN{243:}
-  C := EQTB[5308].INT{:243};
-  IF C>=0 THEN
-    IF C<256 THEN slow_print_char(C);
-  SLOWPRINT(S);
-END;
-{:63}
 
 {64:}
 PROCEDURE PRINTTHEDIGS(K:EIGHTBITS);
@@ -1588,19 +1560,6 @@ BEGIN
 END;
 {:1355}
 
-{70:}
-PROCEDURE PRINTCURRENT;
-
-VAR J: POOLPOINTER;
-BEGIN
-  J := STRSTART[STRPTR];
-  WHILE J<POOLPTR DO
-    BEGIN
-      PRINTCHAR(STRPOOL[J]);
-      J := J+1;
-    END;
-END;
-{:70}
 
 
 procedure too_small(ParameterName: shortstring);
@@ -1845,44 +1804,6 @@ begin
 end;
 
 
-{43:}
-FUNCTION MAKESTRING: STRNUMBER;
-BEGIN
-  IF STRPTR=MAXSTRINGS THEN overflow('number of strings', MAXSTRINGS-INITSTRPTR);
-  STRPTR := STRPTR+1;
-  STRSTART[STRPTR] := POOLPTR;
-  MAKESTRING := STRPTR-1;
-END;
-{:43}
-
-{45:}
-FUNCTION STREQBUF(S:STRNUMBER;K:Int32): BOOLEAN;
-VAR
-  J: POOLPOINTER;
-BEGIN
-  J := STRSTART[S];
-  WHILE J<STRSTART[S+1] DO BEGIN
-    IF STRPOOL[J]<>BUFFER[K] THEN BEGIN
-      STREQBUF := FALSE;
-      exit;
-    END;
-    J := J+1;
-    K := K+1;
-  END;
-  STREQBUF := TRUE;
-END;
-{:45}
-
-procedure append_char(ch: byte);
-begin
-  STRPOOL[POOLPTR] := ch;
-  POOLPTR := POOLPTR+1;
-end;
-
-procedure flush_char;
-begin
-  POOLPTR := POOLPTR-1;
-end;
 
 
 
@@ -2210,7 +2131,7 @@ BEGIN
 
   {536:}
   WRITE(LOGFILE, 'This is TeX, Version 3.141592653 Free Pascal');
-  SLOWPRINT(FORMATIDENT);
+  print_str(PrintableStr(GetString(FORMATIDENT)));
     {This is the single remaining usage for `format_ident`:
      Safe the string when reading the format file until it is printed here.
      FIXME: open the log file at a fixed point in the program execution, e.g.
@@ -2317,6 +2238,9 @@ begin
   blockwrite(f, STRPOOL, POOLPTR and not 3);
   {FIXME: special treatment of last word}
   if (POOLPTR and 3) <> 0 then blockwrite(f, STRPOOL[POOLPTR-4], 4);
+
+  PRINTLN;
+  print_str(print_int(STRPTR) + ' strings of total length ' + print_int(POOLPTR));
 end;
 
 
@@ -2677,69 +2601,92 @@ END;
 
 
 
-{------------------- natural boundary -----------------------------------}
 
 
 
 
 
-{174:}
-PROCEDURE SHORTDISPLAY(P:Int32);
+{ ----------------------------------------------------------------------
+  Part 12: Displaying boxes
+  ---------------------------------------------------------------------- }
 
+
+{@* \[12] Displaying boxes.
+We can reinforce our knowledge of the data structures just introduced
+by considering two procedures that display a list in symbolic form.
+The first of these, called |short_display|, is used in ``overfull box''
+messages to give the top-level description of a list. The other one,
+called |show_node_list|, prints a detailed description of exactly what
+is in the data structure.
+
+The philosophy of |short_display| is to ignore the fine points about exactly
+what is inside boxes, except that ligatures and discretionary breaks are
+expanded. As a result, |short_display| is a recursive procedure, but the
+recursion is never more than one level deep.
+
+A global variable |font_in_short_display| keeps track of the font code that
+is assumed to be present when |short_display| begins; deviations from this
+font will be printed.}
+
+
+
+{@ Boxes, rules, inserts, whatsits, marks, and things in general that are
+sort of ``complicated'' are indicated only by printing `[]'.}
+PROCEDURE short_display(font_in_short_display: int32; P: int32);
 VAR N: Int32;
 BEGIN
-  WHILE P>MEMMIN DO
-    BEGIN
-      IF (P>=HIMEMMIN)THEN
-        BEGIN
-          IF P<=MEMEND
-            THEN
-            BEGIN
-              IF MEM[P].HH.B0<>FONTINSHORTD THEN
-                BEGIN
-                  IF (MEM[P].HH.B0<0)OR
-                     (MEM[P].HH.B0>FONTMAX)THEN PRINTCHAR(42)
-                  ELSE{267:}PRINTESC(HASH[2624+MEM[P].HH.B0].RH){:267};
-                  PRINTCHAR(32);
-                  FONTINSHORTD := MEM[P].HH.B0;
-                END;
-              slow_print_char(MEM[P].HH.B1);
-            END;
-        END
-      ELSE{175:}
-        CASE MEM[P].HH.B0 OF 
-          0,1,3,8,4,5,13: print_str('[]');
-          2: PRINTCHAR(124);
-          10:
-              IF MEM[P+1].HH.LH<>0 THEN PRINTCHAR(32);
-          9: PRINTCHAR(36);
-          6: SHORTDISPLAY(MEM[P+1].HH.RH);
-          7:
-             BEGIN
-               SHORTDISPLAY(MEM[P+1].HH.LH);
-               SHORTDISPLAY(MEM[P+1].HH.RH);
-               N := MEM[P].HH.B1;
-               WHILE N>0 DO
-                 BEGIN
-                   IF MEM[P].HH.RH<>0 THEN P := MEM[P].HH.RH;
-                   N := N-1;
-                 END;
-             END;
-          ELSE
-        END{:175};
-      P := MEM[P].HH.RH;
-    END;
-END;
-{:174}
+  WHILE P>MEMMIN DO BEGIN
+    IF (P>=HIMEMMIN) THEN BEGIN
+      IF P<=MEMEND THEN BEGIN
+        IF MEM[P].HH.B0<>font_in_short_display THEN BEGIN
+          IF (MEM[P].HH.B0<0) OR
+             (MEM[P].HH.B0>FONTMAX)
+          THEN PRINTCHAR(42)
+          ELSE print_esc_str(GetString(HASH[2624+MEM[P].HH.B0].RH));
+          PRINTCHAR(32);
+          font_in_short_display := MEM[P].HH.B0;
+        END;
+        slow_print_char(MEM[P].HH.B1);
+      END;
+    END ELSE begin
 
-{176:}
+      {@<Print a short indication of the contents of node |p|@>}
+      CASE MEM[P].HH.B0 OF {type(P)}
+        0,1,3,8,4,5,13:
+            print_str('[]');
+        2:  PRINTCHAR(124);
+        10: IF MEM[P+1].HH.LH<>0 THEN PRINTCHAR(32);
+        9:  PRINTCHAR(36);
+        6:  short_display(font_in_short_display, MEM[P+1].HH.RH);
+        7:  BEGIN
+              short_display(font_in_short_display, MEM[P+1].HH.LH);
+              short_display(font_in_short_display, MEM[P+1].HH.RH);
+              N := MEM[P].HH.B1;
+              WHILE N>0 DO BEGIN
+                IF MEM[P].HH.RH<>0 THEN P := MEM[P].HH.RH;
+                N := N-1;
+              END;
+            END;
+      END;
+
+    end;
+    P := MEM[P].HH.RH;
+  END;
+END;
+
+{@ The |show_node_list| routine requires some auxiliary subroutines: one to
+print a font-and-character combination, one to print a token list without
+its reference count, and one to print a rule dimension.}
+
+
+
 PROCEDURE PRINTFONTAND(P:Int32);
 BEGIN
   IF P>MEMEND THEN print_esc_str('CLOBBERED.')
   ELSE BEGIN
     IF (MEM[P].HH.B0<0)OR(MEM[P].HH.B0>FONTMAX)
     THEN PRINTCHAR(42)
-    ELSE PRINTESC(HASH[2624+MEM[P].HH.B0].RH);
+    ELSE print_esc_str(GetString(HASH[2624+MEM[P].HH.B0].RH));
     PRINTCHAR(32);
     slow_print_char(MEM[P].HH.B1);
   END;
@@ -2863,10 +2810,10 @@ END;
 
 
 
-function RuleDimStr(Dim: SCALED): shortstring;
+function print_rule_dimen(Dim: SCALED): shortstring;
 begin 
-  if (Dim=-1073741824) then RuleDimStr := '*'
-                       else RuleDimStr := print_scaled(Dim);
+  if (Dim=-1073741824) then print_rule_dimen := '*'
+                       else print_rule_dimen := print_scaled(Dim);
 end;
 {:176}
 
@@ -2964,7 +2911,56 @@ begin
 END;
 
 
-procedure SHOWNODELIST(P: Int32); forward;
+
+
+var
+  RecursionHistory : shortstring = '';
+
+{@ A global variable called |depth_threshold| is used to record the maximum
+depth of nesting for which |show_node_list| will show information.  If we
+have |depth_threshold=0|, for example, only the top level information will
+be given and no sublists will be traversed. Another global variable, called
+|breadth_max|, tells the maximum number of items to show at each level;
+|breadth_max| had better be positive, or you won't see anything.}
+
+{These two values should be parameters to |show_node_list|. But they are global
+ variables to safe stack space on the recursive calls of |show_node_list|}
+
+  depth_threshold: int32; {maximum nesting depth in box displays}
+  breadth_max: int32; {maximum number of items shown at the same list level}
+
+
+{The following procedures were used in multiple contexts, but now there is only
+ one usage in show_node_list left}
+
+procedure append_char(ch: byte); inline;
+begin
+  RecursionHistory := RecursionHistory + chr(ch);
+end;
+
+procedure flush_char; inline;
+begin
+  setlength(RecursionHistory, length(RecursionHistory) - 1);
+end;
+
+
+procedure SHOWNODELIST(P: HALFWORD); forward;
+
+{@ Since boxes can be inside of boxes, |show_node_list| is inherently recursive,
+up to a given maximum number of levels.  The history of nesting is indicated
+by the current string, which will be printed at the beginning of each line;
+the length of this string, namely |cur_length|, is the depth of nesting.
+
+Recursive calls on |show_node_list| therefore use the following pattern:}
+
+procedure node_list_display(Letter: char; Node: HALFWORD); inline;
+begin
+  {|str_room| need not be checked; see |show_box| below}
+  append_char(ord(Letter));
+  SHOWNODELIST(Node);
+  flush_char;
+end;
+
 
 {@ The next subroutine will descend to another level of recursion when a
 subsidiary mlist needs to be displayed. The parameter |c| indicates what
@@ -2974,48 +2970,57 @@ not equivalent (as explained above).}
 
 (*print_subsidiary_data*)
 
-PROCEDURE PRINTSUBSIDI(P:HALFWORD;C:ASCIICODE);
+PROCEDURE print_subsidiary_data(P:HALFWORD;C:ASCIICODE);
 BEGIN
-  IF (POOLPTR-STRSTART[STRPTR])>=DEPTHTHRESHO THEN BEGIN
+  IF length(RecursionHistory) >= depth_threshold THEN BEGIN
     IF MEM[P].HH.RH<>0 THEN print_str(' []');
   END ELSE BEGIN
     append_char(C);
     CASE MEM[P].HH.RH OF 
       1:  BEGIN
             PRINTLN;
-            PRINTCURRENT;
-            print_str(print_fam_and_char(P));
+            print_str(RecursionHistory + print_fam_and_char(P));
           END;
       2:  SHOWNODELIST(MEM[P].HH.LH);
       3:  IF MEM[P].HH.LH=0 THEN BEGIN
             PRINTLN;
-            PRINTCURRENT;
-            print_str('{}');
+            print_str(RecursionHistory + '{}');
           END ELSE SHOWNODELIST(MEM[P].HH.LH);
     END;
-    POOLPTR := POOLPTR-1;
+    flush_char;
   END;
 END;
 
+{@ Now we are ready for |show_node_list| itself. This procedure has been
+written to be ``extra robust'' in the sense that it should not crash or get
+into a loop even if the data structures have been messed up by bugs in
+the rest of the program. You can safely call its parent routine
+|show_box(p)| for arbitrary values of |p| when you are debugging \TeX.
+However, in the presence of bad data, the procedure may
+fetch a |memory_word| whose variant is different from the way it was stored;
+for example, it might try to read |mem[p].hh| when |mem[p]|
+contains a scaled integer, if |p| is a pointer that has been
+clobbered or chosen at random.}
+
 {182:}
-PROCEDURE SHOWNODELIST(P: Int32);
+PROCEDURE SHOWNODELIST(P: HALFWORD);
 VAR N: Int32;
   G: Double;
 BEGIN
-  IF (POOLPTR-STRSTART[STRPTR])>DEPTHTHRESHO THEN BEGIN
+  IF length(RecursionHistory) > depth_threshold THEN BEGIN
     IF P>0 THEN print_str(' []');
     exit;
   END;
   N := 0;
   WHILE P>MEMMIN DO BEGIN
     PRINTLN;
-    PRINTCURRENT;
+    print_str(RecursionHistory);
     IF P>MEMEND THEN BEGIN
       print_str('Bad link, display aborted.');
       exit;
     END;
     N := N+1;
-    IF N>BREADTHMAX THEN BEGIN
+    IF N > breadth_max THEN BEGIN
       print_str('etc.');
       exit;
     END;
@@ -3060,31 +3065,25 @@ BEGIN
                     IF MEM[P+4].INT<>0 THEN
                         print_str(', shifted ' + print_scaled(MEM[P+4].INT));
                   END;
-                BEGIN
-                  append_char(ord('.'));
-                  SHOWNODELIST(MEM[P+5].HH.RH);
-                  POOLPTR := POOLPTR-1;
-                END;
+                node_list_display('.', MEM[P+5].HH.RH);
               END{:184};
-      2:{187:}
-             BEGIN
-               print_esc_str('rule(' + RuleDimStr(MEM[P+3].INT)
-                               + '+' + RuleDimStr(MEM[P+2].INT)
-                              + ')x' + RuleDimStr(MEM[P+1].INT));
-             END{:187};
-          3:{188:}
-             BEGIN
-               print_esc_str('insert' + print_int(MEM[P].HH.B1-0)
+        2:  BEGIN
+              {187:}
+              print_esc_str('rule(' + print_rule_dimen(MEM[P+3].INT)
+                              + '+' + print_rule_dimen(MEM[P+2].INT)
+                             + ')x' + print_rule_dimen(MEM[P+1].INT));
+              {:187}
+            END;
+        3:  BEGIN
+              {188:}
+              print_esc_str('insert' + print_int(MEM[P].HH.B1)
                  + ', natural size ' + print_scaled(MEM[P+3].INT)
                  + '; split(' + print_spec(MEM[P+4].HH.RH, '')
                  + ',' + print_scaled(MEM[P+2].INT)
                  + '); float cost ' + print_int(MEM[P+1].INT));
-               BEGIN
-                 append_char(ord('.'));
-                 SHOWNODELIST(MEM[P+4].HH.LH);
-                 POOLPTR := POOLPTR-1;
-               END;
-             END{:188};
+              node_list_display('.', MEM[P+4].HH.LH);
+              {:188}
+            END;
           8:{1356:}
              CASE MEM[P].HH.B1 OF 
                0:
@@ -3120,18 +3119,15 @@ BEGIN
                ELSE print_str('whatsit?')
              END{:1356};
           10:{189:}
-              IF MEM[P].HH.B1>=100 THEN{190:}
-                BEGIN
+              IF MEM[P].HH.B1>=100 THEN BEGIN
+                  {190:}
                   print_esc_str('');
                   IF MEM[P].HH.B1=101 THEN PRINTCHAR(99)
                   ELSE IF MEM[P].HH.B1=102 THEN PRINTCHAR(120);
                   print_str('leaders ' + print_spec(MEM[P+1].HH.LH, ''));
-                  BEGIN
-                    append_char(ord('.'));
-                    SHOWNODELIST(MEM[P+1].HH.RH);
-                    POOLPTR := POOLPTR-1;
-                  END;
-                END{:190}
+                  node_list_display('.', MEM[P+1].HH.RH);
+                  {:190}
+                END
               ELSE
                 BEGIN
                   print_esc_str('glue');
@@ -3172,8 +3168,7 @@ BEGIN
                PRINTFONTAND(P+1);
                print_str(' (ligature ');
                IF MEM[P].HH.B1>1 THEN PRINTCHAR(124);
-               FONTINSHORTD := MEM[P+1].HH.B0;
-               SHORTDISPLAY(MEM[P+1].HH.RH);
+               short_display(MEM[P+1].HH.B0, MEM[P+1].HH.RH);
                IF ODD(MEM[P].HH.B1)THEN PRINTCHAR(124);
                PRINTCHAR(41);
              END{:193};
@@ -3185,19 +3180,12 @@ BEGIN
           7:{195:}
              BEGIN
                print_esc_str('discretionary');
-               IF MEM[P].HH.B1>0 THEN
-                 BEGIN
-                   print_str(' replacing ');
-                   PRINTINT(MEM[P].HH.B1);
-                 END;
-               BEGIN
-                 append_char(ord('.'));
-                 SHOWNODELIST(MEM[P+1].HH.LH);
-                 POOLPTR := POOLPTR-1;
+               IF MEM[P].HH.B1>0 THEN BEGIN
+                 print_str(' replacing ');
+                 PRINTINT(MEM[P].HH.B1);
                END;
-               append_char(124);
-               SHOWNODELIST(MEM[P+1].HH.RH);
-               POOLPTR := POOLPTR-1;
+               node_list_display('.', MEM[P+1].HH.LH);
+               node_list_display('|', MEM[P+1].HH.RH);
              END{:195};
           4:{196:}
              BEGIN
@@ -3207,29 +3195,19 @@ BEGIN
           5:{197:}
              BEGIN
                print_esc_str('vadjust');
-               BEGIN
-                 append_char(ord('.'));
-                 SHOWNODELIST(MEM[P+1].INT);
-                 POOLPTR := POOLPTR-1;
-               END;
+               node_list_display('.', MEM[P+1].INT);
              END{:197};{690:}
           14: print_str(print_style(MEM[P].HH.B1));
-          15:{695:}
+          15:
               BEGIN
+                {695:}
                 print_esc_str('mathchoice');
-                append_char(ord('D'));
-                SHOWNODELIST(MEM[P+1].HH.LH);
-                POOLPTR := POOLPTR-1;
-                append_char(ord('T'));
-                SHOWNODELIST(MEM[P+1].HH.RH);
-                POOLPTR := POOLPTR-1;
-                append_char(ord('S'));
-                SHOWNODELIST(MEM[P+2].HH.LH);
-                POOLPTR := POOLPTR-1;
-                append_char(ord('s'));
-                SHOWNODELIST(MEM[P+2].HH.RH);
-                POOLPTR := POOLPTR-1;
-              END{:695};
+                node_list_display('D', MEM[P+1].HH.LH);
+                node_list_display('T', MEM[P+1].HH.RH);
+                node_list_display('S', MEM[P+2].HH.LH);
+                node_list_display('s', MEM[P+2].HH.RH);
+                {:695}
+              END;
       16,17,18,19,20,21,22,23,24,27,26,29,28,30,31:
             {696:}
             BEGIN
@@ -3253,9 +3231,9 @@ BEGIN
               IF MEM[P].HH.B1<>0 THEN
                 IF MEM[P].HH.B1=1 THEN print_esc_str('limits')
                                   ELSE print_esc_str('nolimits');
-              IF MEM[P].HH.B0<30 THEN PRINTSUBSIDI(P+1, 46);
-              PRINTSUBSIDI(P+2, 94);
-              PRINTSUBSIDI(P+3, 95);
+              IF MEM[P].HH.B0<30 THEN print_subsidiary_data(P+1, 46);
+              print_subsidiary_data(P+2, 94);
+              print_subsidiary_data(P+3, 95);
             END;
               {:696}
 
@@ -3274,8 +3252,8 @@ BEGIN
                  (MEM[P+5].QQQQ.B2<>0) OR
                  (MEM[P+5].QQQQ.B3<>0)
               THEN print_str(', right-delimiter ' + print_delimiter(P+5));
-              PRINTSUBSIDI(P+2,92);
-              PRINTSUBSIDI(P+3,47);
+              print_subsidiary_data(P+2,92);
+              print_subsidiary_data(P+3,47);
             END;
             {:697}
       ELSE  print_str('Unknown node type!')
@@ -3285,17 +3263,32 @@ BEGIN
 END;
 {:182}
 
-{198:}
 PROCEDURE SHOWBOX(P:HALFWORD);
-BEGIN{236:}
-  DEPTHTHRESHO := EQTB[5288].INT;
-  BREADTHMAX := EQTB[5287].INT{:236};
-  IF BREADTHMAX<=0 THEN BREADTHMAX := 5;
-  IF POOLPTR+DEPTHTHRESHO>=POOLSIZE THEN DEPTHTHRESHO := POOLSIZE-POOLPTR-1;
+BEGIN
+  depth_threshold := EQTB[5288].INT; {=show_box_depth}
+  breadth_max     := EQTB[5287].INT; {=show_box_breath}
+  if breadth_max <= 0 then breadth_max := 5;
+  if depth_threshold > 255 then depth_threshold := 255;
   SHOWNODELIST(P);
   PRINTLN;
 END;
-{:198}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{------------------- natural boundary -----------------------------------}
 
 
 {211:}
@@ -3812,8 +3805,8 @@ BEGIN
       PRINTCHAR(61);
       IF EQTB[N].HH.RH=0 THEN print_str('void')
       ELSE BEGIN
-        DEPTHTHRESHO := 0;
-        BREADTHMAX := 1;
+        depth_threshold := 0;
+        breadth_max := 1;
         SHOWNODELIST(EQTB[N].HH.RH);
       END;
     END ELSE IF N<3983 THEN BEGIN
@@ -3829,7 +3822,7 @@ BEGIN
         PRINTINT(N-3967);
       END;
       PRINTCHAR(61);
-      PRINTESC(HASH[2624+EQTB[N].HH.RH].RH);
+      print_esc_str(GetString(HASH[2624+EQTB[N].HH.RH].RH));
     END ELSE IF N<5007 THEN BEGIN
       IF N<4239 THEN BEGIN
         print_esc_str('catcode');
@@ -4221,23 +4214,22 @@ is |true|, the dummy address |undefined_control_sequence| is returned.
 Otherwise the identifier is inserted into the hash table and its location
 is returned.}
 
-function id_lookup(no_new_control_sequence: boolean; J, L:Int32): HALFWORD;
+function id_lookup(no_new_control_sequence: boolean; Ident: shortstring): HALFWORD;
 VAR
   H: Int32;
-  D: Int32;
   P: HALFWORD;
   K: HALFWORD;
+  L: sizeuint;
 BEGIN
-  H := BUFFER[J];
-  FOR K:=J+1 TO J+L-1 DO BEGIN
-    H := H+H+BUFFER[K];
+  L := length(Ident);
+  H := ord(Ident[1]);
+  FOR K := 2 TO L DO BEGIN
+    H := H+H+ ord(Ident[K]);
     WHILE H>=1777 DO H := H-1777;
   END;
   P := H+514;
-  WHILE TRUE DO BEGIN
-    IF HASH[P].RH>0 THEN
-      IF (STRSTART[HASH[P].RH+1]-STRSTART[HASH[P].RH])=L THEN
-        IF STREQBUF(HASH[P].RH,J) THEN break;
+
+  while (HASH[P].RH=0) or (GetString(HASH[P].RH)<>Ident) do begin
     IF HASH[P].LH=0 THEN BEGIN
       IF no_new_control_sequence THEN P := undefined_control_sequence{2881}
       ELSE BEGIN
@@ -4251,18 +4243,13 @@ BEGIN
           HASH[P].LH := HASHUSED;
           P := HASHUSED;
         END;
-        IF POOLPTR+L>POOLSIZE THEN overflow('pool size', POOLSIZE-INITPOOLPTR);
 
-        {move current string up to make room for another}
-        D := (POOLPTR-STRSTART[STRPTR]);
-        WHILE POOLPTR>STRSTART[STRPTR] DO BEGIN
-          POOLPTR := POOLPTR-1;
-          STRPOOL[POOLPTR+L] := STRPOOL[POOLPTR];
-        END;
-
-        FOR K:=J TO J+L-1 DO append_char(BUFFER[K]);
-        HASH[P].RH := MAKESTRING;
-        POOLPTR := POOLPTR+D;
+        {The end of the string pool was uses for the recursive context of
+         |show_node_list|. Now it is in a separate variable and there are
+         no valid characters beyond the last string in the string pool.
+         Therefore nothing has to be moved up to make room for the new
+         identifier.}
+        HASH[P].RH := AddString(Ident);
 {$IFDEF STATS}
         CSCOUNT := CSCOUNT+1;
 {$ENDIF}
@@ -4271,7 +4258,7 @@ BEGIN
       break;
     END;
     P := HASH[P].LH;
-  END;
+  end;
   id_lookup := P;
 END;
 
@@ -4758,10 +4745,10 @@ BEGIN
 {$ENDIF}
         69:
           IF (BASEPTR>0) and (INPUTSTACK[BASEPTR].NAMEFIELD>=256) THEN BEGIN
-            print_nl_str('You want to edit file ');
-            SLOWPRINT(INPUTSTACK[BASEPTR].NAMEFIELD);
-            print_str(' at line ');
-            PRINTINT(LINE);
+            print_nl_str('You want to edit file '
+              + GetString(INPUTSTACK[BASEPTR].NAMEFIELD)
+              + ' at line '
+              + print_int(LINE));
             INTERACTION := 2;
             close_files_and_terminate;
           END;
@@ -5182,16 +5169,20 @@ VAR K: 0..BUFSIZE;
   CAT: 0..15;
   C,CC: ASCIICODE;
   D: 2..3;
+
+  Ident: shortstring;
+  i: sizeuint;
+
 BEGIN
-20:
+20: {restart}
   CURCS := 0;
   IF CURINPUT.STATEFIELD<>0 THEN BEGIN
     {343:}
-25:
+25: {switch}
     IF CURINPUT.LOCFIELD<=CURINPUT.LIMITFIELD THEN BEGIN
       CURCHR := BUFFER[CURINPUT.LOCFIELD];
       CURINPUT.LOCFIELD := CURINPUT.LOCFIELD+1;
-21:
+21: {reswitch}
       CURCMD := EQTB[3983+CURCHR].HH.RH;
       {344:}
       CASE CURINPUT.STATEFIELD+CURCMD OF {345:}
@@ -5201,7 +5192,7 @@ BEGIN
           {@<Scan a control sequence and set |state:=skip_blanks| or |mid_line|@>}
           IF CURINPUT.LOCFIELD>CURINPUT.LIMITFIELD THEN CURCS := null_cs{513} {|state| is irrelevant in this case}
           ELSE BEGIN
-26:
+26: {start_cs}
             K := CURINPUT.LOCFIELD;
             CURCHR := BUFFER[K];
             CAT := EQTB[3983+CURCHR].HH.RH;
@@ -5261,7 +5252,10 @@ BEGIN
 
               IF CAT<>11 THEN K := K-1;
               IF K>CURINPUT.LOCFIELD+1 THEN BEGIN
-                CURCS := id_lookup(no_new_control_sequence, CURINPUT.LOCFIELD, K-CURINPUT.LOCFIELD);
+                setlength(Ident, K-CURINPUT.LOCFIELD);
+                for i := CURINPUT.LOCFIELD to K-1 do
+                  Ident[i-CURINPUT.LOCFIELD+1] := chr(BUFFER[i]);
+                CURCS := id_lookup(no_new_control_sequence, Ident);
                 CURINPUT.LOCFIELD := K;
               END else begin
                 CURCS := 257+BUFFER[CURINPUT.LOCFIELD];
@@ -5516,20 +5510,24 @@ BEGIN
       ENDTOKENLIST;
       GOTO 20;
     END{:357};
-{342:}
+
+  {342:}
   IF CURCMD<=5 THEN
     IF CURCMD>=4 THEN
-      IF ALIGNSTATE=0 THEN{789:}
-        BEGIN
-          IF (SCANNERSTATU=4)OR(CURALIGN=0)THEN fatal_error('(interwoven alignment preambles are not allowed)');
-          CURCMD := MEM[CURALIGN+5].HH.LH;
-          MEM[CURALIGN+5].HH.LH := CURCHR;
-          IF CURCMD=63 THEN BEGINTOKENLI(29990,2)
-          ELSE BEGINTOKENLI(MEM[CURALIGN+2]
-                            .INT,2);
-          ALIGNSTATE := 1000000;
-          GOTO 20;
-        END{:789}{:342};
+      IF ALIGNSTATE=0 THEN
+  BEGIN
+    {789:}
+    IF (SCANNERSTATU=4) OR (CURALIGN=0) THEN
+      fatal_error('(interwoven alignment preambles are not allowed)');
+    CURCMD := MEM[CURALIGN+5].HH.LH;
+    MEM[CURALIGN+5].HH.LH := CURCHR;
+    IF CURCMD=63 THEN BEGINTOKENLI(29990,2)
+                 ELSE BEGINTOKENLI(MEM[CURALIGN+2].INT,2);
+    ALIGNSTATE := 1000000;
+    GOTO 20;
+    {:789}
+  END;
+  {:342};
 END;
 {:341}
 
@@ -5913,7 +5911,7 @@ begin
   ELSE IF (TERMOFFSET>0) OR (FILEOFFSET>0) THEN PRINTCHAR(32);
   PRINTCHAR(40);
   OPENPARENS := OPENPARENS+1;
-  slow_print_str(FileName);
+  print_str(PrintableStr(FileName));
   FLUSH(OUTPUT);
   CURINPUT.STATEFIELD := 33;
 
@@ -7410,6 +7408,7 @@ VAR T: HALFWORD;
   CVLBACKUP,RADIXBACKUP,COBACKUP: SMALLNUMBER;
   BACKUPBACKUP: HALFWORD;
   SAVESCANNERS: SMALLNUMBER;
+  Name: shortstring;
 BEGIN
   CVBACKUP := CURVAL;
   CVLBACKUP := CURVALLEVEL;
@@ -7436,69 +7435,65 @@ BEGIN
             BACKINPUT;
             {:368}
            END;
+      103: BEGIN
+            {369:}
+            SAVESCANNERS := SCANNERSTATU;
+            SCANNERSTATU := 0;
+            GETTOKEN;
+            SCANNERSTATU := SAVESCANNERS;
+            T := CURTOK;
+            BACKINPUT;
+            IF T>=4095 THEN BEGIN
+              P := GETAVAIL;
+              MEM[P].HH.LH := 6718;
+              MEM[P].HH.RH := CURINPUT.LOCFIELD;
+              CURINPUT.STARTFIELD := P;
+              CURINPUT.LOCFIELD := P;
+            END;
+            {:369}
+           END;
+      107: BEGIN
+            {@<Manufacture a control sequence name@>}
+            R := GETAVAIL;
+            P := R;
+            REPEAT
+              GETXTOKEN;
+              IF CURCS=0 THEN store_new_token(P, CURTOK);
+            UNTIL CURCS<>0;
+            IF CURCMD<>67 THEN BEGIN
+              {373:}
+              print_err('Missing ' + print_esc('endcsname') + ' inserted');
+              help2('The control sequence marked <to be read again> should',
+                    'not appear between \csname and \endcsname.');
+              BACKERROR;
+              {:373}
+            END;
 
-        103:{369:}
-             BEGIN
-               SAVESCANNERS := SCANNERSTATU;
-               SCANNERSTATU := 0;
-               GETTOKEN;
-               SCANNERSTATU := SAVESCANNERS;
-               T := CURTOK;
-               BACKINPUT;
-               IF T>=4095 THEN
-                 BEGIN
-                   P := GETAVAIL;
-                   MEM[P].HH.LH := 6718;
-                   MEM[P].HH.RH := CURINPUT.LOCFIELD;
-                   CURINPUT.STARTFIELD := P;
-                   CURINPUT.LOCFIELD := P;
-                 END;
-             END{:369};
-        107:{372:}
-             BEGIN
-               R := GETAVAIL;
-               P := R;
-               REPEAT
-                 GETXTOKEN;
-                 IF CURCS=0 THEN store_new_token(P, CURTOK);
-               UNTIL CURCS<>0;
-               IF CURCMD<>67 THEN BEGIN
-                   {373:}
-                   print_err('Missing ' + print_esc('endcsname') + ' inserted');
-                   help2('The control sequence marked <to be read again> should',
-                         'not appear between \csname and \endcsname.');
-                   BACKERROR;
-                   {:373}
-                 END;
-{374:}
-               J := FIRST;
-               P := MEM[R].HH.RH;
-               WHILE P<>0 DO
-                 BEGIN
-                   IF J>=MAXBUFSTACK THEN
-                     BEGIN
-                       MAXBUFSTACK := J+1;
-                       IF MAXBUFSTACK=BUFSIZE THEN overflow('buffer size', BUFSIZE);
-                     END;
-                   BUFFER[J] := MEM[P].HH.LH MOD 256;
-                   J := J+1;
-                   P := MEM[P].HH.RH;
-                 END;
-               IF J>FIRST+1 THEN
-                 BEGIN
-                   CURCS := id_lookup(false, FIRST, J-FIRST);
-                 END
-               ELSE
-                 IF J=FIRST THEN CURCS := 513
-               ELSE CURCS := 257+BUFFER[FIRST]{:374};
-               FLUSHLIST(R);
-               IF EQTB[CURCS].HH.B0=101 THEN
-                 BEGIN
-                   EQDEFINE(CURCS,0,256);
-                 END;
-               CURTOK := CURCS+4095;
-               BACKINPUT;
-             END{:372};
+            {@<Look up the characters of list |r| in the hash table, and set |cur_cs|@>}
+            setlength(Name, 255);
+            j := 0;
+            P := MEM[R].HH.RH;
+            WHILE P<>0 DO BEGIN
+              j := j + 1;
+              IF j>255 THEN overflow('control sequence name size', 255);
+              Name[j] := chr(MEM[P].HH.LH MOD 256);
+              P := MEM[P].HH.RH;
+            END;
+            if j=0      then CURCS := 513
+            else if j=1 then CURCS := 257+ord(Name[1])
+            else begin
+              setlength(Name, j);
+              CURCS := id_lookup(false, Name);
+            end;
+
+            FLUSHLIST(R);
+            IF EQTB[CURCS].HH.B0=101 THEN BEGIN
+              EQDEFINE(CURCS,0,256);
+            END;
+            CURTOK := CURCS+4095;
+            BACKINPUT;
+            {:372}
+           END;
       108: CONVTOKS;
       109: INSTHETOKS;
       105: CONDITIONAL;
@@ -7588,11 +7583,11 @@ BEGIN
   IF EQTB[5298].INT>0 THEN
     BEGIN
       BEGINDIAGNOS;
-      print_nl_str('Missing character: There is no ');
-      slow_print_char(C);
-      print_str(' in font ');
-      SLOWPRINT(FONTNAME[F]);
-      PRINTCHAR(33);
+      print_nl_str('Missing character: There is no '
+        + PrintableChar(C)
+        + ' in font '
+        + GetString(FONTNAME[F])
+        + '!');
       ENDDIAGNOSTI(FALSE);
     END;
 END;
@@ -9034,8 +9029,7 @@ BEGIN
           PRINTINT(LINE);
         END;
   PRINTLN;
-  FONTINSHORTD := 0;
-  SHORTDISPLAY(MEM[R+5].HH.RH);
+  short_display(0, MEM[R+5].HH.RH);
   PRINTLN;
   BEGINDIAGNOS;
   SHOWBOX(R);
@@ -11786,13 +11780,13 @@ BEGIN{831:}
             IF PRINTEDNODE<>CURP THEN{857:}
               BEGIN
                 print_nl_str('');
-                IF CURP=0 THEN SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH)
+                IF CURP=0 THEN short_display(0, MEM[PRINTEDNODE].HH.RH)
                 ELSE
                   BEGIN
                     SAVELINK := MEM[CURP].HH.RH;
                     MEM[CURP].HH.RH := 0;
                     print_nl_str('');
-                    SHORTDISPLAY(MEM[PRINTEDNODE].HH.RH);
+                    short_display(0, MEM[PRINTEDNODE].HH.RH);
                     MEM[CURP].HH.RH := SAVELINK;
                   END;
                 PRINTEDNODE := CURP;
@@ -13167,7 +13161,6 @@ BEGIN
       PASSIVE := 0;
       PRINTEDNODE := 29997;
       PASSNUMBER := 0;
-      FONTINSHORTD := 0{:864};
       CURP := MEM[29997].HH.RH;
       AUTOBREAKING := TRUE;
       PREVP := CURP;
@@ -17078,34 +17071,32 @@ BEGIN;
         BEGIN
           READ(INPUT,N);
           CASE M OF {1339:}
-            1: PRINTWORD(MEM[N]);
-            2: PRINTINT(MEM[N].HH.LH);
-            3: PRINTINT(MEM[N].HH.RH);
-            4: PRINTWORD(EQTB[N]);
-            5: PRINTWORD(FONTINFO[N]);
-            6: PRINTWORD(SAVESTACK[N]);
-            7: SHOWBOX(N);
-            8: BEGIN
-                 BREADTHMAX := 10000;
-                 DEPTHTHRESHO := POOLSIZE-POOLPTR-10;
-                 SHOWNODELIST(N);
-               END;
-            9: print_utf8str(show_token_list_simple(N,1000));
-            10: SLOWPRINT(N);
+            1:  PRINTWORD(MEM[N]);
+            2:  PRINTINT(MEM[N].HH.LH);
+            3:  PRINTINT(MEM[N].HH.RH);
+            4:  PRINTWORD(EQTB[N]);
+            5:  PRINTWORD(FONTINFO[N]);
+            6:  PRINTWORD(SAVESTACK[N]);
+            7:  SHOWBOX(N);
+            8:  BEGIN
+                  breadth_max := 10000;
+                  depth_threshold := 255;
+                  SHOWNODELIST(N);
+                END;
+            9:  print_utf8str(show_token_list_simple(N,1000));
+            10: begin
+                  if N<256 then slow_print_char(N)
+                  else if N>=STRPTR then print_str('???')
+                  else print_str(PrintableStr(GetString(N)));
+                end;
             11: CHECKMEM(N>0);
             12: SEARCHMEM(N);
-            13:
-                BEGIN
+            13: BEGIN
                   READ(INPUT,L);
                   print_str(print_cmd_chr(N,L));
                 END;
-            14: FOR K:=0 TO N DO
-                  slow_print_char(BUFFER[K]);
-            15:
-                BEGIN
-                  FONTINSHORTD := 0;
-                  SHORTDISPLAY(N);
-                END;
+            14: FOR K:=0 TO N DO slow_print_char(BUFFER[K]);
+            15: short_display(0, N);
             16: PANICKING := NOT PANICKING;
             ELSE PRINTCHAR(63)
           END;
@@ -19187,10 +19178,8 @@ BEGIN
   while not b_open_out(f, FileName) do begin
     prompt_file_name(FileName, 'format file name', '.fmt');
   end;
-  print_nl_str('Beginning to dump on file ');
-  print_str(FileName);
-  print_nl_str('');
-  slow_print_str(s);
+  print_nl_str('Beginning to dump on file ' + FileName);
+  print_nl_str(PrintableStr(s));
   {:1328}
 
   {1307: @<Dump constants for consistency check@>}
@@ -19206,14 +19195,7 @@ BEGIN
   {1309: @<Dump the string pool@>}
   DumpStringPool(f);
 
-  PRINTLN;
-  PRINTINT(STRPTR);
-  print_str(' strings of total length '); {" strings of total length "}
-  PRINTINT(POOLPTR);
-  {:1309}
-
   {1311: @<Dump the dynamic memory@>}
-
   SORTAVAIL;
   VARUSED := 0;
   SetUInt32LE(Buf, 0, LOMEMMAX);
@@ -19378,7 +19360,7 @@ BEGIN
     SetUInt32LE(Buf, 88, FONTFALSEBCH[K]);
     blockwrite(f, Buf, 92);
     print_nl_str('\font'); // FIXME: escape char hardcoded
-    PRINTESC(HASH[2624+K].RH);
+    print_esc_str(GetString(HASH[2624+K].RH));
     PRINTCHAR(61);
     print_str(GetString(FONTAREA[K]) + GetString(FONTNAME[K]));
     IF FONTSIZE[K]<>FONTDSIZE[K] THEN BEGIN
@@ -20722,12 +20704,8 @@ BEGIN
   IF S<256 THEN CURVAL := S+257
   ELSE
     BEGIN
-      K := STRSTART[S];
-      L := STRSTART[S+1]-K;
-      FOR J:=0 TO L-1 DO
-        BUFFER[J] := STRPOOL[K+J];
-      CURVAL := id_lookup(false, 0, L);
-      BEGIN
+      CURVAL := id_lookup(false, GetString(S));
+      BEGIN {remove string that was just added by |id_lookup| to avoid double entry}
         STRPTR := STRPTR-1;
         POOLPTR := STRSTART[STRPTR];
       END;
@@ -21114,7 +21092,11 @@ BEGIN
   PRIMITIVE(1287,59,3);
   PRIMITIVE(1288,59,4);
   PRIMITIVE(1289,59,5);{:1344};
-END;{$ENDIF}
+
+  INITSTRPTR := STRPTR;
+  INITPOOLPTR := POOLPTR;
+END;
+{$ENDIF}
 {:1336}
 
 
@@ -21344,8 +21326,6 @@ BEGIN
   InitInitex;
   GetStringsStarted;
   INITPRIM;
-  INITSTRPTR := STRPTR;
-  INITPOOLPTR := POOLPTR;
 
   writeln(output, ' (INITEX)');
 {$ELSE}
